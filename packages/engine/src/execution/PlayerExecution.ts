@@ -1,8 +1,10 @@
 import { GameMap, TileRef } from "@openfront/engine-api/game/GameMap";
 import {
   Cell,
+  Nukes,
   PlayerType,
   Structures,
+  TacticalMissiles,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { zInt, zPlayerRef } from "@openfront/engine-lib/snapshot/SnapshotType";
@@ -1448,12 +1450,7 @@ export class PlayerExecution implements Execution {
     this.player.removeGold(gold);
 
     this.player.units().forEach((u) => {
-      if (
-        u.type() !== UnitType.AtomBomb &&
-        u.type() !== UnitType.HydrogenBomb &&
-        u.type() !== UnitType.MIRVWarhead &&
-        u.type() !== UnitType.MIRV
-      ) {
+      if (!Nukes.has(u.type()) && !TacticalMissiles.has(u.type())) {
         u.delete();
       }
     });

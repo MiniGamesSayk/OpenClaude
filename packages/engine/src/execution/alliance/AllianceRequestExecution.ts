@@ -1,6 +1,8 @@
 import {
   MessageType,
+  Nukes,
   PlayerID,
+  TacticalMissiles,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { wouldNukeBreakAlliance } from "@openfront/engine-lib/execution/NukeAlliance";
@@ -13,6 +15,9 @@ import type {
   SnapshotReader,
   SnapshotWriter,
 } from "../../snapshot/SnapshotContext";
+
+/** Warheads an accepted alliance neutralizes while they fly at the new ally. */
+const IN_FLIGHT_WARHEADS = [...Nukes.types, ...TacticalMissiles.types];
 
 export class AllianceRequestExecution implements Execution {
   private req: AllianceRequest | null = null;
@@ -100,12 +105,7 @@ export class AllianceRequestExecution implements Execution {
     for (const launcher of players) {
       const other = launcher === this.requestor ? recipient : this.requestor;
 
-      for (const unit of launcher.units([
-        UnitType.AtomBomb,
-        UnitType.HydrogenBomb,
-        UnitType.MIRV,
-        UnitType.MIRVWarhead,
-      ])) {
+      for (const unit of launcher.units(IN_FLIGHT_WARHEADS)) {
         if (!unit.isActive() || unit.reachedTarget()) continue;
 
         const targetTile = unit.targetTile();

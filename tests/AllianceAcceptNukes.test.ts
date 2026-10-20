@@ -72,6 +72,32 @@ describe("Alliance acceptance immediately destroys in-flight nukes", () => {
     expect(game.units(UnitType.AtomBomb)).toHaveLength(0);
   });
 
+  test("accepting alliance also destroys in-flight tactical missiles", () => {
+    game.addExecution(
+      new NukeExecution(
+        UnitType.CruiseMissile,
+        player1,
+        game.ref(5, 5),
+        game.ref(0, 0),
+        -1,
+        5,
+      ),
+    );
+
+    game.executeNextTick(); // init
+    game.executeNextTick(); // spawn missile
+
+    expect(game.units(UnitType.CruiseMissile)).toHaveLength(1);
+
+    game.addExecution(new AllianceRequestExecution(player1, player2.id()));
+    game.executeNextTick(); // creates request
+    game.addExecution(new AllianceRequestExecution(player2, player1.id()));
+    game.executeNextTick(); // counter-request auto-accepts
+
+    expect(player2.isAlliedWith(player1)).toBe(true);
+    expect(game.units(UnitType.CruiseMissile)).toHaveLength(0);
+  });
+
   test("accepting alliance destroys only nukes between allied players", () => {
     player1.buildUnit(UnitType.MissileSilo, game.ref(0, 0), {});
 

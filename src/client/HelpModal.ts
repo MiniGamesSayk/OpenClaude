@@ -14,6 +14,60 @@ import { Platform } from "./Platform";
 import { TroubleshootingModal } from "./TroubleshootingModal";
 import { UserSettings } from "./UserSettings";
 
+/** Help rows for the tactical weapons and the newer buildings. */
+const NEW_UNIT_HELP_ROWS: { name: string; icon: string; desc: string }[] = [
+  {
+    name: "unit_type.hospital",
+    icon: "images/HospitalIconWhite.svg",
+    desc: "help_modal.build_hospital_desc",
+  },
+  {
+    name: "unit_type.bank",
+    icon: "images/BankIconWhite.svg",
+    desc: "help_modal.build_bank_desc",
+  },
+  {
+    name: "unit_type.bunker",
+    icon: "images/BunkerIconWhite.svg",
+    desc: "help_modal.build_bunker_desc",
+  },
+  {
+    name: "unit_type.coastal_battery",
+    icon: "images/CoastalBatteryIconWhite.svg",
+    desc: "help_modal.build_coastal_battery_desc",
+  },
+  {
+    name: "unit_type.airbase",
+    icon: "images/AirbaseIconWhite.svg",
+    desc: "help_modal.build_airbase_desc",
+  },
+  {
+    name: "unit_type.paratroopers",
+    icon: "images/ParatroopersIconWhite.svg",
+    desc: "help_modal.build_paratroopers_desc",
+  },
+  {
+    name: "unit_type.cruise_missile",
+    icon: "images/CruiseMissileIconWhite.svg",
+    desc: "help_modal.build_cruise_missile_desc",
+  },
+  {
+    name: "unit_type.cluster_bomb",
+    icon: "images/ClusterBombIconWhite.svg",
+    desc: "help_modal.build_cluster_bomb_desc",
+  },
+  {
+    name: "unit_type.neutron_bomb",
+    icon: "images/NeutronBombIconWhite.svg",
+    desc: "help_modal.build_neutron_bomb_desc",
+  },
+  {
+    name: "unit_type.emp_bomb",
+    icon: "images/EmpBombIconWhite.svg",
+    desc: "help_modal.build_emp_bomb_desc",
+  },
+];
+
 @customElement("help-modal")
 export class HelpModal extends BaseModal {
   protected routerName = "help";
@@ -1167,6 +1221,30 @@ export class HelpModal extends BaseModal {
                       ${translateText("help_modal.build_mirv_desc")}
                     </td>
                   </tr>
+                  ${NEW_UNIT_HELP_ROWS.map(
+                    (row) => html`
+                      <tr
+                        class="bg-white/5 hover:bg-white/10 transition-colors"
+                      >
+                        <td
+                          class="py-3 ps-4 border-b border-white/5 font-medium"
+                        >
+                          ${translateText(row.name)}
+                        </td>
+                        <td class="py-3 border-b border-white/5">
+                          <img
+                            src=${assetUrl(row.icon)}
+                            class="w-8 h-8 scale-75 origin-left"
+                          />
+                        </td>
+                        <td
+                          class="py-3 border-b border-white/5 text-white/60 text-sm"
+                        >
+                          ${translateText(row.desc)}
+                        </td>
+                      </tr>
+                    `,
+                  )}
                 </tbody>
               </table>
             </div>

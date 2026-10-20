@@ -105,11 +105,10 @@ export class NukeExecution implements Execution {
     const inner2 = magnitude.inner * magnitude.inner;
     const outer2 = magnitude.outer * magnitude.outer;
 
-    const centers = this.blastCenters();
-    if (centers.length > 1 || centers[0].tile !== this.dst) {
+    if (this.profile().submunitions > 0) {
       // Submunitions: the union of several small blasts.
       const result = new Set<TileRef>();
-      for (const c of centers) {
+      for (const c of this.blastCenters()) {
         const ci2 = c.magnitude.inner * c.magnitude.inner;
         const co2 = c.magnitude.outer * c.magnitude.outer;
         for (const t of this.mg.bfs(c.tile, (_, n: TileRef) => {
