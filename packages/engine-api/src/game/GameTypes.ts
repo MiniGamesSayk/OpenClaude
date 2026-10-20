@@ -172,7 +172,8 @@ export interface PublicGameModifiers {
 
 // Largest bulk-purchase amount an intent may carry (mirrored by the intent
 // schemas' max). Also the length of BuildableUnit.upgradeCosts.
-export const MAX_UPGRADE_AMOUNT = 50;
+export const MAX_UPGRADE_AMOUNT = 10_000;
+export const MAX_BUILD_AMOUNT = 10_000;
 
 export interface UnitInfo {
   maxHealth?: number;
@@ -208,9 +209,10 @@ export enum UnitType {
   Train = "Train",
   Factory = "Factory",
   // New units are appended (never inserted): zbin encodes enums by position.
+  TacticalMissile = "Tactical Missile",
+  EMPBomb = "EMP Bomb",
   CruiseMissile = "Cruise Missile",
   NeutronBomb = "Neutron Bomb",
-  EMPBomb = "EMP Bomb",
   ClusterBomb = "Cluster Bomb",
   Paratroopers = "Paratroopers",
   Hospital = "Hospital",
@@ -231,46 +233,58 @@ export const Nukes = unitTypeGroup([
   UnitType.HydrogenBomb,
   UnitType.MIRVWarhead,
   UnitType.MIRV,
+  UnitType.TacticalMissile,
+  UnitType.EMPBomb,
 ] as const);
 
 /**
- * Silo-launched warheads that are not nuclear: they fly the same ballistic
- * path as an atom bomb (NukeExecution) but each has its own effect on impact
- * (see Config.warheadProfile).
+ * Silo-launched warheads with a non-nuclear effect on impact (see
+ * Config.warheadProfile): they fly the same arc as an atom bomb, but keep the
+ * land, spare the buildings or split over the target.
  */
-export const TacticalMissiles = unitTypeGroup([
+export const SpecialWarheads = unitTypeGroup([
   UnitType.CruiseMissile,
   UnitType.NeutronBomb,
-  UnitType.EMPBomb,
   UnitType.ClusterBomb,
 ] as const);
 
-/**
- * Silo-launched warheads that fly a single arc to the clicked tile (the arc's
- * direction is the player's rocketDirectionUp choice). Not the MIRV, which
- * splits.
- */
-export const BallisticWarheads = unitTypeGroup([
-  UnitType.AtomBomb,
-  UnitType.HydrogenBomb,
-  ...TacticalMissiles.types,
-] as const);
+export type SpecialWarheadType = (typeof SpecialWarheads.types)[number];
 
-/** Everything a SAM launcher can shoot down. */
+/** Everything a SAM launcher can shoot down (EMP bombs fly too high). */
 export const SamTargets = unitTypeGroup([
   UnitType.AtomBomb,
   UnitType.HydrogenBomb,
   UnitType.MIRVWarhead,
-  ...TacticalMissiles.types,
+  UnitType.TacticalMissile,
+  ...SpecialWarheads.types,
 ] as const);
 
 export const BuildableAttacks = unitTypeGroup([
   UnitType.AtomBomb,
   UnitType.HydrogenBomb,
   UnitType.MIRV,
+  UnitType.TacticalMissile,
+  UnitType.EMPBomb,
   UnitType.Warship,
-  ...TacticalMissiles.types,
+  ...SpecialWarheads.types,
   UnitType.Paratroopers,
+] as const);
+
+// Bombs a missile silo fires along a parabola: they take the player's launch
+// direction and get a trajectory preview while placing them.
+export const SiloBombs = unitTypeGroup([
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.TacticalMissile,
+  UnitType.EMPBomb,
+  ...SpecialWarheads.types,
+] as const);
+
+// Silo bombs a player can buy several of in one order (x2, x5, max).
+export const StackableBombs = unitTypeGroup([
+  UnitType.AtomBomb,
+  UnitType.TacticalMissile,
+  UnitType.CruiseMissile,
 ] as const);
 
 export const Structures = unitTypeGroup([
@@ -294,8 +308,6 @@ export const LauncherStructures = unitTypeGroup([
   UnitType.CoastalBattery,
   UnitType.Airbase,
 ] as const);
-
-export type TacticalMissileType = (typeof TacticalMissiles.types)[number];
 
 export const BuildMenus = unitTypeGroup([
   ...Structures.types,
@@ -493,6 +505,7 @@ export interface PlayerInteraction {
   canTarget: boolean;
   canDonateGold: boolean;
   canDonateTroops: boolean;
+  canBuyTerritory: boolean;
   canEmbargo: boolean;
   allianceInfo?: AllianceInfo;
 }

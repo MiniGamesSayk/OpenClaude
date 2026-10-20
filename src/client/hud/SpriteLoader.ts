@@ -29,6 +29,9 @@ const SPRITE_CONFIG: Partial<Record<UnitType | TrainTypeSprite, string>> = {
   [UnitType.SAMMissile]: samMissileSprite,
   [UnitType.AtomBomb]: atomBombSprite,
   [UnitType.HydrogenBomb]: hydrogenBombSprite,
+  // No sprites of their own: same stand-ins as the map's unit atlas.
+  [UnitType.TacticalMissile]: atomBombSprite,
+  [UnitType.EMPBomb]: hydrogenBombSprite,
   [UnitType.TradeShip]: tradeShipSprite,
   [UnitType.MIRV]: mirvSprite,
   [TrainTypeSprite.Engine]: trainEngineSprite,

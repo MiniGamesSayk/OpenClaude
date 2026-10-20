@@ -7,6 +7,7 @@ import {
 import { GameConfig } from "@openfront/engine-api/Schemas";
 import { html, TemplateResult } from "lit";
 import { renderDuration, translateText } from "../../client/Utils";
+import { activeMutators, MUTATOR_LABEL_KEYS } from "./Mutators";
 
 // The homepage lobby card's modifier pill, one size down: a lobby can run a
 // dozen settings and they all have to fit beside the preview.
@@ -24,6 +25,8 @@ const DISABLED_UNIT_KEYS: Record<string, string> = {
   "Atom Bomb": "unit_type.atom_bomb",
   "Hydrogen Bomb": "unit_type.hydrogen_bomb",
   MIRV: "unit_type.mirv",
+  "Tactical Missile": "unit_type.tactical_missile",
+  "EMP Bomb": "unit_type.emp_bomb",
   "Trade Ship": "player_stats_table.unit.trade",
   Transport: "player_stats_table.unit.trans",
   "MIRV Warhead": "player_stats_table.unit.mirvw",
@@ -36,7 +39,6 @@ const DISABLED_UNIT_KEYS: Record<string, string> = {
   "Cruise Missile": "unit_type.cruise_missile",
   "Cluster Bomb": "unit_type.cluster_bomb",
   "Neutron Bomb": "unit_type.neutron_bomb",
-  "EMP Bomb": "unit_type.emp_bomb",
 };
 
 const millions = (gold: number) =>
@@ -143,6 +145,11 @@ export function notableLobbySettings(
     items.push({
       label: translateText("overtime.title"),
       value: renderDuration((c.overtime.startMinutes ?? 30) * 60),
+    });
+  for (const mutator of activeMutators(c.mutators))
+    items.push({
+      label: translateText(MUTATOR_LABEL_KEYS[mutator]),
+      value: enabled,
     });
   if (c.anonymizeNames)
     items.push({

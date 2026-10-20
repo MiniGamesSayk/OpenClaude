@@ -68,6 +68,7 @@ function renderTextCardButton(
   active: boolean,
   onClick: () => void,
   cardExtraClass: string,
+  tooltip = "",
 ): TemplateResult {
   return html`
     <button
@@ -75,6 +76,7 @@ function renderTextCardButton(
         active,
         cardExtraClass,
       )} flex items-center justify-center"
+      title=${tooltip}
       @click=${onClick}
     >
       <span class="${CARD_LABEL_CLASS} ${stateTextClass(active)}">
@@ -118,6 +120,11 @@ const unitOptions: { type: UnitType; translationKey: string }[] = [
   { type: UnitType.AtomBomb, translationKey: "unit_type.atom_bomb" },
   { type: UnitType.HydrogenBomb, translationKey: "unit_type.hydrogen_bomb" },
   { type: UnitType.MIRV, translationKey: "unit_type.mirv" },
+  {
+    type: UnitType.TacticalMissile,
+    translationKey: "unit_type.tactical_missile",
+  },
+  { type: UnitType.EMPBomb, translationKey: "unit_type.emp_bomb" },
   { type: UnitType.Factory, translationKey: "unit_type.factory" },
   { type: UnitType.Hospital, translationKey: "unit_type.hospital" },
   { type: UnitType.Bank, translationKey: "unit_type.bank" },
@@ -134,7 +141,6 @@ const unitOptions: { type: UnitType; translationKey: string }[] = [
   },
   { type: UnitType.ClusterBomb, translationKey: "unit_type.cluster_bomb" },
   { type: UnitType.NeutronBomb, translationKey: "unit_type.neutron_bomb" },
-  { type: UnitType.EMPBomb, translationKey: "unit_type.emp_bomb" },
 ];
 
 const MAP_ICON = svg`<path
@@ -204,6 +210,8 @@ export interface ToggleOptionConfig {
   hidden?: boolean;
   // When set, this toggle's card expands to a pace dropdown while it is checked.
   doomsdayClockSpeed?: DoomsdayClockSpeed;
+  // Translation key of a hover tooltip explaining the option.
+  descKey?: string;
 }
 
 export interface GameConfigSettingsData {
@@ -347,6 +355,7 @@ export class GameConfigSettings extends LitElement {
       toggle.checked,
       () => this.handleOptionToggle(toggle),
       "p-4 text-center",
+      toggle.descKey !== undefined ? translateText(toggle.descKey) : "",
     );
   }
 

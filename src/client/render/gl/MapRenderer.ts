@@ -251,6 +251,9 @@ export class MapRenderer {
   applyDeadUnits(deadUnits: DeadUnitFx[]): void {
     this.renderer?.applyDeadUnits(deadUnits);
   }
+  setHillZone(tileX: number, tileY: number, radius: number): void {
+    this.renderer?.setHillZone(tileX, tileY, radius);
+  }
   applyConquestEvents(events: ConquestFx[]): void {
     this.renderer?.applyConquestEvents(events);
   }

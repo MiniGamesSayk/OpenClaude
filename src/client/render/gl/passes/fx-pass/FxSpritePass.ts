@@ -10,6 +10,7 @@ import type { Config } from "@openfront/engine-lib/configuration/Config";
 import type { ConquestFx, DeadUnitFx, RendererConfig } from "../../../types";
 import {
   STRUCTURE_TYPES,
+  UT_EMP_BOMB,
   UT_SHELL,
   UT_TRAIN,
   UT_WARSHIP,
@@ -355,7 +356,10 @@ export class FxSpritePass {
     const nukeRadius = nukeExplosionRadius(this.settings.fx, typeName);
     if (nukeRadius !== undefined) {
       if (unit.reachedTarget) {
-        this.spawnNukeSprites(x, y, nukeRadius, now, unit.pos);
+        // An EMP destroys nothing: just its shockwave ring, no debris.
+        if (typeName !== UT_EMP_BOMB) {
+          this.spawnNukeSprites(x, y, nukeRadius, now, unit.pos);
+        }
       } else {
         this.pushFx(x, y, FX_SAM_EXPLOSION, now);
       }

@@ -81,6 +81,8 @@ export const UPDATE_TYPE_ROUTING: Record<
   SpawnPhaseEnd: "events",
   GamePaused: "misc",
   DonateEvent: "misc",
+  KingOfTheHill: "misc",
+  MeteorImpact: "misc",
 };
 
 /**

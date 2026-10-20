@@ -19,6 +19,7 @@ function fakeGame(): GameView {
     config: () => config,
     inSpawnPhase: () => false,
     elapsedGameSeconds: () => 0,
+    kingOfTheHill: () => null,
     myPlayer: () => undefined,
     gameID: () => "test-game",
   } as unknown as GameView;

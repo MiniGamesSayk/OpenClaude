@@ -11,6 +11,7 @@ import { customElement, state } from "lit/decorators.js";
 import { keyed } from "lit/directives/keyed.js";
 import { Controller } from "../../Controller";
 import { AttackRatioEvent } from "../../InputHandler";
+import { BuyTroopsIntentEvent } from "../../Transport";
 import { UIState } from "../../UIState";
 import { USER_SETTINGS_CHANGED_EVENT, UserSettings } from "../../UserSettings";
 import { getGamesPlayed, translateText } from "../../Utils";
@@ -199,6 +200,29 @@ export class ControlPanel extends LitElement implements Controller {
       this._goldGainTimeoutId = null;
       this.requestUpdate();
     }, 2000);
+  }
+
+  private buyMaxTroops(): void {
+    this.eventBus.emit(new BuyTroopsIntentEvent());
+  }
+
+  private renderBuyTroopsButton() {
+    return html`
+      <button
+        class="flex items-center gap-1 shrink-0 rounded-md border border-green-400 px-1.5 py-0.5 text-xs font-bold text-green-300 hover:bg-green-400/20 active:bg-green-400/30"
+        @click=${() => this.buyMaxTroops()}
+        title=${translateText("control_panel.buy_troops")}
+      >
+        <img
+          src=${soldierIcon}
+          width="13"
+          height="13"
+          alt=""
+          aria-hidden="true"
+        />
+        <span>${translateText("control_panel.buy_troops")}</span>
+      </button>
+    `;
   }
 
   private trackOutgoingAttacks(player: PlayerView) {
@@ -553,6 +577,7 @@ export class ControlPanel extends LitElement implements Controller {
           <img src=${goldCoinIcon} width="13" height="13" class="shrink-0" />
           <span class="tabular-nums">${renderNumber(this._gold)}</span>
         </div>
+        ${this.renderBuyTroopsButton()}
       </div>
       <!-- Row 2: attack ratio | slider -->
       <div
@@ -630,6 +655,7 @@ export class ControlPanel extends LitElement implements Controller {
           <img src=${goldCoinIcon} width="13" height="13" />
           <span class="px-0.5">${renderNumber(this._gold)}</span>
         </div>
+        ${this.renderBuyTroopsButton()}
         <!-- Troop bar -->
         <div
           class="w-[40%] shrink-0 flex items-center ${this.tutorialHighlightClass(

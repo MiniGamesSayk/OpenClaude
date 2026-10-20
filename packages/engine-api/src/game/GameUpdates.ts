@@ -115,6 +115,8 @@ export enum GameUpdateType {
   SpawnPhaseEnd,
   GamePaused,
   DonateEvent,
+  KingOfTheHill,
+  MeteorImpact,
 }
 
 export type GameUpdate =
@@ -140,7 +142,9 @@ export type GameUpdate =
   | EmbargoUpdate
   | SpawnPhaseEndUpdate
   | GamePausedUpdate
-  | DonateEventUpdate;
+  | DonateEventUpdate
+  | KingOfTheHillUpdate
+  | MeteorImpactUpdate;
 
 export interface BonusEventUpdate {
   type: GameUpdateType.BonusEvent;
@@ -388,4 +392,33 @@ export interface SpawnPhaseEndUpdate {
 export interface GamePausedUpdate {
   type: GameUpdateType.GamePaused;
   paused: boolean;
+}
+
+// One side's accumulated hold time on the hill. `side` is a PlayerID in FFA
+// and a Team in team games.
+export interface HillScore {
+  side: string;
+  seconds: number;
+}
+
+// King of the Hill mutator state, sent once per second while the mode runs.
+export interface KingOfTheHillUpdate {
+  type: GameUpdateType.KingOfTheHill;
+  centerTile: TileRef;
+  radius: number;
+  // Seconds until the hill can be captured; 0 once it is open.
+  opensInSeconds: number;
+  // The side currently controlling the hill, or null when nobody does.
+  holder: string | null;
+  isTeamGame: boolean;
+  secondsToWin: number;
+  // Top sides by hold time, highest first.
+  leaders: HillScore[];
+}
+
+// A meteor from the Meteor Shower mutator hit the map.
+export interface MeteorImpactUpdate {
+  type: GameUpdateType.MeteorImpact;
+  tile: TileRef;
+  radius: number;
 }

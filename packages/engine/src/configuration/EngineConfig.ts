@@ -10,7 +10,10 @@ import {
 } from "@openfront/engine-api/game/GameTypes";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
 import { TeamCountConfig } from "@openfront/engine-api/Schemas";
-import { Config } from "@openfront/engine-lib/configuration/Config";
+import {
+  Config,
+  MUTATOR_DEFAULTS,
+} from "@openfront/engine-lib/configuration/Config";
 import { exp, log, pow2 } from "@openfront/engine-lib/DetMath";
 import {
   assertNever,
@@ -352,6 +355,10 @@ export class EngineConfig extends Config {
         return this.costWrapper(() => 750_000, UnitType.AtomBomb);
       case UnitType.HydrogenBomb:
         return this.costWrapper(() => 5_000_000, UnitType.HydrogenBomb);
+      case UnitType.TacticalMissile:
+        return this.costWrapper(() => 200_000, UnitType.TacticalMissile);
+      case UnitType.EMPBomb:
+        return this.costWrapper(() => 1_000_000, UnitType.EMPBomb);
       case UnitType.MIRV:
         return (game: Game, player: Player) => {
           if (
@@ -389,8 +396,6 @@ export class EngineConfig extends Config {
         return this.costWrapper(() => 250_000, UnitType.CruiseMissile);
       case UnitType.NeutronBomb:
         return this.costWrapper(() => 2_500_000, UnitType.NeutronBomb);
-      case UnitType.EMPBomb:
-        return this.costWrapper(() => 1_500_000, UnitType.EMPBomb);
       case UnitType.ClusterBomb:
         return this.costWrapper(() => 1_200_000, UnitType.ClusterBomb);
       case UnitType.Paratroopers:
@@ -440,10 +445,11 @@ export class EngineConfig extends Config {
   private goldMultiplierFor(player: PlayerLike): number {
     const base = this.goldMultiplier();
     const hc = this._gameConfig.hostCheats;
-    if (hc?.goldMultiplier && player.isLobbyCreator()) {
-      return hc.goldMultiplier;
-    }
-    return base;
+    const multiplier =
+      hc?.goldMultiplier && player.isLobbyCreator() ? hc.goldMultiplier : base;
+    return this.isBlitz()
+      ? multiplier * MUTATOR_DEFAULTS.blitzIncomeMultiplier
+      : multiplier;
   }
 
   public conquerGoldAmount(captured: PlayerLike): Gold {
@@ -714,7 +720,6 @@ export class EngineConfig extends Config {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
       case UnitType.NeutronBomb:
-      case UnitType.EMPBomb:
       case UnitType.ClusterBomb:
         return 10;
       case UnitType.CruiseMissile:
@@ -723,6 +728,10 @@ export class EngineConfig extends Config {
         return 15;
       case UnitType.MIRVWarhead:
         return 22;
+      case UnitType.TacticalMissile:
+        return 14;
+      case UnitType.EMPBomb:
+        return 12;
     }
     throw new Error(`Unknown nuke type: ${unitType}`);
   }

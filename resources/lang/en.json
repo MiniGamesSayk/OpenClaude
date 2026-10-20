@@ -199,7 +199,7 @@
       "coastal_battery": "Shells enemy warships and invasion boats near your coast",
       "cruise_missile": "Precise strike: destroys buildings and ships, keeps the land",
       "defense_post": "Increases defenses of nearby borders",
-      "emp_bomb": "Jams enemy SAMs, silos and launchers in the area",
+      "emp_bomb": "Knocks out enemy SAMs, silos, airbases and coastal batteries in a wide area and damages warships, without destroying land. SAMs can't intercept it",
       "factory": "Creates railroads and spawns trains",
       "hospital": "Speeds up troop regeneration",
       "hydrogen_bomb": "Large explosion",
@@ -209,8 +209,10 @@
       "paratroopers": "Airdrop of troops that attacks from the landing zone",
       "port": "Sends trade ships to generate gold",
       "sam_launcher": "Defends against incoming nukes",
+      "tactical_missile": "Cheap precision strike with a tiny blast radius, ideal for sniping a SAM or a silo",
       "warship": "Captures trade ships, destroys ships and boats"
     },
+    "max": "MAX",
     "not_enough_money": "Not enough money",
     "upgrade_amount": "x{amount}",
     "warship_shift_hint": "Hold Shift and drag to select multiple warships at once"
@@ -633,6 +635,7 @@
     "allied_afk_neighbor_info": "You can attack disconnected players even if you are allied with them.",
     "army_limit_warning": "You're near your army limit! Consider sending troops to teammates.",
     "attack_ratio": "{percent}%\n({troops})",
+    "buy_troops": "MAX troops",
     "low_troops_warning": "You are very low on troops - You should always keep some troops for defense.",
     "teammate_afk_neighbor_info": "You can attack disconnected teammates.",
     "traitor_neighbor_info": "You can betray traitors without becoming a traitor yourself."
@@ -893,11 +896,15 @@
     "cruise_missile_inbound": "{name} - cruise missile inbound",
     "duration_second": "1 second",
     "duration_seconds_plural": "{seconds} seconds",
+    "emp_bomb_detonated": "{name} - EMP pulse knocked out your launchers",
     "emp_bomb_inbound": "{name} - EMP bomb inbound",
     "focus": "Focus",
+    "hill_captured": "👑 {name} has taken control of the hill!",
+    "hill_open": "👑 The hill is open! Hold the golden zone to win.",
     "hydrogen_bomb_detonated": "{name} - hydrogen bomb detonated",
     "hydrogen_bomb_inbound": "{name} - hydrogen bomb inbound",
     "ignore": "Ignore",
+    "meteor_impact": "☄️ A meteor crashed into your territory ({tiles} tiles lost)",
     "mirv_inbound": "⚠️⚠️⚠️ {name} - MIRV INBOUND ⚠️⚠️⚠️",
     "missile_intercepted": "SAM intercepted {unit}",
     "naval_invasion_inbound": "Naval invasion incoming from {name} ({troops})",
@@ -916,7 +923,10 @@
     "sent_emoji_all": "Sent everyone: {emoji}",
     "sent_gold_to_player": "Sent {gold} gold to {name}",
     "sent_troops_to_player": "Sent {troops} troops to {name}",
+    "tactical_missile_detonated": "{name} - tactical missile detonated",
+    "tactical_missile_inbound": "{name} - tactical missile inbound",
     "trade_ship_captured": "Your trade ship was captured by {name}",
+    "underdog_bonus": "Underdog bonus: you earn +{percent}% troops and gold to fight back!",
     "unit_destroyed": "Your {unit} was destroyed",
     "unit_voluntarily_deleted": "Unit voluntarily deleted",
     "wants_to_renew_alliance": "{name} wants to renew your alliance"
@@ -1009,6 +1019,8 @@
     "teams": "Teams"
   },
   "game_settings": {
+    "blitz": "Blitzkrieg",
+    "blitz_desc": "Double troop and gold income, half the build and missile reload times",
     "bots": "Tribes: ",
     "compact_map": "Compact Map",
     "custom_alliances": "Alliance Duration",
@@ -1018,7 +1030,11 @@
     "infinite_gold": "Infinite gold",
     "infinite_troops": "Infinite troops",
     "instant_build": "Instant build",
+    "king_of_the_hill": "King of the Hill",
+    "king_of_the_hill_desc": "A golden hill opens in the middle of the map after 3 minutes: the first side to hold it for 5 minutes in total wins",
     "max_timer": "Game length (minutes)",
+    "meteor_shower": "Meteor Shower",
+    "meteor_shower_desc": "Meteors crash on random land every 15-30 seconds, destroying territory, troops and buildings",
     "mins_placeholder": "Mins",
     "nations": "Nations: ",
     "options": "Options",
@@ -1027,6 +1043,8 @@
     "start": "Start Game",
     "starting": "Starting…",
     "starting_gold": "Starting Gold (Millions)",
+    "underdog": "Underdog Comeback",
+    "underdog_desc": "Sides holding less than a quarter of the leader's land earn +50% troops and gold",
     "water_nukes": "Water nukes"
   },
   "game_starting_modal": {
@@ -1205,7 +1223,7 @@
     "build_cruise_missile_desc": "Cheap and fast precision strike. Destroys the buildings and ships in a small radius but does not take territory or leave fallout. Spawns from the nearest Missile Silo.",
     "build_defense_desc": "Increases defenses around nearby borders, which show a checkered pattern. Attacks from enemies are slower and have more casualties.",
     "build_desc": "Description",
-    "build_emp_bomb_desc": "Does no damage, but jams the enemy SAMs, Missile Silos, Airbases and Coastal Batteries it hits: they stay reloading for longer. Use it to open a path for your nukes.",
+    "build_emp_bomb_desc": "Electromagnetic pulse that destroys no territory, but knocks out every enemy SAM Launcher, Missile Silo, Airbase and Coastal Battery in a wide radius for about 30 seconds and damages enemy warships. It flies too high for SAMs to intercept: launch it just before your nukes.",
     "build_factory_desc": "Automatically builds railroads to nearby cities, ports and other factories, and can also link up with friendly neighbors. Trains spawn regularly and give you a fixed amount of gold for each building they visit along the route, with extra gold for visiting your neighbors' buildings.",
     "build_hospital_desc": "Speeds up your troop regeneration, more with each level (up to +60%).",
     "build_hydrogen_desc": "Large explosive bomb. Spawns from the nearest Missile Silo and lands in the area you first clicked to build it.",
@@ -1219,6 +1237,7 @@
     "build_port_desc": "Can only be built near water. Allows building Warships. Automatically sends trade ships between ports of your country and other countries (except when trade is stopped), giving gold to both sides. Trade with a player stops automatically when you attack or are attacked by a player. It resumes after 5 minutes or if you become allies. You can manually toggle trading with \"Stop trading\" or \"Start trading\".",
     "build_sam_desc": "Can intercept enemy missiles in its 100 pixel range. The SAM has a 7.5 second cooldown.",
     "build_silo_desc": "Allows launching missiles.",
+    "build_tactical_missile_desc": "Cheap, fast missile with a very small blast. Great for taking out a single SAM Launcher or Missile Silo. Spawns from the nearest Missile Silo; SAMs can still shoot it down.",
     "build_warship_desc": "Patrols in an area, capturing enemy trade ships and destroying their Boats (transport ships) and Warships. Spawns from the nearest Port and patrols the area you first clicked to build it. You can control Warships by attack-clicking on them (see action Attack under Hotkeys) and then attack-clicking the new area you want them to move to. Warships can level up (max level 3) by capturing enemy trade ships and destroying their transport boats and Warships. Leveling up increases the Warship's damage and health.",
     "drag": "drag",
     "exit_confirmation": "Are you sure you want to exit the game?",
@@ -1384,6 +1403,13 @@
     "host_left": "The host has left the lobby.",
     "lobby_creator": "Kicked by lobby creator",
     "match_cancelled": "Match cancelled: a player failed to connect. You have not lost any ELO."
+  },
+  "king_of_the_hill": {
+    "holder": "Controlled by: {name}",
+    "nobody": "nobody",
+    "opens_in": "The hill opens in {time}",
+    "title": "King of the Hill",
+    "to_win": "Hold {time} to win"
   },
   "lang": {
     "en": "English",
@@ -2127,6 +2153,7 @@
     "visit_store": "Visit store"
   },
   "radial_menu": {
+    "buy_territory": "Buy territory",
     "delete_unit_description": "Click to delete the nearest unit",
     "delete_unit_title": "Delete Unit",
     "upgrade_x": "Upgrade x{amount}"
@@ -2543,6 +2570,7 @@
     "paratroopers": "Paratroopers",
     "port": "Port",
     "sam_launcher": "SAM Launcher",
+    "tactical_missile": "Tactical Missile",
     "warship": "Warship"
   },
   "update_available": {
@@ -2600,6 +2628,8 @@
     "build_controls": "Build Controls",
     "build_defense_post": "Build Defense Post",
     "build_defense_post_desc": "Build a Defense Post under your cursor.",
+    "build_emp_bomb": "Build EMP Bomb",
+    "build_emp_bomb_desc": "Build an EMP Bomb under your cursor.",
     "build_factory": "Build Factory",
     "build_factory_desc": "Build a Factory under your cursor.",
     "build_hydrogen_bomb": "Build Hydrogen Bomb",
@@ -2614,6 +2644,8 @@
     "build_port_desc": "Build a Port under your cursor.",
     "build_sam_launcher": "Build SAM Launcher",
     "build_sam_launcher_desc": "Build a SAM Launcher under your cursor.",
+    "build_tactical_missile": "Build Tactical Missile",
+    "build_tactical_missile_desc": "Build a Tactical Missile under your cursor.",
     "build_warship": "Build Warship",
     "build_warship_desc": "Build a Warship under your cursor.",
     "camera_movement": "Camera Movement",

@@ -433,6 +433,16 @@ export function buildTree(s: RenderSettings, d: RenderSettings): DebugNode[] {
       slider(s.fx, "nukeRadiusAtom", d.fx, 10, 400, 5, "Atom Bomb Radius"),
       slider(s.fx, "nukeRadiusHydro", d.fx, 10, 400, 5, "Hydrogen Bomb Radius"),
       slider(s.fx, "nukeRadiusMirv", d.fx, 10, 400, 5, "MIRV Warhead Radius"),
+      slider(
+        s.fx,
+        "nukeRadiusTactical",
+        d.fx,
+        10,
+        400,
+        5,
+        "Tactical Missile Radius",
+      ),
+      slider(s.fx, "nukeRadiusEmp", d.fx, 10, 400, 5, "EMP Bomb Radius"),
       slider(s.fx, "debrisDensity", d.fx, 0, 4, 0.1, "Debris Density ×"),
     ]),
 

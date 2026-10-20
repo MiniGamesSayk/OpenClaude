@@ -218,7 +218,9 @@ export class UnitView implements UnitLike {
       .launcherCooldown(this.state.unitType as UnitType);
 
     for (const cooldown of this.state.missileTimerQueue) {
-      const cooldownProgress = this.gameView.ticks() - cooldown;
+      // An EMP queues reloads that start in the future: count those as 0%
+      // progress rather than negative.
+      const cooldownProgress = Math.max(0, this.gameView.ticks() - cooldown);
       const cooldownRatio = cooldownProgress / cooldownDuration;
       const adjusted = cooldownRatio / maxMissiles;
       readiness += adjusted;

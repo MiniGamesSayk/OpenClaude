@@ -14,7 +14,7 @@ import { Platform } from "./Platform";
 import { TroubleshootingModal } from "./TroubleshootingModal";
 import { UserSettings } from "./UserSettings";
 
-/** Help rows for the tactical weapons and the newer buildings. */
+/** Help rows for the special warheads, paratroopers and the newer buildings. */
 const NEW_UNIT_HELP_ROWS: { name: string; icon: string; desc: string }[] = [
   {
     name: "unit_type.hospital",
@@ -60,11 +60,6 @@ const NEW_UNIT_HELP_ROWS: { name: string; icon: string; desc: string }[] = [
     name: "unit_type.neutron_bomb",
     icon: "images/NeutronBombIconWhite.svg",
     desc: "help_modal.build_neutron_bomb_desc",
-  },
-  {
-    name: "unit_type.emp_bomb",
-    icon: "images/EmpBombIconWhite.svg",
-    desc: "help_modal.build_emp_bomb_desc",
   },
 ];
 
@@ -1219,6 +1214,38 @@ export class HelpModal extends BaseModal {
                       class="py-3 border-b border-white/5 text-white/60 text-sm"
                     >
                       ${translateText("help_modal.build_mirv_desc")}
+                    </td>
+                  </tr>
+                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
+                    <td class="py-3 ps-4 border-b border-white/5 font-medium">
+                      ${translateText("unit_type.tactical_missile")}
+                    </td>
+                    <td class="py-3 border-b border-white/5">
+                      <img
+                        src=${assetUrl("images/TacticalMissileIconWhite.svg")}
+                        class="w-8 h-8 scale-75 origin-left"
+                      />
+                    </td>
+                    <td
+                      class="py-3 border-b border-white/5 text-white/60 text-sm"
+                    >
+                      ${translateText("help_modal.build_tactical_missile_desc")}
+                    </td>
+                  </tr>
+                  <tr class="bg-white/5 hover:bg-white/10 transition-colors">
+                    <td class="py-3 ps-4 border-b border-white/5 font-medium">
+                      ${translateText("unit_type.emp_bomb")}
+                    </td>
+                    <td class="py-3 border-b border-white/5">
+                      <img
+                        src=${assetUrl("images/EMPBombIconWhite.svg")}
+                        class="w-8 h-8 scale-75 origin-left"
+                      />
+                    </td>
+                    <td
+                      class="py-3 border-b border-white/5 text-white/60 text-sm"
+                    >
+                      ${translateText("help_modal.build_emp_bomb_desc")}
                     </td>
                   </tr>
                   ${NEW_UNIT_HELP_ROWS.map(

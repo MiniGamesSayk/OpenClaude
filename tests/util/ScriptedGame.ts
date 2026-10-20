@@ -90,6 +90,8 @@ export function scriptedGameStart(
       instantBuild: false,
       randomSpawn: false,
       doomsdayClock: { enabled: true, speed: "veryfast" },
+      // Run the mutators with executions, so snapshots exercise them too.
+      mutators: { meteorShower: true, kingOfTheHill: true, underdog: true },
       ...overrides,
     },
     players: SCRIPTED_HUMANS.map((clientID, i) => ({
@@ -352,9 +354,10 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
         UnitType.AtomBomb,
         UnitType.HydrogenBomb,
         UnitType.MIRV,
+        UnitType.TacticalMissile,
+        UnitType.EMPBomb,
         UnitType.CruiseMissile,
         UnitType.NeutronBomb,
-        UnitType.EMPBomb,
         UnitType.ClusterBomb,
       ])!;
       // Half the bombs fly at an enemy SAM, so SAMs get to shoot

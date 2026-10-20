@@ -227,8 +227,15 @@ class SAMTargetingSystem {
     const distToSilo = this.mg.manhattanDist(samTile, targetTile);
 
     // Hydro unit type bonus
-    // 70,000 offset balances the distance bonus between Hydro at 100 and Atom at 30
-    const typeBonus = unit.type() === UnitType.HydrogenBomb ? 70_001 : 0;
+    // 70,000 offset balances the distance bonus between Hydro at 100 and Atom at 30.
+    // Tactical missiles are a small threat: an atom bomb up to 20 tiles
+    // farther from the SAM still goes first.
+    const typeBonus =
+      unit.type() === UnitType.HydrogenBomb
+        ? 70_001
+        : unit.type() === UnitType.TacticalMissile
+          ? -20_000
+          : 0;
 
     // Distance bonus: Closer to silo higher score (-1,000 pts per unit distance)
     // due to manhattanDist, distToSilo can exceed 150 diagonally, 200000 starting point.
@@ -259,6 +266,7 @@ class SAMTargetingSystem {
     const nukes = this.mg.nearbyUnits(
       samTile,
       detectionRange,
+      // EMP bombs fly too high for SAMs and are never targeted.
       SamTargets.types,
       this.isTargetableNearbyUnit,
     );

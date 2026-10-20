@@ -72,7 +72,7 @@ describe("Alliance acceptance immediately destroys in-flight nukes", () => {
     expect(game.units(UnitType.AtomBomb)).toHaveLength(0);
   });
 
-  test("accepting alliance also destroys in-flight tactical missiles", () => {
+  test("accepting alliance also destroys in-flight special warheads", () => {
     game.addExecution(
       new NukeExecution(
         UnitType.CruiseMissile,

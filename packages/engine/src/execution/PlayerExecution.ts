@@ -4,7 +4,7 @@ import {
   Nukes,
   PlayerType,
   Structures,
-  TacticalMissiles,
+  SpecialWarheads,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { zInt, zPlayerRef } from "@openfront/engine-lib/snapshot/SnapshotType";
@@ -1450,7 +1450,7 @@ export class PlayerExecution implements Execution {
     this.player.removeGold(gold);
 
     this.player.units().forEach((u) => {
-      if (!Nukes.has(u.type()) && !TacticalMissiles.has(u.type())) {
+      if (!Nukes.has(u.type()) && !SpecialWarheads.has(u.type())) {
         u.delete();
       }
     });

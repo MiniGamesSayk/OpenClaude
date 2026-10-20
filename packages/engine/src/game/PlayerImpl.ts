@@ -1118,6 +1118,7 @@ export class PlayerImpl implements Player {
     if (recipient === this) {
       return false;
     }
+
     if (
       !this.isAlive() ||
       !recipient.isAlive() ||
@@ -1142,6 +1143,25 @@ export class PlayerImpl implements Player {
       }
     }
     return true;
+  }
+
+  canBuyTerritory(target: Player): boolean {
+    return (
+      target !== this &&
+      this.isAlive() &&
+      target.isAlive() &&
+      !this.isFriendly(target) &&
+      target.numTilesOwned() > 0 &&
+      this.gold() >= this.territoryPurchaseCost(target)
+    );
+  }
+
+  territoryPurchaseCost(target: Player): Gold {
+    let value = BigInt(target.numTilesOwned()) * 1_000n;
+    for (const unit of target.units()) {
+      if (unit.isActive()) value += unit.info().cost(this.mg, target);
+    }
+    return (value * 3n) / 2n;
   }
 
   donateTroops(recipient: Player, troops: number): boolean {
@@ -1602,9 +1622,10 @@ export class PlayerImpl implements Player {
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.TacticalMissile:
+      case UnitType.EMPBomb:
       case UnitType.CruiseMissile:
       case UnitType.NeutronBomb:
-      case UnitType.EMPBomb:
       case UnitType.ClusterBomb:
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.MIRVWarhead:
@@ -1694,9 +1715,11 @@ export class PlayerImpl implements Player {
 
     // Prevent launching nukes that would hit teammate structures (only in team games).
     // Disabled after game-over so players can nuke teammates in the aftergame.
+    // An EMP never affects teammates, so it may land next to their structures.
     if (
       config.gameConfig().gameMode === GameMode.Team &&
       nukeType !== UnitType.MIRV &&
+      nukeType !== UnitType.EMPBomb &&
       !gameOver
     ) {
       const magnitude = config.nukeMagnitudes(nukeType);

@@ -679,6 +679,10 @@ export class NationStructureBehavior {
       !config.isUnitDisabled(UnitType.AtomBomb) ||
       !config.isUnitDisabled(UnitType.HydrogenBomb) ||
       !config.isUnitDisabled(UnitType.MIRV);
+    // Nations never fire tactical missiles, but SAMs still shoot down the
+    // ones humans fire at them.
+    const samTargetsEnabled =
+      nukesEnabled || !config.isUnitDisabled(UnitType.TacticalMissile);
 
     for (const structureType of buildOrder) {
       // Skip disabled structure types
@@ -693,9 +697,8 @@ export class NationStructureBehavior {
 
       // Skip missile silos and SAM launchers if all nukes are disabled
       if (
-        !nukesEnabled &&
-        (structureType === UnitType.MissileSilo ||
-          structureType === UnitType.SAMLauncher)
+        (!nukesEnabled && structureType === UnitType.MissileSilo) ||
+        (!samTargetsEnabled && structureType === UnitType.SAMLauncher)
       ) {
         continue;
       }

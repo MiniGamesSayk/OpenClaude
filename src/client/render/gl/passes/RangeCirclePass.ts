@@ -3,8 +3,11 @@
  * range of a structure during build-mode ghost preview. White by default,
  * red when the ghost flags a warning (e.g. nuking would break an alliance).
  *
+ * A second instance draws fixed map zones through setZone (the King of the
+ * Hill hill), in the zone's own color.
+ *
  * Single quad with circle SDF in the fragment shader.
- * Active only when a ghost preview with rangeRadius > 0 is set.
+ * Active only when a ghost preview (or zone) with radius > 0 is set.
  */
 
 import type { GhostPreviewData } from "../../types";
@@ -27,6 +30,8 @@ export class RangeCirclePass {
   private centerY = 0;
   private radius = 0;
   private warning = false;
+  // Set for fixed zones; overrides the white/red ghost colors.
+  private zoneColor: readonly [number, number, number] | null = null;
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -64,6 +69,19 @@ export class RangeCirclePass {
     }
   }
 
+  /** Show a fixed zone in `color` (RGB 0–1), or hide it with radius 0. */
+  setZone(
+    tileX: number,
+    tileY: number,
+    radius: number,
+    color: readonly [number, number, number],
+  ): void {
+    this.centerX = tileX;
+    this.centerY = tileY;
+    this.radius = radius;
+    this.zoneColor = color;
+  }
+
   draw(cameraMatrix: Float32Array): void {
     if (this.radius <= 0) return;
 
@@ -74,7 +92,10 @@ export class RangeCirclePass {
 
     gl.uniform2f(this.uCenter, this.centerX, this.centerY);
     gl.uniform1f(this.uRadius, this.radius);
-    if (this.warning) {
+    if (this.zoneColor !== null) {
+      const [r, g, b] = this.zoneColor;
+      gl.uniform3f(this.uColor, r, g, b);
+    } else if (this.warning) {
       gl.uniform3f(this.uColor, 1.0, 0.2, 0.2);
     } else {
       gl.uniform3f(this.uColor, 1.0, 1.0, 1.0);

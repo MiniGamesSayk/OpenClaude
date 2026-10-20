@@ -55,6 +55,8 @@ function createSidebar(overrides: Partial<TimerState> = {}) {
     }),
     elapsedGameSeconds: () => state.elapsedSeconds,
     inSpawnPhase: () => state.inSpawnPhase,
+    // The King of the Hill panel is embedded too; the mode is off here.
+    kingOfTheHill: () => null,
     myPlayer: () => undefined,
     ticks: () => state.ticks,
   } as unknown as GameView;

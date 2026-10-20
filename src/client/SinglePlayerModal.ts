@@ -7,7 +7,7 @@ import {
   maps,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
-import { TeamCountConfig } from "@openfront/engine-api/Schemas";
+import { MutatorsConfig, TeamCountConfig } from "@openfront/engine-api/Schemas";
 import { DoomsdayClockSpeed } from "@openfront/engine-lib/game/DoomsdayClock";
 import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import { assetUrl } from "@openfront/shared/AssetUrls";
@@ -44,6 +44,12 @@ import {
   sliderToNationsConfig,
   toOptionalNumber,
 } from "./utilities/GameConfigHelpers";
+import {
+  activeMutators,
+  mutatorForLabel,
+  mutatorsConfig,
+  mutatorToggles,
+} from "./utilities/Mutators";
 
 import { terrainMapFileLoader } from "./TerrainMapFileLoader";
 
@@ -121,6 +127,7 @@ const DEFAULT_OPTIONS = {
   doomsdayClockSpeed: "normal" as DoomsdayClockSpeed,
   overtime: false,
   overtimeStartMinutes: undefined as number | undefined,
+  mutators: {} as MutatorsConfig,
 } as const;
 
 // A map earns achievements only if it has nations to conquer — the same rule
@@ -210,6 +217,7 @@ export class SinglePlayerModal extends BaseModal {
   @state() private doomsdayClockSpeed: DoomsdayClockSpeed =
     DEFAULT_OPTIONS.doomsdayClockSpeed;
   @state() private overtime: boolean = DEFAULT_OPTIONS.overtime;
+  @state() private mutators: MutatorsConfig = DEFAULT_OPTIONS.mutators;
   @state() private overtimeStartMinutes: number | undefined =
     DEFAULT_OPTIONS.overtimeStartMinutes;
   // Drives the Start Game button's busy state. Without it the click produces
@@ -555,6 +563,7 @@ export class SinglePlayerModal extends BaseModal {
                     checked: this.doomsdayClock,
                     doomsdayClockSpeed: this.doomsdayClockSpeed,
                   },
+                  ...mutatorToggles(this.mutators),
                 ],
                 inputCards,
               },
@@ -624,6 +633,7 @@ export class SinglePlayerModal extends BaseModal {
       (this.doomsdayClock &&
         this.doomsdayClockSpeed !== DEFAULT_OPTIONS.doomsdayClockSpeed) ||
       this.overtime !== DEFAULT_OPTIONS.overtime ||
+      activeMutators(this.mutators).length > 0 ||
       this.disabledUnits.length > 0
     );
   }
@@ -699,6 +709,7 @@ export class SinglePlayerModal extends BaseModal {
     this.doomsdayClockSpeed = DEFAULT_OPTIONS.doomsdayClockSpeed;
     this.overtime = DEFAULT_OPTIONS.overtime;
     this.overtimeStartMinutes = DEFAULT_OPTIONS.overtimeStartMinutes;
+    this.mutators = DEFAULT_OPTIONS.mutators;
   }
 
   protected onOpen(): void {
@@ -796,8 +807,13 @@ export class SinglePlayerModal extends BaseModal {
       case "game_settings.doomsday_clock":
         this.doomsdayClock = checked;
         break;
-      default:
+      default: {
+        const mutator = mutatorForLabel(labelKey);
+        if (mutator !== undefined) {
+          this.mutators = { ...this.mutators, [mutator]: checked };
+        }
         break;
+      }
     }
   };
 
@@ -1193,6 +1209,9 @@ export class SinglePlayerModal extends BaseModal {
                         startMinutes: this.overtimeStartMinutes ?? 30,
                       },
                     }
+                  : {}),
+                ...(activeMutators(this.mutators).length > 0
+                  ? { mutators: mutatorsConfig(this.mutators) }
                   : {}),
               },
               lobbyCreatedAt: Date.now(), // ms; server should be authoritative in MP

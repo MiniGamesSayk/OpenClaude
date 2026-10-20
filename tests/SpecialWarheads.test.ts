@@ -80,10 +80,10 @@ function runUntilLanded(type: UnitType): void {
   throw new Error(`${type} never ${launched ? "landed" : "launched"}`);
 }
 
-describe("Tactical missiles", () => {
+describe("Special warheads", () => {
   beforeEach(makeGame);
 
-  test("every tactical missile launches from a silo", () => {
+  test("every special warhead launches from a silo", () => {
     for (const type of [
       UnitType.CruiseMissile,
       UnitType.NeutronBomb,
@@ -208,7 +208,7 @@ describe("Tactical missiles", () => {
     }
   });
 
-  test("SAMs shoot tactical missiles down", () => {
+  test("SAMs shoot special warheads down", () => {
     const target = game.ref(TARGET_X, TARGET_Y);
     const sam = defender.buildUnit(UnitType.SAMLauncher, target, {});
     game.addExecution(new SAMLauncherExecution(defender, null, sam));

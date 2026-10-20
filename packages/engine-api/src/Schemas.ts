@@ -10,6 +10,7 @@ import {
   GameMode,
   GameType,
   HumansVsNations,
+  MAX_BUILD_AMOUNT,
   MAX_UPGRADE_AMOUNT,
   Quads,
   RankedType,
@@ -35,6 +36,8 @@ export type Intent =
   | EmojiIntent
   | DonateGoldIntent
   | DonateTroopsIntent
+  | BuyTroopsIntent
+  | BuyTerritoryIntent
   | BuildUnitIntent
   | EmbargoIntent
   | QuickChatIntent
@@ -61,6 +64,8 @@ export type TargetPlayerIntent = z.infer<typeof TargetPlayerIntentSchema>;
 export type EmojiIntent = z.infer<typeof EmojiIntentSchema>;
 export type DonateGoldIntent = z.infer<typeof DonateGoldIntentSchema>;
 export type DonateTroopsIntent = z.infer<typeof DonateTroopIntentSchema>;
+export type BuyTroopsIntent = z.infer<typeof BuyTroopsIntentSchema>;
+export type BuyTerritoryIntent = z.infer<typeof BuyTerritoryIntentSchema>;
 export type EmbargoIntent = z.infer<typeof EmbargoIntentSchema>;
 export type BuildUnitIntent = z.infer<typeof BuildUnitIntentSchema>;
 export type UpgradeStructureIntent = z.infer<
@@ -215,6 +220,22 @@ export const OvertimeConfigSchema = z.object({
   startMinutes: zb.uint({ min: 1, max: 120 }).optional(),
 });
 
+// Mutators: optional gameplay twists that stack on top of any game mode. Each
+// one is a plain on/off switch; their tuning lives in MUTATOR_DEFAULTS
+// (Config.ts).
+//   meteorShower  — meteors periodically crash on random land tiles.
+//   blitz         — doubled troop and gold income, halved build and reload times.
+//   kingOfTheHill — a hill zone in the middle of the map: the first side to
+//                   hold it long enough wins.
+//   underdog      — small empires get bonus troops and gold to come back.
+export const MutatorsConfigSchema = z.object({
+  meteorShower: z.boolean().optional(),
+  blitz: z.boolean().optional(),
+  kingOfTheHill: z.boolean().optional(),
+  underdog: z.boolean().optional(),
+});
+export type MutatorsConfig = z.infer<typeof MutatorsConfigSchema>;
+
 // A lobby pool: several lobbies that arriving players are spread across, so
 // one advertised entry point can absorb more players than a single lobby
 // holds. Assignment is a hash of the joiner's identity (server/PoolRouting.ts),
@@ -324,6 +345,7 @@ export const GameConfigSchema = z.object({
   // Stripped from gameStartInfo and from the advertised lobby config: sibling
   // ids are private lobby ids, which are join secrets.
   pool: PoolConfigSchema.optional(),
+  mutators: MutatorsConfigSchema.optional(),
 });
 
 // What a host sends in update_game_config. maxPlayers is the private-lobby
@@ -472,12 +494,21 @@ export const DonateTroopIntentSchema = z.object({
   troops: zb.float({ min: 0 }).nullable(),
 });
 
+export const BuyTroopsIntentSchema = z.object({
+  type: z.literal("buy_troops"),
+});
+
+export const BuyTerritoryIntentSchema = z.object({
+  type: z.literal("buy_territory"),
+  target: MappedID,
+});
+
 export const BuildUnitIntentSchema = z.object({
   type: z.literal("build_unit"),
   unit: z.enum(UnitType),
   tile: zb.uint(),
   rocketDirectionUp: z.boolean().optional(),
-  amount: zb.uint({ min: 1, max: MAX_UPGRADE_AMOUNT }).optional(),
+  amount: zb.uint({ min: 1, max: MAX_BUILD_AMOUNT }).optional(),
 });
 
 export const UpgradeStructureIntentSchema = z.object({
@@ -563,6 +594,8 @@ export const IntentSchema = z.discriminatedUnion("type", [
   EmojiIntentSchema,
   DonateGoldIntentSchema,
   DonateTroopIntentSchema,
+  BuyTroopsIntentSchema,
+  BuyTerritoryIntentSchema,
   BuildUnitIntentSchema,
   UpgradeStructureIntentSchema,
   EmbargoIntentSchema,

@@ -1,10 +1,13 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
-  BallisticWarheads,
   BuildableUnit,
   BuildMenus,
   Gold,
+  MAX_BUILD_AMOUNT,
+  maxBulkAmount,
   PlayerBuildableUnitType,
+  SiloBombs,
+  StackableBombs,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { renderNumber } from "@openfront/engine-lib/Format";
@@ -35,12 +38,13 @@ const mirvIcon = assetUrl("images/MIRVIcon.svg");
 const missileSiloIcon = assetUrl("images/MissileSiloIconWhite.svg");
 const hydrogenBombIcon = assetUrl("images/MushroomCloudIconWhite.svg");
 const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
+const tacticalMissileIcon = assetUrl("images/TacticalMissileIconWhite.svg");
+const empBombIcon = assetUrl("images/EMPBombIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
 const samlauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
 const cruiseMissileIcon = assetUrl("images/CruiseMissileIconWhite.svg");
 const neutronBombIcon = assetUrl("images/NeutronBombIconWhite.svg");
-const empBombIcon = assetUrl("images/EmpBombIconWhite.svg");
 const clusterBombIcon = assetUrl("images/ClusterBombIconWhite.svg");
 const paratroopersIcon = assetUrl("images/ParatroopersIconWhite.svg");
 const hospitalIcon = assetUrl("images/HospitalIconWhite.svg");
@@ -78,6 +82,13 @@ export const buildTable: BuildItemDisplay[][] = [
       icon: hydrogenBombIcon,
       description: "build_menu.desc.hydrogen_bomb",
       key: "unit_type.hydrogen_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.TacticalMissile,
+      icon: tacticalMissileIcon,
+      description: "build_menu.desc.tactical_missile",
+      key: "unit_type.tactical_missile",
       countable: false,
     },
     {
@@ -275,6 +286,10 @@ export class BuildMenu extends LitElement implements Controller {
       flex-wrap: wrap;
       width: 100%;
     }
+    .build-item {
+      position: relative;
+      margin: 8px;
+    }
     .build-button {
       position: relative;
       width: 120px;
@@ -289,7 +304,7 @@ export class BuildMenu extends LitElement implements Controller {
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      margin: 8px;
+      margin: 0;
       padding: 10px;
       gap: 5px;
     }
@@ -313,6 +328,27 @@ export class BuildMenu extends LitElement implements Controller {
     }
     .build-button:disabled .build-cost {
       color: #ff4444;
+    }
+    .build-max-button {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      z-index: 1;
+      border: 1px solid #d2a93b;
+      border-radius: 5px;
+      background: #604d16;
+      color: #fff3b0;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-weight: bold;
+      padding: 3px 6px;
+    }
+    .build-max-button:hover:not(:disabled) {
+      background: #82681c;
+    }
+    .build-max-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
     }
     .build-icon {
       font-size: 40px;
@@ -472,11 +508,68 @@ export class BuildMenu extends LitElement implements Controller {
         ),
       );
     } else if (buildableUnit.canBuild) {
-      const rocketDirectionUp = BallisticWarheads.has(buildableUnit.type)
+      const rocketDirectionUp = SiloBombs.has(buildableUnit.type)
         ? this.uiState.rocketDirectionUp
         : undefined;
       this.eventBus.emit(
         new BuildUnitIntentEvent(buildableUnit.type, tile, rocketDirectionUp),
+      );
+    }
+    this.hideMenu();
+  }
+
+  private maxAmount(buildableUnit: BuildableUnit): number {
+    const player = this.game.myPlayer();
+    if (!player) return 0;
+    if (buildableUnit.canUpgrade !== false) {
+      return maxBulkAmount(buildableUnit, player.gold());
+    }
+    if (
+      !buildableUnit.canBuild ||
+      buildableUnit.cost <= 0n ||
+      !StackableBombs.has(buildableUnit.type)
+    ) {
+      return 0;
+    }
+    const affordable = player.gold() / buildableUnit.cost;
+    return Math.min(
+      MAX_BUILD_AMOUNT,
+      Number(affordable),
+      SiloBombs.has(buildableUnit.type)
+        ? player.readyMissileCount()
+        : MAX_BUILD_AMOUNT,
+    );
+  }
+
+  private canMaxBuild(buildableUnit: BuildableUnit): boolean {
+    return this.maxAmount(buildableUnit) > 0;
+  }
+
+  private sendMaxBuildOrUpgrade(
+    buildableUnit: BuildableUnit,
+    tile: TileRef,
+  ): void {
+    const amount = this.maxAmount(buildableUnit);
+    if (amount < 1) return;
+    if (buildableUnit.canUpgrade !== false) {
+      this.eventBus.emit(
+        new SendUpgradeStructureIntentEvent(
+          buildableUnit.canUpgrade,
+          buildableUnit.type,
+          amount,
+        ),
+      );
+    } else if (buildableUnit.canBuild) {
+      const rocketDirectionUp = SiloBombs.has(buildableUnit.type)
+        ? this.uiState.rocketDirectionUp
+        : undefined;
+      this.eventBus.emit(
+        new BuildUnitIntentEvent(
+          buildableUnit.type,
+          tile,
+          rocketDirectionUp,
+          amount,
+        ),
       );
     }
     this.hideMenu();
@@ -502,46 +595,66 @@ export class BuildMenu extends LitElement implements Controller {
                   buildableUnit.canBuild !== false ||
                   buildableUnit.canUpgrade !== false;
                 return html`
-                  <button
-                    class="build-button"
-                    @click=${() =>
-                      this.sendBuildOrUpgrade(buildableUnit, this.clickedTile)}
-                    ?disabled=${!enabled}
-                    title=${!enabled
-                      ? translateText("build_menu.not_enough_money")
-                      : ""}
-                  >
-                    <img
-                      src=${item.icon}
-                      alt="${item.unitType}"
-                      width="40"
-                      height="40"
-                    />
-                    <span class="build-name">
-                      ${item.key && translateText(item.key)}
-                    </span>
-                    <span class="build-description"
-                      >${item.description &&
-                      translateText(item.description)}</span
+                  <div class="build-item">
+                    <button
+                      class="build-button"
+                      @click=${() =>
+                        this.sendBuildOrUpgrade(
+                          buildableUnit,
+                          this.clickedTile,
+                        )}
+                      ?disabled=${!enabled}
+                      title=${!enabled
+                        ? translateText("build_menu.not_enough_money")
+                        : ""}
                     >
-                    <span class="build-cost" translate="no">
-                      ${renderNumber(
-                        this.game && this.game.myPlayer() ? this.cost(item) : 0,
-                      )}
                       <img
-                        src=${goldCoinIcon}
-                        alt="gold"
-                        width="12"
-                        height="12"
-                        class="align-middle"
+                        src=${item.icon}
+                        alt="${item.unitType}"
+                        width="40"
+                        height="40"
                       />
-                    </span>
-                    ${item.countable
-                      ? html`<div class="build-count-chip">
-                          <span class="build-count">${this.count(item)}</span>
-                        </div>`
-                      : ""}
-                  </button>
+                      <span class="build-name">
+                        ${item.key && translateText(item.key)}
+                      </span>
+                      <span class="build-description"
+                        >${item.description &&
+                        translateText(item.description)}</span
+                      >
+                      <span class="build-cost" translate="no">
+                        ${renderNumber(
+                          this.game && this.game.myPlayer()
+                            ? this.cost(item)
+                            : 0,
+                        )}
+                        <img
+                          src=${goldCoinIcon}
+                          alt="gold"
+                          width="12"
+                          height="12"
+                          class="align-middle"
+                        />
+                      </span>
+                      ${item.countable
+                        ? html`<div class="build-count-chip">
+                            <span class="build-count">${this.count(item)}</span>
+                          </div>`
+                        : ""}
+                    </button>
+                    <button
+                      class="build-max-button"
+                      @click=${() =>
+                        this.sendMaxBuildOrUpgrade(
+                          buildableUnit,
+                          this.clickedTile,
+                        )}
+                      ?disabled=${!this.canMaxBuild(buildableUnit)}
+                      aria-label=${translateText("build_menu.max")}
+                      title=${translateText("build_menu.max")}
+                    >
+                      ${translateText("build_menu.max")}
+                    </button>
+                  </div>
                 `;
               })}
             </div>

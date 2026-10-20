@@ -21,9 +21,10 @@ export const UT_SAM_MISSILE = "SAMMissile" as const;
 export const UT_SHELL = "Shell" as const;
 export const UT_MIRV_WARHEAD = "MIRV Warhead" as const;
 export const UT_TRAIN = "Train" as const;
+export const UT_TACTICAL_MISSILE = "Tactical Missile" as const;
+export const UT_EMP_BOMB = "EMP Bomb" as const;
 export const UT_CRUISE_MISSILE = "Cruise Missile" as const;
 export const UT_NEUTRON_BOMB = "Neutron Bomb" as const;
-export const UT_EMP_BOMB = "EMP Bomb" as const;
 export const UT_CLUSTER_BOMB = "Cluster Bomb" as const;
 export const UT_PARATROOPERS = "Paratroopers" as const;
 
@@ -58,11 +59,11 @@ export const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
   UT_AIRBASE,
 ]);
 
-/** Silo-launched non-nuclear warheads (each with its own impact effect). */
-export const TACTICAL_MISSILE_TYPES: ReadonlySet<string> = new Set([
+/** Silo-launched special warheads (engine SpecialWarheads): each has its own
+ *  impact effect instead of the nuclear one. */
+export const SPECIAL_WARHEAD_TYPES: ReadonlySet<string> = new Set([
   UT_CRUISE_MISSILE,
   UT_NEUTRON_BOMB,
-  UT_EMP_BOMB,
   UT_CLUSTER_BOMB,
 ]);
 
@@ -70,6 +71,8 @@ export const NUKE_TYPES: ReadonlySet<string> = new Set([
   UT_ATOM_BOMB,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
+  UT_TACTICAL_MISSILE,
+  UT_EMP_BOMB,
 ]);
 
 /** Nuke types whose rendered position is interpolated lastPos→pos each render
@@ -80,7 +83,9 @@ export const SMOOTHED_NUKE_TYPES: ReadonlySet<string> = new Set([
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
-  ...TACTICAL_MISSILE_TYPES,
+  UT_TACTICAL_MISSILE,
+  UT_EMP_BOMB,
+  ...SPECIAL_WARHEAD_TYPES,
   UT_PARATROOPERS,
 ]);
 
@@ -91,7 +96,9 @@ export const TRAIL_TYPES: ReadonlySet<string> = new Set([
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
-  ...TACTICAL_MISSILE_TYPES,
+  UT_TACTICAL_MISSILE,
+  UT_EMP_BOMB,
+  ...SPECIAL_WARHEAD_TYPES,
   UT_PARATROOPERS,
 ]);
 
@@ -102,9 +109,10 @@ export const NUKE_MAGNITUDES: Readonly<
   [UT_ATOM_BOMB]: { inner: 12, outer: 30 },
   [UT_HYDROGEN_BOMB]: { inner: 80, outer: 100 },
   [UT_MIRV_WARHEAD]: { inner: 12, outer: 18 },
+  [UT_TACTICAL_MISSILE]: { inner: 5, outer: 8 },
+  [UT_EMP_BOMB]: { inner: 0, outer: 50 },
   [UT_CRUISE_MISSILE]: { inner: 4, outer: 7 },
   [UT_NEUTRON_BOMB]: { inner: 35, outer: 50 },
-  [UT_EMP_BOMB]: { inner: 50, outer: 65 },
   [UT_CLUSTER_BOMB]: { inner: 22, outer: 30 },
 };
 
@@ -149,9 +157,10 @@ export const ALL_UNIT_TYPES = [
   UT_SAM_LAUNCHER,
   UT_MISSILE_SILO,
   UT_TRAIN,
+  UT_TACTICAL_MISSILE,
+  UT_EMP_BOMB,
   UT_CRUISE_MISSILE,
   UT_NEUTRON_BOMB,
-  UT_EMP_BOMB,
   UT_CLUSTER_BOMB,
   UT_PARATROOPERS,
   UT_HOSPITAL,

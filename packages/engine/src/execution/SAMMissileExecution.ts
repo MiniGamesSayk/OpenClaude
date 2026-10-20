@@ -32,9 +32,9 @@ const INTERCEPTED_UNIT_TRANSLATION_KEYS: Partial<Record<UnitType, string>> = {
   [UnitType.AtomBomb]: "unit_type.atom_bomb",
   [UnitType.HydrogenBomb]: "unit_type.hydrogen_bomb",
   [UnitType.MIRVWarhead]: "unit_type.mirv",
+  [UnitType.TacticalMissile]: "unit_type.tactical_missile",
   [UnitType.CruiseMissile]: "unit_type.cruise_missile",
   [UnitType.NeutronBomb]: "unit_type.neutron_bomb",
-  [UnitType.EMPBomb]: "unit_type.emp_bomb",
   [UnitType.ClusterBomb]: "unit_type.cluster_bomb",
 };
 
@@ -68,7 +68,8 @@ export class SAMMissileExecution implements Execution {
       this.active = false;
       return;
     }
-    // The MIRV carrier itself can't be intercepted, only its warheads
+    // The MIRV carrier itself can't be intercepted, only its warheads. EMP
+    // bombs can't be intercepted either.
     if (
       !this.target.isActive() ||
       !this.ownerUnit.isActive() ||

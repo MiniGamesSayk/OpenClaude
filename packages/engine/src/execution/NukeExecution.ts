@@ -4,9 +4,9 @@ import {
   MessageType,
   Nukes,
   SamTargets,
+  SpecialWarheads,
+  SpecialWarheadType,
   Structures,
-  TacticalMissileType,
-  TacticalMissiles,
   TerraNullius,
   TrajectoryTile,
   UnitType,
@@ -43,23 +43,19 @@ import type {
 
 const SPRITE_RADIUS = 16;
 
-/** Everything NukeExecution can fly: nuclear warheads and tactical missiles. */
-export type WarheadType = NukeType | TacticalMissileType;
+/** Everything NukeExecution can fly: nuclear warheads and special warheads. */
+export type WarheadType = NukeType | SpecialWarheadType;
 
 interface BlastCenter {
   tile: TileRef;
   magnitude: NukeMagnitude;
 }
 
-const TACTICAL_INBOUND_MESSAGES: Record<TacticalMissileType, string> = {
+const SPECIAL_INBOUND_MESSAGES: Record<SpecialWarheadType, string> = {
   [UnitType.CruiseMissile]: "events_display.cruise_missile_inbound",
   [UnitType.NeutronBomb]: "events_display.neutron_bomb_inbound",
-  [UnitType.EMPBomb]: "events_display.emp_bomb_inbound",
   [UnitType.ClusterBomb]: "events_display.cluster_bomb_inbound",
 };
-
-/** Ticks an EMP keeps a launcher jammed on top of its normal reload. */
-const EMP_EXTRA_JAM_TICKS = 100;
 
 export class NukeExecution implements Execution {
   private active = true;
@@ -240,8 +236,12 @@ export class NukeExecution implements Execution {
     if (this.nuke === null) {
       throw new Error("Not initialized");
     }
-    if (this.nuke.type() === UnitType.MIRVWarhead) {
-      // MIRV warheads shouldn't break alliances
+    if (
+      this.nuke.type() === UnitType.MIRVWarhead ||
+      this.nuke.type() === UnitType.EMPBomb
+    ) {
+      // MIRV warheads shouldn't break alliances, and an EMP destroys nothing
+      // (it never touches friendly launchers either).
       return;
     }
 
@@ -301,19 +301,6 @@ export class NukeExecution implements Execution {
       const silo = this.player
         .units(UnitType.MissileSilo)
         .find((silo) => silo.tile() === spawn);
-      // Stacked purchases launch several nukes across ticks; delay each missile
-      // so launches from the same silo trail each other instead of overlapping,
-      // need to check the entire queue because even if nukes have waitticks,
-      // the silo queue will be filled with the same tick.
-      if (silo !== undefined) {
-        let lastDep = 0;
-        for (const launchTick of silo.missileTimerQueue()) {
-          lastDep = Math.max(launchTick + 1, lastDep + 1);
-        }
-        if (lastDep > this.mg.ticks()) {
-          this.waitTicks += lastDep - this.mg.ticks();
-        }
-      }
       this.nuke = this.player.buildUnit(this.nukeType, this.src, {
         targetTile: this.dst,
         trajectory: this.getTrajectory(this.dst),
@@ -341,10 +328,24 @@ export class NukeExecution implements Execution {
             MessageType.HYDROGEN_BOMB_INBOUND,
             target.id(),
           );
-        } else if (TacticalMissiles.has(this.nukeType)) {
+        } else if (this.nukeType === UnitType.TacticalMissile) {
           this.mg.displayIncomingUnit(
             this.nuke.id(),
-            TACTICAL_INBOUND_MESSAGES[this.nukeType],
+            "events_display.tactical_missile_inbound",
+            MessageType.NUKE_INBOUND,
+            target.id(),
+          );
+        } else if (this.nukeType === UnitType.EMPBomb) {
+          this.mg.displayIncomingUnit(
+            this.nuke.id(),
+            "events_display.emp_bomb_inbound",
+            MessageType.NUKE_INBOUND,
+            target.id(),
+          );
+        } else if (SpecialWarheads.has(this.nukeType)) {
+          this.mg.displayIncomingUnit(
+            this.nuke.id(),
+            SPECIAL_INBOUND_MESSAGES[this.nukeType],
             MessageType.NUKE_INBOUND,
             target.id(),
           );
@@ -486,6 +487,10 @@ export class NukeExecution implements Execution {
     if (this.nuke === null) {
       throw new Error("Not initialized");
     }
+    if (this.nuke.type() === UnitType.EMPBomb) {
+      this.detonateEmp(this.nuke);
+      return;
+    }
 
     const mg = this.mg;
     const config = mg.config();
@@ -588,30 +593,22 @@ export class NukeExecution implements Execution {
       if (
         SamTargets.has(type) ||
         type === UnitType.MIRV ||
+        type === UnitType.EMPBomb ||
         type === UnitType.SAMMissile ||
         type === UnitType.Paratroopers
       ) {
         continue;
       }
-      const isStructure = Structures.has(type);
-      const destroys = isStructure
+      const destroys = Structures.has(type)
         ? profile.destroysStructures
         : profile.destroysMobileUnits;
-      const jams = profile.emp && LauncherStructures.has(type);
-      if (!destroys && !jams) {
-        continue;
-      }
-      if (!this.inBlast(centers, unit.tile())) {
+      if (!destroys || !this.inBlast(centers, unit.tile())) {
         continue;
       }
       // treatAFKFriendly matches warship targeting: a disconnected
       // teammate's or ally's units are still not kills.
       const friendly = this.player.isFriendly(unit.owner(), true);
-      if (destroys) {
-        unit.delete(true, friendly ? undefined : this.player);
-      } else if (!friendly && !unit.isUnderConstruction()) {
-        unit.jamLauncher(mg.ticks() + EMP_EXTRA_JAM_TICKS);
-      }
+      unit.delete(true, friendly ? undefined : this.player);
     }
 
     if (profile.destroysTerritory) {
@@ -623,12 +620,15 @@ export class NukeExecution implements Execution {
 
     if (
       this.nukeType === UnitType.AtomBomb ||
-      this.nukeType === UnitType.HydrogenBomb
+      this.nukeType === UnitType.HydrogenBomb ||
+      this.nukeType === UnitType.TacticalMissile
     ) {
       const messageKey =
         this.nukeType === UnitType.AtomBomb
           ? "events_display.atom_bomb_detonated"
-          : "events_display.hydrogen_bomb_detonated";
+          : this.nukeType === UnitType.HydrogenBomb
+            ? "events_display.hydrogen_bomb_detonated"
+            : "events_display.tactical_missile_detonated";
       for (const [impactedPlayer] of tilesPerPlayers) {
         mg.displayMessage(
           messageKey,
@@ -658,6 +658,56 @@ export class NukeExecution implements Execution {
       }
     }
     return false;
+  }
+
+  /**
+   * EMP pulse: no land, troops or buildings are destroyed. Every launcher
+   * structure (SAM, silo, coastal battery, airbase) of a non-friendly player
+   * in range has all its slots knocked out until empDisableExtraTicks from
+   * now (then they reload as usual), and non-friendly warships in range lose
+   * a share of their max health.
+   */
+  private detonateEmp(nuke: Unit) {
+    const mg = this.mg;
+    const config = mg.config();
+    const outer = config.nukeMagnitudes(UnitType.EMPBomb).outer;
+    const reloadStartTick = mg.ticks() + config.empDisableExtraTicks();
+    const damagePercent = config.empWarshipDamagePercent();
+    const affected = new Set<Player>();
+
+    for (const { unit } of mg.nearbyUnits(this.dst, outer, [
+      ...LauncherStructures.types,
+      UnitType.Warship,
+    ])) {
+      const owner = unit.owner();
+      // treatAFKFriendly matches NukeExecution's kill attribution.
+      if (this.player.isFriendly(owner, true)) continue;
+      affected.add(owner);
+      if (unit.type() === UnitType.Warship) {
+        const damage = Math.floor((unit.maxHealth() * damagePercent) / 100);
+        unit.modifyHealth(-damage, this.player);
+      } else {
+        unit.empDisable(reloadStartTick);
+      }
+    }
+
+    this.active = false;
+    nuke.setReachedTarget();
+    nuke.delete(false);
+
+    for (const player of affected) {
+      mg.displayMessage(
+        "events_display.emp_bomb_detonated",
+        MessageType.NUKE_DETONATED,
+        player.id(),
+        undefined,
+        { name: this.player.displayName() },
+        undefined,
+        this.player.id(),
+      );
+    }
+
+    this.mg.stats().bombLand(this.player, this.target(), UnitType.EMPBomb);
   }
 
   private redrawBuildings(range: number) {

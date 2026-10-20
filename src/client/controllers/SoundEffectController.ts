@@ -86,6 +86,11 @@ export class SoundEffectController implements Controller {
       this.emit("game-start");
     }
 
+    // One blast per volley, however many meteors it held.
+    if ((updates[GameUpdateType.MeteorImpact] ?? []).length > 0) {
+      this.emit("atom-hit");
+    }
+
     const myPlayer = this.game.myPlayer();
     if (myPlayer === null) return;
     for (const c of updates[GameUpdateType.ConquestEvent] ?? []) {
@@ -123,6 +128,8 @@ export class SoundEffectController implements Controller {
     }
     switch (unit.type()) {
       case UnitType.AtomBomb:
+      case UnitType.TacticalMissile:
+      case UnitType.EMPBomb:
         this.onNukeDetonation(unit, "atom-hit");
         break;
       case UnitType.MIRVWarhead:
@@ -149,6 +156,8 @@ export class SoundEffectController implements Controller {
     const myPlayer = this.game.myPlayer();
     switch (unit.type()) {
       case UnitType.AtomBomb:
+      case UnitType.TacticalMissile:
+      case UnitType.EMPBomb:
         this.emit("atom-launch");
         break;
       case UnitType.HydrogenBomb:

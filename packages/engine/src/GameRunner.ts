@@ -27,8 +27,11 @@ import { simpleHash } from "@openfront/engine-lib/Util";
 import { EngineConfig } from "./configuration/EngineConfig";
 import { DoomsdayClockExecution } from "./execution/DoomsdayClockExecution";
 import { Executor } from "./execution/ExecutionManager";
+import { KingOfTheHillExecution } from "./execution/KingOfTheHillExecution";
+import { MeteorShowerExecution } from "./execution/MeteorShowerExecution";
 import { RecomputeRailClusterExecution } from "./execution/RecomputeRailClusterExecution";
 import { SpawnTimerExecution } from "./execution/SpawnTimerExecution";
+import { UnderdogExecution } from "./execution/UnderdogExecution";
 import { WinCheckExecution } from "./execution/WinCheckExecution";
 import { Game, Player } from "./game/Game";
 import { createGame } from "./game/GameImpl";
@@ -192,6 +195,18 @@ export class GameRunner {
     if (this.game.config().doomsdayClockConfig().enabled) {
       this.game.addExecution(new DoomsdayClockExecution());
     }
+    const mutators = this.game.config().mutators();
+    if (mutators.meteorShower) {
+      this.game.addExecution(
+        new MeteorShowerExecution(simpleHash(this.execManager.gameID()) + 3),
+      );
+    }
+    if (mutators.kingOfTheHill) {
+      this.game.addExecution(new KingOfTheHillExecution());
+    }
+    if (mutators.underdog) {
+      this.game.addExecution(new UnderdogExecution());
+    }
     if (!this.game.config().isUnitDisabled(UnitType.Factory)) {
       this.game.addExecution(
         new RecomputeRailClusterExecution(this.game.railNetwork()),
@@ -340,6 +355,7 @@ export class GameRunner {
         canBreakAlliance: player.isAlliedWith(other),
         canDonateGold: player.canDonateGold(other),
         canDonateTroops: player.canDonateTroops(other),
+        canBuyTerritory: player.canBuyTerritory(other),
         canEmbargo: !player.hasEmbargoAgainst(other),
         allianceInfo: player.allianceInfo(other) ?? undefined,
       };

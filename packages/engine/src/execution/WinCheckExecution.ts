@@ -32,6 +32,11 @@ export class WinCheckExecution implements Execution {
       return;
     }
     if (this.mg === null) throw new Error("Not initialized");
+    // Another rule (e.g. King of the Hill) already decided the game.
+    if (this.mg.getWinner() !== null) {
+      this.active = false;
+      return;
+    }
 
     if (this.checkRankedTeamCancelled()) {
       return;

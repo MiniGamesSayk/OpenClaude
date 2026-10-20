@@ -6,6 +6,7 @@ import { customElement, state } from "lit/decorators.js";
 import { createNextLobby } from "../../Api";
 import { ClientEnv } from "../../ClientEnv";
 import "../../components/DoomsdayClockPanel";
+import "../../components/KingOfTheHillPanel";
 import "../../components/OvertimePanel";
 import { Controller } from "../../Controller";
 import { isDesktopShell } from "../../DesktopShell";
@@ -409,6 +410,11 @@ export class GameRightSidebar extends LitElement implements Controller {
         .hasWinner=${this.hasWinner}
         .refreshKey=${this.timer}
       ></overtime-panel>
+      <king-of-the-hill-panel
+        .game=${this.game}
+        .hasWinner=${this.hasWinner}
+        .refreshKey=${this.timer}
+      ></king-of-the-hill-panel>
     `;
   }
 

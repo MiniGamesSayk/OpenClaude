@@ -573,17 +573,22 @@ export class UnitImpl implements Unit {
     return this._missileTimerQueue;
   }
 
+  empDisable(reloadStartTick: Tick): void {
+    // One entry per missile slot, all equal, so the queue stays sorted. A slot
+    // already reloading past reloadStartTick can't exist (reloads start at
+    // or before the current tick), so every slot is pushed back.
+    this._missileTimerQueue = new Array<number>(this._level).fill(
+      reloadStartTick,
+    );
+    this.mg.addUpdate(this.toUpdate());
+  }
+
   samLauncherState(): SamLauncherState | undefined {
     return this._samLauncherState;
   }
 
   reloadMissile(): void {
     this._missileTimerQueue.shift();
-    this.mg.addUpdate(this.toUpdate());
-  }
-
-  jamLauncher(firedAt: Tick): void {
-    this._missileTimerQueue = new Array<number>(this._level).fill(firedAt);
     this.mg.addUpdate(this.toUpdate());
   }
 

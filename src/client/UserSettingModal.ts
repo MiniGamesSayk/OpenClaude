@@ -1387,6 +1387,26 @@ export class UserSettingModal extends BaseModal {
         @change=${this.handleKeybindChange}
       ></setting-keybind>
 
+      <setting-keybind
+        action="buildTacticalMissile"
+        label=${translateText("user_setting.build_tactical_missile")}
+        description=${translateText("user_setting.build_tactical_missile_desc")}
+        defaultKey=${this.defaultKeybinds.buildTacticalMissile}
+        .value=${this.getKeyValue("buildTacticalMissile")}
+        .display=${this.getKeyChar("buildTacticalMissile")}
+        @change=${this.handleKeybindChange}
+      ></setting-keybind>
+
+      <setting-keybind
+        action="buildEMPBomb"
+        label=${translateText("user_setting.build_emp_bomb")}
+        description=${translateText("user_setting.build_emp_bomb_desc")}
+        defaultKey=${this.defaultKeybinds.buildEMPBomb}
+        .value=${this.getKeyValue("buildEMPBomb")}
+        .display=${this.getKeyChar("buildEMPBomb")}
+        @change=${this.handleKeybindChange}
+      ></setting-keybind>
+
       <h2
         class="text-blue-200 text-xl font-bold mt-8 mb-3 border-b border-white/10 pb-2"
       >

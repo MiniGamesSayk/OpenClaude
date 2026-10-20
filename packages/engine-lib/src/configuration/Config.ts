@@ -19,7 +19,8 @@ export interface NukeMagnitude {
 
 /**
  * What a silo-launched warhead does on impact. Nuclear warheads do it all;
- * the tactical missiles each keep a part of it.
+ * the special warheads each keep a part of it. (The EMP bomb destroys nothing
+ * and has its own pulse, see NukeExecution.detonateEmp.)
  */
 export interface WarheadProfile {
   /** Tiles in the blast are relinquished and left as fallout (or water). */
@@ -30,8 +31,6 @@ export interface WarheadProfile {
   destroysMobileUnits: boolean;
   /** Scales the nuke troop losses on every owned tile hit; 0 = no losses. */
   troopDeathMultiplier: number;
-  /** Puts hostile launcher structures in the blast on a full reload. */
-  emp: boolean;
   /**
    * > 0: the warhead splits over the target into this many sub-blasts of
    * clusterSubmunitionMagnitude(), scattered inside its own magnitude.
@@ -44,7 +43,6 @@ const NUCLEAR_WARHEAD: WarheadProfile = {
   destroysStructures: true,
   destroysMobileUnits: true,
   troopDeathMultiplier: 1,
-  emp: false,
   submunitions: 0,
 };
 
@@ -115,6 +113,47 @@ const OVERTIME_DEFAULTS = {
   dropPercentPerMinute: 2,
 };
 
+// Mutator tunables (see MutatorsConfigSchema). Each mutator is off unless
+// enabled in the GameConfig; only the on/off switches are wire-configurable.
+// Times in seconds. Every value the sim reads is an integer.
+export const MUTATOR_DEFAULTS = {
+  // Meteor shower: once the grace period after spawn immunity is over, a
+  // volley of meteors lands every meteorMinInterval..meteorMaxInterval
+  // seconds on random land tiles. Bigger maps get more meteors per volley
+  // (one per meteorLandTilesPerMeteor land tiles, at least one).
+  meteorGraceSeconds: 60,
+  meteorMinIntervalSeconds: 15,
+  meteorMaxIntervalSeconds: 30,
+  meteorLandTilesPerMeteor: 250_000,
+  meteorMaxPerVolley: 4,
+  meteorInnerRadius: 5,
+  meteorOuterRadius: 10,
+  // Blitz: income multipliers and build/reload divisors.
+  blitzIncomeMultiplier: 2,
+  blitzTimeDivisor: 2,
+  // King of the hill: the hill opens hillOpenSeconds after the spawn phase.
+  // A side controls it while it owns MORE than hillControlPercent of the
+  // hill's land; the first side to control it for hillHoldSecondsToWin
+  // seconds in total wins.
+  hillOpenSeconds: 180,
+  hillHoldSecondsToWin: 300,
+  hillControlPercent: 50,
+  hillMinRadius: 8,
+  hillMaxRadius: 40,
+  // Underdog: every second, a side holding less than underdogLeaderPercent
+  // of the leading side's tiles earns this much extra (in percent of its
+  // normal troop and gold income).
+  underdogLeaderPercent: 25,
+  underdogBonusPercent: 50,
+};
+
+export type ResolvedMutators = {
+  meteorShower: boolean;
+  blitz: boolean;
+  kingOfTheHill: boolean;
+  underdog: boolean;
+};
+
 export class Config {
   private unitInfoCache = new Map<UnitType, UnitInfo>();
   constructor(
@@ -174,6 +213,25 @@ export class Config {
       dropPercentPerMinute: d.dropPercentPerMinute,
     };
   }
+  // Mutator switches, resolved against "off".
+  mutators(): ResolvedMutators {
+    const m = this._gameConfig.mutators;
+    return {
+      meteorShower: m?.meteorShower ?? false,
+      blitz: m?.blitz ?? false,
+      kingOfTheHill: m?.kingOfTheHill ?? false,
+      underdog: m?.underdog ?? false,
+    };
+  }
+  isBlitz(): boolean {
+    return this._gameConfig.mutators?.blitz ?? false;
+  }
+  // Divides build and reload times under the Blitz mutator.
+  private blitzTime(ticks: number): number {
+    return this.isBlitz()
+      ? Math.floor(ticks / MUTATOR_DEFAULTS.blitzTimeDivisor)
+      : ticks;
+  }
   spawnImmunityDuration(): Tick {
     return (
       this._gameConfig.spawnImmunityDuration ?? DEFAULT_SPAWN_IMMUNITY_TICKS
@@ -197,16 +255,16 @@ export class Config {
     return 100;
   }
   SAMCooldown(): number {
-    return 90;
+    return this.blitzTime(90);
   }
   SiloCooldown(): number {
-    return 90;
+    return this.blitzTime(90);
   }
   coastalBatteryCooldown(): number {
-    return 30;
+    return this.blitzTime(30);
   }
   airbaseCooldown(): number {
-    return 150;
+    return this.blitzTime(150);
   }
 
   /** Reload time of one shot of a launcher structure (LauncherStructures). */
@@ -362,7 +420,6 @@ export class Config {
         break;
       case UnitType.CruiseMissile:
       case UnitType.NeutronBomb:
-      case UnitType.EMPBomb:
       case UnitType.ClusterBomb:
       case UnitType.Paratroopers:
       case UnitType.TransportShip:
@@ -373,12 +430,17 @@ export class Config {
       case UnitType.MIRVWarhead:
       case UnitType.TradeShip:
       case UnitType.Train:
+      case UnitType.TacticalMissile:
+      case UnitType.EMPBomb:
         info = {};
         break;
       default:
         assertNever(type);
     }
 
+    if (info.constructionDuration !== undefined) {
+      info.constructionDuration = this.blitzTime(info.constructionDuration);
+    }
     this.unitInfoCache.set(type, info);
     return info;
   }
@@ -521,6 +583,10 @@ export class Config {
       }
     }
 
+    if (this.isBlitz()) {
+      toAdd *= MUTATOR_DEFAULTS.blitzIncomeMultiplier;
+    }
+
     return Math.min(player.troops() + toAdd, max) - player.troops();
   }
 
@@ -532,12 +598,15 @@ export class Config {
         return { inner: 12, outer: 30 };
       case UnitType.HydrogenBomb:
         return { inner: 80, outer: 100 };
+      case UnitType.TacticalMissile:
+        return { inner: 5, outer: 8 };
+      case UnitType.EMPBomb:
+        // Destroys nothing: outer is the radius of the electromagnetic pulse.
+        return { inner: 0, outer: 50 };
       case UnitType.CruiseMissile:
         return { inner: 4, outer: 7 };
       case UnitType.NeutronBomb:
         return { inner: 35, outer: 50 };
-      case UnitType.EMPBomb:
-        return { inner: 50, outer: 65 };
       // The area the submunitions scatter over, not a single blast.
       case UnitType.ClusterBomb:
         return { inner: 22, outer: 30 };
@@ -557,7 +626,6 @@ export class Config {
           destroysStructures: true,
           destroysMobileUnits: true,
           troopDeathMultiplier: 0.3,
-          emp: false,
           submunitions: 0,
         };
       case UnitType.NeutronBomb:
@@ -566,16 +634,6 @@ export class Config {
           destroysStructures: false,
           destroysMobileUnits: true,
           troopDeathMultiplier: 1.5,
-          emp: false,
-          submunitions: 0,
-        };
-      case UnitType.EMPBomb:
-        return {
-          destroysTerritory: false,
-          destroysStructures: false,
-          destroysMobileUnits: false,
-          troopDeathMultiplier: 0,
-          emp: true,
           submunitions: 0,
         };
       case UnitType.ClusterBomb:
@@ -583,6 +641,20 @@ export class Config {
       default:
         return NUCLEAR_WARHEAD;
     }
+  }
+
+  /**
+   * Extra ticks an EMP keeps a launcher (SAM, silo, coastal battery, airbase)
+   * knocked out: every slot restarts its normal reload only this long after
+   * the pulse.
+   */
+  empDisableExtraTicks(): Tick {
+    return 20 * 10;
+  }
+
+  /** Share of a warship's max health an EMP pulse burns away (percent). */
+  empWarshipDamagePercent(): number {
+    return 40;
   }
 
   nukeAllianceBreakThreshold(): number {

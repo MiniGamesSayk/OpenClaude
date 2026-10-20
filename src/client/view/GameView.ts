@@ -15,6 +15,7 @@ import {
 import {
   GameUpdateType,
   GameUpdateViewData,
+  KingOfTheHillUpdate,
   SpawnPhaseEndUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
 import { GameLike, UnitPredicate } from "@openfront/engine-api/game/ReadViews";
@@ -35,7 +36,7 @@ import type { SpiralParams } from "../render/frame/SpiralTrails";
 import { SpiralTrails } from "../render/frame/SpiralTrails";
 import { TrailManager } from "../render/frame/TrailManager";
 import type { FrameData, NameEntry } from "../render/types";
-import { STRUCTURE_TYPES } from "../render/types";
+import { STRUCTURE_TYPES, UT_MIRV_WARHEAD } from "../render/types";
 import { TRAIL_TYPES } from "../render/types/UnitType";
 import { UserSettings } from "../UserSettings";
 import { resolveTeamClanTag } from "../Utils";
@@ -274,6 +275,10 @@ export class GameView implements GameLike {
     }
     if (gu.updates[GameUpdateType.Win].length > 0) {
       this._gameOver = true;
+    }
+    const hillUpdates = gu.updates[GameUpdateType.KingOfTheHill] ?? [];
+    if (hillUpdates.length > 0) {
+      this._kingOfTheHill = hillUpdates[hillUpdates.length - 1];
     }
 
     const myDisplayName = formatPlayerDisplayName(
@@ -600,6 +605,16 @@ export class GameView implements GameLike {
         ownerSmallID: u.ownerID,
       });
     }
+    // Meteors have no unit: borrow the MIRV warhead's explosion, unowned so
+    // no player's explosion cosmetic applies.
+    for (const m of gu.updates[GameUpdateType.MeteorImpact] ?? []) {
+      ev.deadUnits.push({
+        unitType: UT_MIRV_WARHEAD,
+        pos: m.tile,
+        reachedTarget: true,
+        ownerSmallID: 0,
+      });
+    }
     const myID = this._myPlayer?.id();
     for (const c of gu.updates[GameUpdateType.ConquestEvent] ?? []) {
       if (c.conquerorId !== myID) continue;
@@ -827,6 +842,13 @@ export class GameView implements GameLike {
   private _gameOver = false;
   gameOver(): boolean {
     return this._gameOver;
+  }
+
+  // Latest King of the Hill state, or null when the mutator is off (or
+  // before its first once-a-second update).
+  private _kingOfTheHill: KingOfTheHillUpdate | null = null;
+  kingOfTheHill(): KingOfTheHillUpdate | null {
+    return this._kingOfTheHill;
   }
 
   inSpawnPhase(): boolean {

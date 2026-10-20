@@ -10,6 +10,7 @@ import {
   SpawnIntentSchema,
   UpgradeStructureIntentSchema,
 } from "@openfront/engine-api/Schemas";
+import { MAX_BUILD_AMOUNT } from "@openfront/engine-api/game/GameTypes";
 import { describe, expect, it } from "vitest";
 
 const RECIPIENT = "aaaaaaaa";
@@ -59,6 +60,24 @@ describe("intent schemas: tile refs are non-negative integers", () => {
       expect(schema.safeParse(build(-Infinity)).success).toBe(false);
     });
   }
+});
+
+describe("build intents: batch amounts", () => {
+  it("accepts up to the large batch limit", () => {
+    const intent = {
+      type: "build_unit",
+      unit: "City",
+      tile: 0,
+      amount: MAX_BUILD_AMOUNT,
+    };
+    expect(BuildUnitIntentSchema.safeParse(intent).success).toBe(true);
+    expect(
+      BuildUnitIntentSchema.safeParse({
+        ...intent,
+        amount: MAX_BUILD_AMOUNT + 1,
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("intent schemas: unit ids are non-negative integers", () => {

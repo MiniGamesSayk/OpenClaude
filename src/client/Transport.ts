@@ -161,6 +161,12 @@ export class SendDonateTroopsIntentEvent implements GameEvent {
   ) {}
 }
 
+export class BuyTroopsIntentEvent implements GameEvent {}
+
+export class BuyTerritoryIntentEvent implements GameEvent {
+  constructor(public readonly target: PlayerView) {}
+}
+
 export class SendQuickChatEvent implements GameEvent {
   constructor(
     public readonly recipient: PlayerView,
@@ -324,6 +330,10 @@ export class Transport {
     );
     this.subscribe(SendDonateTroopsIntentEvent, (e) =>
       this.onSendDonateTroopIntent(e),
+    );
+    this.subscribe(BuyTroopsIntentEvent, () => this.onBuyTroopsIntent());
+    this.subscribe(BuyTerritoryIntentEvent, (e) =>
+      this.onBuyTerritoryIntent(e),
     );
     this.subscribe(SendQuickChatEvent, (e) => this.onSendQuickChatIntent(e));
     this.subscribe(SendEmbargoIntentEvent, (e) => this.onSendEmbargoIntent(e));
@@ -893,6 +903,14 @@ export class Transport {
       rocketDirectionUp: event.rocketDirectionUp,
       amount: event.amount,
     });
+  }
+
+  private onBuyTroopsIntent() {
+    this.sendIntent({ type: "buy_troops" });
+  }
+
+  private onBuyTerritoryIntent(event: BuyTerritoryIntentEvent) {
+    this.sendIntent({ type: "buy_territory", target: event.target.id() });
   }
 
   private onPauseGameIntent(event: PauseGameIntentEvent) {

@@ -930,6 +930,8 @@ export class NationNukeBehavior {
         UnitType.HydrogenBomb,
         UnitType.MIRV,
         UnitType.MIRVWarhead,
+        UnitType.TacticalMissile,
+        UnitType.EMPBomb,
       ])
       .some((nuke) => {
         const tile = nuke.targetTile();

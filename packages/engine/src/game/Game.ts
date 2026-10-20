@@ -91,6 +91,16 @@ export interface UnitParamsMap {
     trajectory: TrajectoryTile[];
   };
 
+  [UnitType.TacticalMissile]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
+  [UnitType.EMPBomb]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
   [UnitType.TradeShip]: {
     targetUnit: Unit;
     lastSetSafeFromPirates?: number;
@@ -315,10 +325,11 @@ export interface Unit extends UnitLike {
   isInCooldown(): boolean;
   missileTimerQueue(): number[];
   /**
-   * EMP: every shot of this launcher starts reloading as if fired at
-   * `firedAt` (which may be in the future, to stretch the outage).
+   * EMP knock-out: every missile slot is spent and only starts its normal
+   * reload at `reloadStartTick` (a future tick), so the launcher can't fire
+   * until then.
    */
-  jamLauncher(firedAt: Tick): void;
+  empDisable(reloadStartTick: Tick): void;
   samLauncherState(): SamLauncherState | undefined;
 
   // Trade Ships
@@ -500,6 +511,8 @@ export interface Player extends PlayerLike {
   // Donation
   canDonateGold(recipient: Player): boolean;
   canDonateTroops(recipient: Player): boolean;
+  canBuyTerritory(target: Player): boolean;
+  territoryPurchaseCost(target: Player): Gold;
   donateTroops(recipient: Player, troops: number): boolean;
   donateGold(recipient: Player, gold: Gold): boolean;
   canDeleteUnit(): boolean;

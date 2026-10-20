@@ -435,11 +435,12 @@ export class MapPlaylist {
         UnitType.AtomBomb,
         UnitType.HydrogenBomb,
         UnitType.MIRV,
+        UnitType.TacticalMissile,
+        UnitType.EMPBomb,
         UnitType.SAMLauncher,
         // Silo-launched too, so they go with the silo.
         UnitType.CruiseMissile,
         UnitType.NeutronBomb,
-        UnitType.EMPBomb,
         UnitType.ClusterBomb,
       );
     }

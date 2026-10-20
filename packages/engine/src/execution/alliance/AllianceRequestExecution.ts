@@ -2,7 +2,7 @@ import {
   MessageType,
   Nukes,
   PlayerID,
-  TacticalMissiles,
+  SpecialWarheads,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { wouldNukeBreakAlliance } from "@openfront/engine-lib/execution/NukeAlliance";
@@ -17,7 +17,7 @@ import type {
 } from "../../snapshot/SnapshotContext";
 
 /** Warheads an accepted alliance neutralizes while they fly at the new ally. */
-const IN_FLIGHT_WARHEADS = [...Nukes.types, ...TacticalMissiles.types];
+const IN_FLIGHT_WARHEADS = [...Nukes.types, ...SpecialWarheads.types];
 
 export class AllianceRequestExecution implements Execution {
   private req: AllianceRequest | null = null;

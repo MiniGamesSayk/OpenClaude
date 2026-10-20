@@ -93,6 +93,7 @@ const SAM_RADIUS_GHOST_TYPES = new Set([
   "City",
   "Atom Bomb",
   "Hydrogen Bomb",
+  "Tactical Missile",
 ]);
 
 /** Subset for build-button hover — excludes City/Silo (SAM radii irrelevant). */
@@ -100,9 +101,13 @@ const SAM_RADIUS_HIGHLIGHT_TYPES = new Set([
   "SAM Launcher",
   "Atom Bomb",
   "Hydrogen Bomb",
+  "Tactical Missile",
 ]);
 
 const GRID_VIEW_KEY = "renderer:grid_view_enabled";
+
+/** King of the Hill zone ring color (gold). */
+const HILL_ZONE_COLOR = [1.0, 0.82, 0.2] as const;
 
 export class GPURenderer {
   private gl: WebGL2RenderingContext;
@@ -135,6 +140,7 @@ export class GPURenderer {
   private namePass: NamePass;
   private fxPass: FxPass;
   private rangeCirclePass: RangeCirclePass;
+  private hillZonePass: RangeCirclePass;
   private samRadiusPass: SAMRadiusPass;
   private crosshairPass: CrosshairPass;
   private railroadPass: RailroadPass;
@@ -554,6 +560,7 @@ export class GPURenderer {
 
     // --- Range circle (ghost preview radius) ---
     this.rangeCirclePass = new RangeCirclePass(gl);
+    this.hillZonePass = new RangeCirclePass(gl);
 
     // --- SAM radius overlay (dashed green circles during build mode) ---
     this.samRadiusPass = new SAMRadiusPass(gl, mapW, this.settings);
@@ -1059,6 +1066,11 @@ export class GPURenderer {
     this.fxPass.updateAttackRings(rings);
   }
 
+  /** King of the Hill zone (gold), or hidden with radius 0. */
+  setHillZone(tileX: number, tileY: number, radius: number): void {
+    this.hillZonePass.setZone(tileX, tileY, radius, HILL_ZONE_COLOR);
+  }
+
   updateGhostPreview(data: GhostPreviewData | null): void {
     this.structurePass.updateGhostPreview(data);
     this.railroadPass.updateGhostPreview(data);
@@ -1366,6 +1378,7 @@ export class GPURenderer {
     if (pe.unit) this.unitPass.drawGround(cam);
     if (pe.falloutBloom) this.bloomPass.draw(cam, this.frameTick);
     this.samRadiusPass.draw(cam);
+    this.hillZonePass.draw(cam);
     this.rangeCirclePass.draw(cam);
     this.nukeTrajectoryPass.draw(cam);
     this.crosshairPass.draw(cam);
@@ -1504,6 +1517,7 @@ export class GPURenderer {
     this.smallPlayerGlowPass.dispose();
     this.railroadPass.dispose();
     this.rangeCirclePass.dispose();
+    this.hillZonePass.dispose();
     this.samRadiusPass.dispose();
     this.crosshairPass.dispose();
     this.structurePass.dispose();

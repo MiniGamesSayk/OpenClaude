@@ -19,6 +19,7 @@ import {
   atomBombIcon,
   cityIcon,
   defensePostIcon,
+  empBombIcon,
   factoryIcon,
   goldCoinIcon,
   hydrogenBombIcon,
@@ -26,6 +27,7 @@ import {
   missileSiloIcon,
   portIcon,
   samLauncherIcon,
+  tacticalMissileIcon,
   warshipIcon,
 } from "../HotbarIcons";
 import { TutorialHighlight, TutorialHighlightEvent } from "../Tutorial";
@@ -97,6 +99,8 @@ export class UnitDisplay extends LitElement implements Controller {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
       case UnitType.MIRV:
+      case UnitType.TacticalMissile:
+      case UnitType.EMPBomb:
         return (
           this.cost(item) <= (player?.gold() ?? 0n) &&
           (player?.units(UnitType.MissileSilo).length ?? 0) > 0
@@ -214,6 +218,20 @@ export class UnitDisplay extends LitElement implements Controller {
             "mirv",
             this.keybinds["buildMIRV"]?.key ?? "0",
           )}
+          ${this.renderUnitItem(
+            tacticalMissileIcon,
+            null,
+            UnitType.TacticalMissile,
+            "tactical_missile",
+            this.keybinds["buildTacticalMissile"]?.key ?? "KeyV",
+          )}
+          ${this.renderUnitItem(
+            empBombIcon,
+            null,
+            UnitType.EMPBomb,
+            "emp_bomb",
+            this.keybinds["buildEMPBomb"]?.key ?? "KeyH",
+          )}
         </div>
       </div>
     `;
@@ -296,6 +314,8 @@ export class UnitDisplay extends LitElement implements Controller {
             switch (unitType) {
               case UnitType.AtomBomb:
               case UnitType.HydrogenBomb:
+              case UnitType.TacticalMissile:
+              case UnitType.EMPBomb:
                 this.eventBus?.emit(
                   new ToggleStructureEvent([
                     UnitType.MissileSilo,

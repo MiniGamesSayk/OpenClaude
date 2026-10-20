@@ -2,20 +2,32 @@ import { zb, ZbEncodeError } from "@openfront/zbin";
 import { z } from "zod";
 import { UnitType } from "./game/GameTypes";
 
-export const bombUnits = ["abomb", "hbomb", "mirv", "mirvw"] as const;
+// New keys go at the end: zbin encodes the record keys by their order here.
+export const bombUnits = [
+  "abomb",
+  "hbomb",
+  "mirv",
+  "mirvw",
+  "tmsl",
+  "emp",
+] as const;
 export const BombUnitSchema = z.enum(bombUnits);
 export type BombUnit = z.infer<typeof BombUnitSchema>;
 export type NukeType =
   | UnitType.AtomBomb
   | UnitType.HydrogenBomb
   | UnitType.MIRV
-  | UnitType.MIRVWarhead;
+  | UnitType.MIRVWarhead
+  | UnitType.TacticalMissile
+  | UnitType.EMPBomb;
 
 export const unitTypeToBombUnit = {
   [UnitType.AtomBomb]: "abomb",
   [UnitType.HydrogenBomb]: "hbomb",
   [UnitType.MIRV]: "mirv",
   [UnitType.MIRVWarhead]: "mirvw",
+  [UnitType.TacticalMissile]: "tmsl",
+  [UnitType.EMPBomb]: "emp",
 } as const satisfies Record<NukeType, BombUnit>;
 
 export const boatUnits = ["trade", "trans"] as const;

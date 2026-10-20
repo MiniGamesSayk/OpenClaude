@@ -1,13 +1,14 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
   AllPlayers,
-  BallisticWarheads,
   BuildableAttacks,
   bulkCost,
   maxBulkAmount,
   NUKE_BULK_STEPS,
   PlayerActions,
   PlayerBuildableUnitType,
+  SiloBombs,
+  StackableBombs,
   STRUCTURE_BULK_STEPS,
   Structures,
   UnitType,
@@ -29,6 +30,7 @@ import { TooltipItem } from "./RadialMenu";
 
 import { EventBus } from "@openfront/shared/EventBus";
 import {
+  BuyTerritoryIntentEvent,
   BuildUnitIntentEvent,
   SendUpgradeStructureIntentEvent,
 } from "../../Transport";
@@ -313,6 +315,21 @@ const allyDonateTroopsElement: MenuElement = {
   },
 };
 
+const buyTerritoryElement: MenuElement = {
+  id: "buy_territory",
+  name: "buy_territory",
+  disabled: (params: MenuElementParams) =>
+    !params.playerActions?.interaction?.canBuyTerritory,
+  color: COLORS.ally,
+  icon: donateGoldIcon,
+  action: (params: MenuElementParams) => {
+    if (params.selected) {
+      params.eventBus.emit(new BuyTerritoryIntentEvent(params.selected));
+    }
+    params.closeMenu();
+  },
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const infoPlayerElement: MenuElement = {
   id: "info_player",
@@ -470,7 +487,7 @@ function createMenuElements(
             return [];
           }
           const isStackableNuke =
-            item.unitType === UnitType.AtomBomb &&
+            StackableBombs.has(item.unitType) &&
             buildableUnit.canBuild !== false;
           if (
             (buildableUnit.canUpgrade === false && !isStackableNuke) ||
@@ -572,7 +589,7 @@ function createMenuElements(
                 ),
               );
             } else if (buildableUnit.canBuild !== false) {
-              const rocketDirectionUp = BallisticWarheads.has(item.unitType)
+              const rocketDirectionUp = SiloBombs.has(item.unitType)
                 ? params.uiState?.rocketDirectionUp
                 : undefined;
               params.eventBus.emit(
@@ -809,9 +826,9 @@ export const rootMenuElement: MenuElement = {
         : [
             isAllied && !isDisconnected ? allyBreakElement : boatMenuElement,
             inExtensionWindow ? allyExtendElement : allyRequestElement,
-            showDonateInsteadOfAttack
-              ? donateGoldRadialElement
-              : attackMenuElement,
+            ...(showDonateInsteadOfAttack
+              ? [donateGoldRadialElement]
+              : [attackMenuElement, buyTerritoryElement]),
           ]),
     ];
 

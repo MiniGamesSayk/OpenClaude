@@ -8,6 +8,7 @@ import {
 import {
   GameConfigPatch,
   isValidGameID,
+  MutatorsConfig,
   TeamCountConfig,
 } from "@openfront/engine-api/Schemas";
 import { DoomsdayClockSpeed } from "@openfront/engine-lib/game/DoomsdayClock";
@@ -59,6 +60,11 @@ import {
   sliderToNationsConfig,
   toOptionalNumber,
 } from "./utilities/GameConfigHelpers";
+import {
+  mutatorForLabel,
+  mutatorsConfig,
+  mutatorToggles,
+} from "./utilities/Mutators";
 
 @customElement("host-lobby-modal")
 export class HostLobbyModal extends BaseModal {
@@ -97,6 +103,7 @@ export class HostLobbyModal extends BaseModal {
   @state() private doomsdayClock: boolean = false;
   @state() private doomsdayClockSpeed: DoomsdayClockSpeed = "normal";
   @state() private overtime: boolean = false;
+  @state() private mutators: MutatorsConfig = {};
   @state() private overtimeStartMinutes: number | undefined = undefined;
   @state() private anonymizeNames: boolean = false;
   @state() private nameReveals: string[] = [];
@@ -711,6 +718,7 @@ export class HostLobbyModal extends BaseModal {
                     checked: this.doomsdayClock,
                     doomsdayClockSpeed: this.doomsdayClockSpeed,
                   },
+                  ...mutatorToggles(this.mutators),
                   // Host cheats and public listing are mutually exclusive
                   // (the server rejects both combinations), so the controls
                   // disappear while the lobby is listed.
@@ -1039,6 +1047,7 @@ export class HostLobbyModal extends BaseModal {
     this.doomsdayClockSpeed = "normal";
     this.overtime = false;
     this.overtimeStartMinutes = undefined;
+    this.mutators = {};
     this.anonymizeNames = false;
     this.nameReveals = [];
     this.whitelistEnabled = false;
@@ -1155,8 +1164,14 @@ export class HostLobbyModal extends BaseModal {
         this.hostCheatsEnabled = checked;
         this.putGameConfig();
         break;
-      default:
+      default: {
+        const mutator = mutatorForLabel(labelKey);
+        if (mutator !== undefined) {
+          this.mutators = { ...this.mutators, [mutator]: checked };
+          this.putGameConfig();
+        }
         break;
+      }
     }
   };
 
@@ -1690,6 +1705,8 @@ export class HostLobbyModal extends BaseModal {
                   startMinutes: this.overtimeStartMinutes ?? 30,
                 }
               : { enabled: false },
+            // Every switch explicit, so a mutator can be turned back off.
+            mutators: mutatorsConfig(this.mutators),
             anonymizeNames: this.anonymizeNames,
             nameReveals: this.nameReveals,
             allowedPublicIds: this.whitelistEnabled
