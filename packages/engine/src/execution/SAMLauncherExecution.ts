@@ -1,5 +1,9 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
-import { GameType, UnitType } from "@openfront/engine-api/game/GameTypes";
+import {
+  GameType,
+  SamTargets,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
 import { PseudoRandom } from "@openfront/engine-lib/PseudoRandom";
 import {
   zInt,
@@ -255,7 +259,7 @@ class SAMTargetingSystem {
     const nukes = this.mg.nearbyUnits(
       samTile,
       detectionRange,
-      [UnitType.AtomBomb, UnitType.HydrogenBomb, UnitType.MIRVWarhead],
+      SamTargets.types,
       this.isTargetableNearbyUnit,
     );
 
@@ -378,11 +382,7 @@ export class SAMLauncherExecution implements Execution {
     // them (unit ids are unique). unitCount(type) is memoised per unit-list version — one shared
     // walk a tick, not one a launcher — and unlike units(type) a hit allocates nothing. A nuke's
     // level is always 1, so a zero count is exactly an empty list.
-    if (
-      this.mg.unitCount(UnitType.AtomBomb) === 0 &&
-      this.mg.unitCount(UnitType.HydrogenBomb) === 0 &&
-      this.mg.unitCount(UnitType.MIRVWarhead) === 0
-    ) {
+    if (!SamTargets.types.some((t) => this.mg.unitCount(t) > 0)) {
       return;
     }
     // target is already filtered to exclude nukes targeted by other SAMs

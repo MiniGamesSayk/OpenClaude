@@ -17,6 +17,37 @@ export interface NukeMagnitude {
   outer: number;
 }
 
+/**
+ * What a silo-launched warhead does on impact. Nuclear warheads do it all;
+ * the tactical missiles each keep a part of it.
+ */
+export interface WarheadProfile {
+  /** Tiles in the blast are relinquished and left as fallout (or water). */
+  destroysTerritory: boolean;
+  /** Structures in the blast are destroyed. */
+  destroysStructures: boolean;
+  /** Ships, boats, trains and other mobile units in the blast are destroyed. */
+  destroysMobileUnits: boolean;
+  /** Scales the nuke troop losses on every owned tile hit; 0 = no losses. */
+  troopDeathMultiplier: number;
+  /** Puts hostile launcher structures in the blast on a full reload. */
+  emp: boolean;
+  /**
+   * > 0: the warhead splits over the target into this many sub-blasts of
+   * clusterSubmunitionMagnitude(), scattered inside its own magnitude.
+   */
+  submunitions: number;
+}
+
+const NUCLEAR_WARHEAD: WarheadProfile = {
+  destroysTerritory: true,
+  destroysStructures: true,
+  destroysMobileUnits: true,
+  troopDeathMultiplier: 1,
+  emp: false,
+  submunitions: 0,
+};
+
 const DEFAULT_SPAWN_IMMUNITY_TICKS = 5 * 10;
 
 /** SAM launcher construction duration in ticks (non-instant-build). */
@@ -171,6 +202,68 @@ export class Config {
   SiloCooldown(): number {
     return 90;
   }
+  coastalBatteryCooldown(): number {
+    return 30;
+  }
+  airbaseCooldown(): number {
+    return 150;
+  }
+
+  /** Reload time of one shot of a launcher structure (LauncherStructures). */
+  launcherCooldown(type: UnitType): number {
+    switch (type) {
+      case UnitType.SAMLauncher:
+        return this.SAMCooldown();
+      case UnitType.CoastalBattery:
+        return this.coastalBatteryCooldown();
+      case UnitType.Airbase:
+        return this.airbaseCooldown();
+      default:
+        return this.SiloCooldown();
+    }
+  }
+
+  coastalBatteryRange(): number {
+    return 60;
+  }
+
+  /** Max distance from an airbase to the drop zone of its paratroopers. */
+  paratrooperRange(): number {
+    return 350;
+  }
+
+  paratrooperSpeed(): number {
+    return 8;
+  }
+
+  /** Share of the player's troops a paratrooper drop carries. */
+  paratrooperTroopShare(): number {
+    return 0.2;
+  }
+
+  /** Sum of the levels of a player's finished structures of one type. */
+  completedLevels(player: PlayerLike, type: UnitType): number {
+    let levels = 0;
+    for (const u of player.units(type)) {
+      if (!u.isUnderConstruction()) levels += u.level();
+    }
+    return levels;
+  }
+
+  /** Extra troop regeneration from hospitals, as a fraction (0.5 = +50%). */
+  hospitalRegenBonus(levels: number): number {
+    return Math.min(0.6, levels * 0.12);
+  }
+
+  /** Gold a bank level adds every tick, before the gold multiplier. */
+  bankGoldPerLevel(): number {
+    return 40;
+  }
+
+  /** Share of nuke troop losses that bunkers prevent (0 = none, 0.6 = 60%). */
+  bunkerProtection(levels: number): number {
+    return Math.min(0.6, levels * 0.12);
+  }
 
   defensePostRange(): number {
     return 30;
@@ -247,6 +340,31 @@ export class Config {
           upgradable: true,
         };
         break;
+      case UnitType.Hospital:
+      case UnitType.Bank:
+        info = {
+          constructionDuration: this.instantBuild() ? 0 : 3 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.Bunker:
+      case UnitType.CoastalBattery:
+        info = {
+          constructionDuration: this.instantBuild() ? 0 : 5 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.Airbase:
+        info = {
+          constructionDuration: this.instantBuild() ? 0 : 10 * 10,
+          upgradable: true,
+        };
+        break;
+      case UnitType.CruiseMissile:
+      case UnitType.NeutronBomb:
+      case UnitType.EMPBomb:
+      case UnitType.ClusterBomb:
+      case UnitType.Paratroopers:
       case UnitType.TransportShip:
       case UnitType.SAMMissile:
       case UnitType.AtomBomb:
@@ -375,6 +493,11 @@ export class Config {
     const ratio = 1 - player.troops() / max;
     toAdd *= ratio;
 
+    const hospitals = this.completedLevels(player, UnitType.Hospital);
+    if (hospitals > 0) {
+      toAdd *= 1 + this.hospitalRegenBonus(hospitals);
+    }
+
     if (player.type() === PlayerType.Bot) {
       toAdd *= 0.5;
     }
@@ -409,8 +532,57 @@ export class Config {
         return { inner: 12, outer: 30 };
       case UnitType.HydrogenBomb:
         return { inner: 80, outer: 100 };
+      case UnitType.CruiseMissile:
+        return { inner: 4, outer: 7 };
+      case UnitType.NeutronBomb:
+        return { inner: 35, outer: 50 };
+      case UnitType.EMPBomb:
+        return { inner: 50, outer: 65 };
+      // The area the submunitions scatter over, not a single blast.
+      case UnitType.ClusterBomb:
+        return { inner: 22, outer: 30 };
     }
     throw new Error(`Unknown nuke type: ${unitType}`);
+  }
+
+  clusterSubmunitionMagnitude(): NukeMagnitude {
+    return { inner: 4, outer: 8 };
+  }
+
+  warheadProfile(unitType: UnitType): WarheadProfile {
+    switch (unitType) {
+      case UnitType.CruiseMissile:
+        return {
+          destroysTerritory: false,
+          destroysStructures: true,
+          destroysMobileUnits: true,
+          troopDeathMultiplier: 0.3,
+          emp: false,
+          submunitions: 0,
+        };
+      case UnitType.NeutronBomb:
+        return {
+          destroysTerritory: false,
+          destroysStructures: false,
+          destroysMobileUnits: true,
+          troopDeathMultiplier: 1.5,
+          emp: false,
+          submunitions: 0,
+        };
+      case UnitType.EMPBomb:
+        return {
+          destroysTerritory: false,
+          destroysStructures: false,
+          destroysMobileUnits: false,
+          troopDeathMultiplier: 0,
+          emp: true,
+          submunitions: 0,
+        };
+      case UnitType.ClusterBomb:
+        return { ...NUCLEAR_WARHEAD, submunitions: 8 };
+      default:
+        return NUCLEAR_WARHEAD;
+    }
   }
 
   nukeAllianceBreakThreshold(): number {

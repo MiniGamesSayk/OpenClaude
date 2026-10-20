@@ -27,6 +27,16 @@ const DISABLED_UNIT_KEYS: Record<string, string> = {
   "Trade Ship": "player_stats_table.unit.trade",
   Transport: "player_stats_table.unit.trans",
   "MIRV Warhead": "player_stats_table.unit.mirvw",
+  Hospital: "unit_type.hospital",
+  Bank: "unit_type.bank",
+  Bunker: "unit_type.bunker",
+  "Coastal Battery": "unit_type.coastal_battery",
+  Airbase: "unit_type.airbase",
+  Paratroopers: "unit_type.paratroopers",
+  "Cruise Missile": "unit_type.cruise_missile",
+  "Cluster Bomb": "unit_type.cluster_bomb",
+  "Neutron Bomb": "unit_type.neutron_bomb",
+  "EMP Bomb": "unit_type.emp_bomb",
 };
 
 const millions = (gold: number) =>

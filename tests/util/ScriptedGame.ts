@@ -274,6 +274,11 @@ const STRUCTURES = [
   UnitType.DefensePost,
   UnitType.SAMLauncher,
   UnitType.MissileSilo,
+  UnitType.Hospital,
+  UnitType.Bank,
+  UnitType.Bunker,
+  UnitType.CoastalBattery,
+  UnitType.Airbase,
 ] as const;
 
 function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
@@ -295,7 +300,7 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
   const other = pick(rand, others);
   const own = (types: UnitType[]) => p.units(types);
 
-  switch (rand.nextInt(0, 22)) {
+  switch (rand.nextInt(0, 23)) {
     case 0:
     case 1:
     case 2: {
@@ -321,7 +326,7 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
     case 6: {
       const unit = pick(rand, STRUCTURES)!;
       const tile =
-        unit === UnitType.Port
+        unit === UnitType.Port || unit === UnitType.CoastalBattery
           ? pick(
               rand,
               [...p.borderTiles()].filter((t) => game.isShore(t)),
@@ -347,6 +352,10 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
         UnitType.AtomBomb,
         UnitType.HydrogenBomb,
         UnitType.MIRV,
+        UnitType.CruiseMissile,
+        UnitType.NeutronBomb,
+        UnitType.EMPBomb,
+        UnitType.ClusterBomb,
       ])!;
       // Half the bombs fly at an enemy SAM, so SAMs get to shoot
       const sam = rand.chance(2)
@@ -444,6 +453,16 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
         type: "mark_disconnected",
         isDisconnected: !p.isDisconnected() && rand.chance(3),
       };
+    case 22: {
+      if (own([UnitType.Airbase]).length === 0 || other === null) {
+        return null;
+      }
+      const tile = randomOwnedTile(rand, other);
+      if (tile === null || p.canBuild(UnitType.Paratroopers, tile) === false) {
+        return null;
+      }
+      return { type: "build_unit", unit: UnitType.Paratroopers, tile };
+    }
   }
   return null;
 }

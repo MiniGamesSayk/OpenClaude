@@ -207,6 +207,17 @@ export enum UnitType {
   MIRVWarhead = "MIRV Warhead",
   Train = "Train",
   Factory = "Factory",
+  // New units are appended (never inserted): zbin encodes enums by position.
+  CruiseMissile = "Cruise Missile",
+  NeutronBomb = "Neutron Bomb",
+  EMPBomb = "EMP Bomb",
+  ClusterBomb = "Cluster Bomb",
+  Paratroopers = "Paratroopers",
+  Hospital = "Hospital",
+  Bank = "Bank",
+  Bunker = "Bunker",
+  CoastalBattery = "Coastal Battery",
+  Airbase = "Airbase",
 }
 
 export enum TrainType {
@@ -222,11 +233,44 @@ export const Nukes = unitTypeGroup([
   UnitType.MIRV,
 ] as const);
 
+/**
+ * Silo-launched warheads that are not nuclear: they fly the same ballistic
+ * path as an atom bomb (NukeExecution) but each has its own effect on impact
+ * (see Config.warheadProfile).
+ */
+export const TacticalMissiles = unitTypeGroup([
+  UnitType.CruiseMissile,
+  UnitType.NeutronBomb,
+  UnitType.EMPBomb,
+  UnitType.ClusterBomb,
+] as const);
+
+/**
+ * Silo-launched warheads that fly a single arc to the clicked tile (the arc's
+ * direction is the player's rocketDirectionUp choice). Not the MIRV, which
+ * splits.
+ */
+export const BallisticWarheads = unitTypeGroup([
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  ...TacticalMissiles.types,
+] as const);
+
+/** Everything a SAM launcher can shoot down. */
+export const SamTargets = unitTypeGroup([
+  UnitType.AtomBomb,
+  UnitType.HydrogenBomb,
+  UnitType.MIRVWarhead,
+  ...TacticalMissiles.types,
+] as const);
+
 export const BuildableAttacks = unitTypeGroup([
   UnitType.AtomBomb,
   UnitType.HydrogenBomb,
   UnitType.MIRV,
   UnitType.Warship,
+  ...TacticalMissiles.types,
+  UnitType.Paratroopers,
 ] as const);
 
 export const Structures = unitTypeGroup([
@@ -236,7 +280,22 @@ export const Structures = unitTypeGroup([
   UnitType.MissileSilo,
   UnitType.Port,
   UnitType.Factory,
+  UnitType.Hospital,
+  UnitType.Bank,
+  UnitType.Bunker,
+  UnitType.CoastalBattery,
+  UnitType.Airbase,
 ] as const);
+
+/** Structures that hold a reload queue (missileTimerQueue): one shot per level. */
+export const LauncherStructures = unitTypeGroup([
+  UnitType.MissileSilo,
+  UnitType.SAMLauncher,
+  UnitType.CoastalBattery,
+  UnitType.Airbase,
+] as const);
+
+export type TacticalMissileType = (typeof TacticalMissiles.types)[number];
 
 export const BuildMenus = unitTypeGroup([
   ...Structures.types,

@@ -1,12 +1,18 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
+  LauncherStructures,
   MessageType,
+  Nukes,
+  SamTargets,
   Structures,
+  TacticalMissileType,
+  TacticalMissiles,
   TerraNullius,
   TrajectoryTile,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { NukeType } from "@openfront/engine-api/StatsSchemas";
+import { NukeMagnitude } from "@openfront/engine-lib/configuration/Config";
 import { atan2 } from "@openfront/engine-lib/DetMath";
 import { listNukeBreakAlliance } from "@openfront/engine-lib/execution/NukeAlliance";
 import { PseudoRandom } from "@openfront/engine-lib/PseudoRandom";
@@ -37,6 +43,24 @@ import type {
 
 const SPRITE_RADIUS = 16;
 
+/** Everything NukeExecution can fly: nuclear warheads and tactical missiles. */
+export type WarheadType = NukeType | TacticalMissileType;
+
+interface BlastCenter {
+  tile: TileRef;
+  magnitude: NukeMagnitude;
+}
+
+const TACTICAL_INBOUND_MESSAGES: Record<TacticalMissileType, string> = {
+  [UnitType.CruiseMissile]: "events_display.cruise_missile_inbound",
+  [UnitType.NeutronBomb]: "events_display.neutron_bomb_inbound",
+  [UnitType.EMPBomb]: "events_display.emp_bomb_inbound",
+  [UnitType.ClusterBomb]: "events_display.cluster_bomb_inbound",
+};
+
+/** Ticks an EMP keeps a launcher jammed on top of its normal reload. */
+const EMP_EXTRA_JAM_TICKS = 100;
+
 export class NukeExecution implements Execution {
   private active = true;
   private mg: Game;
@@ -45,7 +69,7 @@ export class NukeExecution implements Execution {
   private pathFinder: ParabolaUniversalPathFinder;
 
   constructor(
-    private nukeType: NukeType,
+    private nukeType: WarheadType,
     private player: Player,
     private dst: TileRef,
     private src?: TileRef | null,
@@ -81,7 +105,29 @@ export class NukeExecution implements Execution {
     const inner2 = magnitude.inner * magnitude.inner;
     const outer2 = magnitude.outer * magnitude.outer;
 
-    if (this.mg.config().waterNukes()) {
+    const centers = this.blastCenters();
+    if (centers.length > 1 || centers[0].tile !== this.dst) {
+      // Submunitions: the union of several small blasts.
+      const result = new Set<TileRef>();
+      for (const c of centers) {
+        const ci2 = c.magnitude.inner * c.magnitude.inner;
+        const co2 = c.magnitude.outer * c.magnitude.outer;
+        for (const t of this.mg.bfs(c.tile, (_, n: TileRef) => {
+          const d2 = this.mg.euclideanDistSquared(c.tile, n);
+          return (
+            d2 <= co2 &&
+            (d2 <= ci2 || rand.chance(2)) &&
+            !this.mg.isImpassable(n)
+          );
+        })) {
+          result.add(t);
+        }
+      }
+      this.tilesToDestroyCache = result;
+      return result;
+    }
+
+    if (this.mg.config().waterNukes() && this.profile().destroysTerritory) {
       // Smooth irregular boundary for water nukes.
       // Generate random radii at angular samples, then smooth them so the
       // boundary undulates gently instead of creating spiky flower shapes.
@@ -141,6 +187,50 @@ export class NukeExecution implements Execution {
       });
     }
     return this.tilesToDestroyCache;
+  }
+
+  private profile() {
+    return this.mg.config().warheadProfile(this.nukeType);
+  }
+
+  /**
+   * Where the warhead's blasts land: the target itself, or for a cluster bomb
+   * its submunitions, scattered (deterministically) over the target area.
+   */
+  private blastCenters(): BlastCenter[] {
+    const config = this.mg.config();
+    const submunitions = this.profile().submunitions;
+    if (submunitions <= 0) {
+      return [
+        { tile: this.dst, magnitude: config.nukeMagnitudes(this.nukeType) },
+      ];
+    }
+    const area = config.nukeMagnitudes(this.nukeType);
+    const sub = config.clusterSubmunitionMagnitude();
+    const spread = Math.max(0, area.outer - sub.outer);
+    const spread2 = spread * spread;
+    const rand = new PseudoRandom(this.mg.ticks() * 31 + this.dst);
+    const cx = this.mg.x(this.dst);
+    const cy = this.mg.y(this.dst);
+    const maxX = this.mg.width() - 1;
+    const maxY = this.mg.height() - 1;
+    const centers: BlastCenter[] = [];
+    for (let i = 0; i < submunitions; i++) {
+      let dx = 0;
+      let dy = 0;
+      // Rejection-sample a point in the disc (integer math, no trig).
+      for (let attempt = 0; attempt < 8; attempt++) {
+        dx = rand.nextInt(-spread, spread + 1);
+        dy = rand.nextInt(-spread, spread + 1);
+        if (dx * dx + dy * dy <= spread2) break;
+        dx = 0;
+        dy = 0;
+      }
+      const x = Math.min(maxX, Math.max(0, cx + dx));
+      const y = Math.min(maxY, Math.max(0, cy + dy));
+      centers.push({ tile: this.mg.ref(x, y), magnitude: sub });
+    }
+    return centers;
   }
 
   /**
@@ -252,13 +342,22 @@ export class NukeExecution implements Execution {
             MessageType.HYDROGEN_BOMB_INBOUND,
             target.id(),
           );
+        } else if (TacticalMissiles.has(this.nukeType)) {
+          this.mg.displayIncomingUnit(
+            this.nuke.id(),
+            TACTICAL_INBOUND_MESSAGES[this.nukeType],
+            MessageType.NUKE_INBOUND,
+            target.id(),
+          );
         }
 
         if (this.nukeType === UnitType.MIRV) {
           this.mg.recordMirvLaunch();
         }
-        // Record stats
-        this.mg.stats().bombLaunch(this.player, target, this.nukeType);
+        // Record stats (the archived stats only know the nuclear warheads)
+        if (Nukes.has(this.nukeType)) {
+          this.mg.stats().bombLaunch(this.player, target, this.nukeType);
+        }
       }
 
       // after sending a nuke set the missilesilo on cooldown
@@ -393,6 +492,7 @@ export class NukeExecution implements Execution {
     const config = mg.config();
 
     const magnitude = config.nukeMagnitudes(this.nuke.type());
+    const profile = this.profile();
     const toDestroy = this.tilesToDestroy();
 
     // Retrieve all impacted players and the number of tiles
@@ -400,10 +500,15 @@ export class NukeExecution implements Execution {
     for (const tile of toDestroy) {
       const owner = mg.owner(tile);
       if (owner.isPlayer()) {
-        owner.relinquish(tile);
+        if (profile.destroysTerritory) {
+          owner.relinquish(tile);
+        }
         tilesPerPlayers.set(owner, (tilesPerPlayers.get(owner) ?? 0) + 1);
       }
 
+      if (!profile.destroysTerritory) {
+        continue;
+      }
       // Queue land tiles for batched water conversion
       if (mg.isLand(tile)) {
         mg.queueWaterConversion(tile);
@@ -415,7 +520,20 @@ export class NukeExecution implements Execution {
 
     // Then compute the explosion effect on each player
     for (const [player, numImpactedTiles] of tilesPerPlayers) {
-      const tilesBeforeNuke = player.numTilesOwned() + numImpactedTiles;
+      if (profile.troopDeathMultiplier <= 0) {
+        continue;
+      }
+      // Bunkers shelter part of the army; 1 exactly when there are none, so
+      // the nuclear math is untouched for players without them.
+      const deathScale =
+        profile.troopDeathMultiplier *
+        (1 -
+          config.bunkerProtection(
+            config.completedLevels(player, UnitType.Bunker),
+          ));
+      const tilesBeforeNuke =
+        player.numTilesOwned() +
+        (profile.destroysTerritory ? numImpactedTiles : 0);
       const transportShips = player.units(UnitType.TransportShip);
       const transportShipTroops = new Map<Unit, number>();
       for (const unit of transportShips) {
@@ -426,33 +544,37 @@ export class NukeExecution implements Execution {
       // nukeDeathFactor could compute the complete fallout in a single call instead
       for (let i = 0; i < numImpactedTiles; i++) {
         // Diminishing effect as each affected tile has been nuked
-        const numTilesLeft = tilesBeforeNuke - i;
+        const numTilesLeft = profile.destroysTerritory
+          ? tilesBeforeNuke - i
+          : tilesBeforeNuke;
         player.removeTroops(
           config.nukeDeathFactor(
             this.nukeType,
             player.troops(),
             numTilesLeft,
             maxTroops,
-          ),
+          ) * deathScale,
         );
         for (const attack of outgoingAttacks) {
           const attackTroops = attack.troops();
-          const deaths = config.nukeDeathFactor(
-            this.nukeType,
-            attackTroops,
-            numTilesLeft,
-            maxTroops,
-          );
+          const deaths =
+            config.nukeDeathFactor(
+              this.nukeType,
+              attackTroops,
+              numTilesLeft,
+              maxTroops,
+            ) * deathScale;
           attack.setTroops(attackTroops - deaths);
         }
         for (const unit of transportShips) {
           const unitTroops = transportShipTroops.get(unit) ?? unit.troops();
-          const deaths = config.nukeDeathFactor(
-            this.nukeType,
-            unitTroops,
-            numTilesLeft,
-            maxTroops,
-          );
+          const deaths =
+            config.nukeDeathFactor(
+              this.nukeType,
+              unitTroops,
+              numTilesLeft,
+              maxTroops,
+            ) * deathScale;
           transportShipTroops.set(unit, Math.max(0, unitTroops - deaths));
         }
       }
@@ -461,28 +583,41 @@ export class NukeExecution implements Execution {
       }
     }
 
-    const outer2 = magnitude.outer * magnitude.outer;
-    const dst = this.dst;
+    const centers = this.blastCenters();
     for (const unit of mg.units()) {
       const type = unit.type();
       if (
-        type === UnitType.AtomBomb ||
-        type === UnitType.HydrogenBomb ||
-        type === UnitType.MIRVWarhead ||
+        SamTargets.has(type) ||
         type === UnitType.MIRV ||
-        type === UnitType.SAMMissile
+        type === UnitType.SAMMissile ||
+        type === UnitType.Paratroopers
       ) {
         continue;
       }
-      if (mg.euclideanDistSquared(dst, unit.tile()) < outer2) {
-        // treatAFKFriendly matches warship targeting: a disconnected
-        // teammate's or ally's units are still not kills.
-        const friendly = this.player.isFriendly(unit.owner(), true);
+      const isStructure = Structures.has(type);
+      const destroys = isStructure
+        ? profile.destroysStructures
+        : profile.destroysMobileUnits;
+      const jams = profile.emp && LauncherStructures.has(type);
+      if (!destroys && !jams) {
+        continue;
+      }
+      if (!this.inBlast(centers, unit.tile())) {
+        continue;
+      }
+      // treatAFKFriendly matches warship targeting: a disconnected
+      // teammate's or ally's units are still not kills.
+      const friendly = this.player.isFriendly(unit.owner(), true);
+      if (destroys) {
         unit.delete(true, friendly ? undefined : this.player);
+      } else if (!friendly && !unit.isUnderConstruction()) {
+        unit.jamLauncher(mg.ticks() + EMP_EXTRA_JAM_TICKS);
       }
     }
 
-    this.redrawBuildings(magnitude.outer + SPRITE_RADIUS);
+    if (profile.destroysTerritory) {
+      this.redrawBuildings(magnitude.outer + SPRITE_RADIUS);
+    }
     this.active = false;
     this.nuke.setReachedTarget();
     this.nuke.delete(false);
@@ -509,9 +644,21 @@ export class NukeExecution implements Execution {
     }
 
     // Record stats
-    this.mg
-      .stats()
-      .bombLand(this.player, this.target(), this.nuke.type() as NukeType);
+    if (Nukes.has(this.nukeType)) {
+      this.mg
+        .stats()
+        .bombLand(this.player, this.target(), this.nuke.type() as NukeType);
+    }
+  }
+
+  private inBlast(centers: BlastCenter[], tile: TileRef): boolean {
+    for (const c of centers) {
+      const outer2 = c.magnitude.outer * c.magnitude.outer;
+      if (this.mg.euclideanDistSquared(c.tile, tile) < outer2) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private redrawBuildings(range: number) {
@@ -571,7 +718,7 @@ export class NukeExecution implements Execution {
       this.pathFinder = restoreParabola(r.game, s.pathFinder);
     }
     this.nuke = r.unitOrNull(s.nuke);
-    this.nukeType = s.nukeType as NukeType;
+    this.nukeType = s.nukeType as WarheadType;
     this.player = r.player(s.player);
     this.dst = s.dst;
     this.src = s.src;

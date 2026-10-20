@@ -12,11 +12,13 @@
  *   UnitState.veterancy → one instance per level (x, y, slot) → solid gold rect
  */
 
-import { UnitType } from "@openfront/engine-api/game/GameTypes";
+import {
+  LauncherStructures,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
 import type { Config } from "@openfront/engine-lib/configuration/Config";
 import { maxHealthWithVeterancy } from "@openfront/engine-lib/game/Veterancy";
 import type { RendererConfig, UnitState } from "../../types";
-import { UT_MISSILE_SILO, UT_SAM_LAUNCHER } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
 import { createProgram } from "../utils/GlUtils";
 
@@ -315,11 +317,8 @@ export class BarPass {
       return Math.min(1, Math.max(0, elapsed / duration));
     }
 
-    // Missile readiness (Silo / SAM)
-    if (
-      unit.unitType === UT_MISSILE_SILO ||
-      unit.unitType === UT_SAM_LAUNCHER
-    ) {
+    // Missile readiness (Silo / SAM / coastal battery / airbase)
+    if (LauncherStructures.has(unit.unitType as UnitType)) {
       const readiness = this.missileReadiness(unit, gameTick);
       if (readiness < 1) return readiness;
     }
@@ -334,10 +333,7 @@ export class BarPass {
 
     const ready = maxMissiles - reloading;
 
-    const cooldown =
-      unit.unitType === UT_SAM_LAUNCHER
-        ? this.config.SAMCooldown()
-        : this.config.SiloCooldown();
+    const cooldown = this.config.launcherCooldown(unit.unitType as UnitType);
 
     let readiness = ready / maxMissiles;
     for (const timer of unit.missileTimerQueue) {

@@ -111,6 +111,42 @@ export interface UnitParamsMap {
   [UnitType.SAMLauncher]: Record<string, never>;
 
   [UnitType.City]: Record<string, never>;
+
+  [UnitType.CruiseMissile]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
+  [UnitType.NeutronBomb]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
+  [UnitType.EMPBomb]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
+  [UnitType.ClusterBomb]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+  };
+
+  [UnitType.Paratroopers]: {
+    targetTile?: number;
+    trajectory: TrajectoryTile[];
+    troops?: number;
+  };
+
+  [UnitType.Hospital]: Record<string, never>;
+
+  [UnitType.Bank]: Record<string, never>;
+
+  [UnitType.Bunker]: Record<string, never>;
+
+  [UnitType.CoastalBattery]: Record<string, never>;
+
+  [UnitType.Airbase]: Record<string, never>;
 }
 
 // Type helper to get params type for a specific unit type
@@ -278,6 +314,11 @@ export interface Unit extends UnitLike {
   reloadMissile(): void;
   isInCooldown(): boolean;
   missileTimerQueue(): number[];
+  /**
+   * EMP: every shot of this launcher starts reloading as if fired at
+   * `firedAt` (which may be in the future, to stretch the outage).
+   */
+  jamLauncher(firedAt: Tick): void;
   samLauncherState(): SamLauncherState | undefined;
 
   // Trade Ships

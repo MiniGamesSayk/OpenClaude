@@ -13,15 +13,7 @@
  */
 
 import type { RendererConfig, UnitState } from "../../types";
-import {
-  STRUCTURE_TYPES,
-  UT_CITY,
-  UT_DEFENSE_POST,
-  UT_FACTORY,
-  UT_MISSILE_SILO,
-  UT_PORT,
-  UT_SAM_LAUNCHER,
-} from "../../types";
+import { STRUCTURE_ATLAS_ORDER, STRUCTURE_TYPES } from "../../types";
 import { DynamicInstanceBuffer } from "../DynamicBuffer";
 import type { RenderSettings } from "../RenderSettings";
 import { createProgram } from "../utils/GlUtils";
@@ -44,14 +36,7 @@ const msdfAtlasUrl = assetUrl("atlases/msdf-atlas.png");
 // ---------------------------------------------------------------------------
 
 /** Atlas column order — must match StructurePass. */
-const STRUCTURE_ORDER = [
-  UT_CITY,
-  UT_PORT,
-  UT_FACTORY,
-  UT_DEFENSE_POST,
-  UT_SAM_LAUNCHER,
-  UT_MISSILE_SILO,
-] as const;
+const STRUCTURE_ORDER = STRUCTURE_ATLAS_ORDER;
 
 /** Max characters per level label (handles up to "99"). */
 const MAX_LEVEL_CHARS = 4;

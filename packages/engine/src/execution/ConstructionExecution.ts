@@ -1,5 +1,9 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
-import { Tick, UnitType } from "@openfront/engine-api/game/GameTypes";
+import {
+  Structures,
+  Tick,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
 import {
   zInt,
   zPlayerRef,
@@ -15,11 +19,13 @@ import type {
   SnapshotWriter,
 } from "../snapshot/SnapshotContext";
 import { CityExecution } from "./CityExecution";
+import { CoastalBatteryExecution } from "./CoastalBatteryExecution";
 import { DefensePostExecution } from "./DefensePostExecution";
 import { FactoryExecution } from "./FactoryExecution";
 import { MirvExecution } from "./MIRVExecution";
 import { MissileSiloExecution } from "./MissileSiloExecution";
 import { NukeExecution } from "./NukeExecution";
+import { ParatrooperExecution } from "./ParatrooperExecution";
 import { PortExecution } from "./PortExecution";
 import { SAMLauncherExecution } from "./SAMLauncherExecution";
 import { WarshipExecution } from "./WarshipExecution";
@@ -118,7 +124,11 @@ export class ConstructionExecution implements Execution {
     const player = this.player;
     switch (this.constructionType) {
       case UnitType.AtomBomb:
-      case UnitType.HydrogenBomb: {
+      case UnitType.HydrogenBomb:
+      case UnitType.CruiseMissile:
+      case UnitType.NeutronBomb:
+      case UnitType.EMPBomb:
+      case UnitType.ClusterBomb: {
         const count = this.amount ?? 1;
         for (let i = 0; i < count; i++) {
           // NukeExecution staggers same-tick launches per silo itself.
@@ -139,6 +149,9 @@ export class ConstructionExecution implements Execution {
       case UnitType.MIRV:
         this.mg.addExecution(new MirvExecution(player, this.tile));
         break;
+      case UnitType.Paratroopers:
+        this.mg.addExecution(new ParatrooperExecution(player, this.tile));
+        break;
       case UnitType.Warship:
         this.mg.addExecution(
           new WarshipExecution({ owner: player, patrolTile: this.tile }),
@@ -148,7 +161,17 @@ export class ConstructionExecution implements Execution {
         this.mg.addExecution(new PortExecution(this.structure!));
         break;
       case UnitType.MissileSilo:
+      case UnitType.Airbase:
+        // Airbases reload their drops on the silo's per-level queue.
         this.mg.addExecution(new MissileSiloExecution(this.structure!));
+        break;
+      case UnitType.CoastalBattery:
+        this.mg.addExecution(new CoastalBatteryExecution(this.structure!));
+        break;
+      case UnitType.Hospital:
+      case UnitType.Bank:
+      case UnitType.Bunker:
+        // Passive: their bonus is read from the owner's finished levels.
         break;
       case UnitType.DefensePost:
         this.mg.addExecution(new DefensePostExecution(this.structure!));
@@ -173,17 +196,7 @@ export class ConstructionExecution implements Execution {
   }
 
   private isStructure(type: UnitType): boolean {
-    switch (type) {
-      case UnitType.Port:
-      case UnitType.MissileSilo:
-      case UnitType.DefensePost:
-      case UnitType.SAMLauncher:
-      case UnitType.City:
-      case UnitType.Factory:
-        return true;
-      default:
-        return false;
-    }
+    return Structures.has(type);
   }
 
   isActive(): boolean {

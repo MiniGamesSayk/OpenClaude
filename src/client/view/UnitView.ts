@@ -213,10 +213,9 @@ export class UnitView implements UnitLike {
 
     let readiness = missilesReady / maxMissiles;
 
-    const cooldownDuration =
-      this.state.unitType === UnitType.SAMLauncher
-        ? this.gameView.config().SAMCooldown()
-        : this.gameView.config().SiloCooldown();
+    const cooldownDuration = this.gameView
+      .config()
+      .launcherCooldown(this.state.unitType as UnitType);
 
     for (const cooldown of this.state.missileTimerQueue) {
       const cooldownProgress = this.gameView.ticks() - cooldown;
@@ -224,7 +223,8 @@ export class UnitView implements UnitLike {
       const adjusted = cooldownRatio / maxMissiles;
       readiness += adjusted;
     }
-    return readiness;
+    // An EMP jams a launcher with reload timers set in the future.
+    return Math.max(0, readiness);
   }
 
   level(): number {

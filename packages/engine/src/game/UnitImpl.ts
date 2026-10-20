@@ -1,5 +1,6 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
+  LauncherStructures,
   MessageType,
   NukeState,
   SamLauncherState,
@@ -581,6 +582,11 @@ export class UnitImpl implements Unit {
     this.mg.addUpdate(this.toUpdate());
   }
 
+  jamLauncher(firedAt: Tick): void {
+    this._missileTimerQueue = new Array<number>(this._level).fill(firedAt);
+    this.mg.addUpdate(this.toUpdate());
+  }
+
   setTargetTile(targetTile: TileRef | undefined) {
     this._targetTile = targetTile;
   }
@@ -750,7 +756,7 @@ export class UnitImpl implements Unit {
     // unitCount()/unitsOwned() are level-weighted and memoised on these versions
     this.mg.bumpUnitsVersion();
     this._owner._myUnitsVersion++;
-    if ([UnitType.MissileSilo, UnitType.SAMLauncher].includes(this.type())) {
+    if (LauncherStructures.has(this._type)) {
       this._missileTimerQueue.push(this.mg.ticks());
     }
     this.mg.addUpdate(this.toUpdate());
@@ -758,7 +764,7 @@ export class UnitImpl implements Unit {
 
   decreaseLevel(destroyer?: Player): void {
     this._level--;
-    if ([UnitType.MissileSilo, UnitType.SAMLauncher].includes(this.type())) {
+    if (LauncherStructures.has(this._type)) {
       this._missileTimerQueue.pop();
     }
     if (this._type === UnitType.SAMLauncher) {

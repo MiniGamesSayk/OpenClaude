@@ -1,5 +1,10 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
-import { MessageType, UnitType } from "@openfront/engine-api/game/GameTypes";
+import {
+  MessageType,
+  Nukes,
+  SamTargets,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
 import { NukeType } from "@openfront/engine-api/StatsSchemas";
 import {
   zNum,
@@ -27,6 +32,10 @@ const INTERCEPTED_UNIT_TRANSLATION_KEYS: Partial<Record<UnitType, string>> = {
   [UnitType.AtomBomb]: "unit_type.atom_bomb",
   [UnitType.HydrogenBomb]: "unit_type.hydrogen_bomb",
   [UnitType.MIRVWarhead]: "unit_type.mirv",
+  [UnitType.CruiseMissile]: "unit_type.cruise_missile",
+  [UnitType.NeutronBomb]: "unit_type.neutron_bomb",
+  [UnitType.EMPBomb]: "unit_type.emp_bomb",
+  [UnitType.ClusterBomb]: "unit_type.cluster_bomb",
 };
 
 export class SAMMissileExecution implements Execution {
@@ -60,16 +69,11 @@ export class SAMMissileExecution implements Execution {
       return;
     }
     // The MIRV carrier itself can't be intercepted, only its warheads
-    const nukesWhitelist = [
-      UnitType.AtomBomb,
-      UnitType.HydrogenBomb,
-      UnitType.MIRVWarhead,
-    ];
     if (
       !this.target.isActive() ||
       !this.ownerUnit.isActive() ||
       this.target.owner() === this.SAMMissile.owner() ||
-      !nukesWhitelist.includes(this.target.type())
+      !SamTargets.has(this.target.type())
     ) {
       // Clear the flag so other SAMs can re-target this nuke
       if (this.target.isActive()) {
@@ -100,10 +104,12 @@ export class SAMMissileExecution implements Execution {
         this.target.delete(true, this._owner);
         this.SAMMissile.delete(false);
 
-        // Record stats
-        this.mg
-          .stats()
-          .bombIntercept(this._owner, this.target.type() as NukeType, 1);
+        // Record stats (the archived stats only know the nuclear warheads)
+        if (Nukes.has(this.target.type())) {
+          this.mg
+            .stats()
+            .bombIntercept(this._owner, this.target.type() as NukeType, 1);
+        }
         return;
       } else if (result.status === PathStatus.NEXT) {
         this.SAMMissile.move(result.node);

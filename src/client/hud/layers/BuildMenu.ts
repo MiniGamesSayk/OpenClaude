@@ -1,5 +1,6 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
+  BallisticWarheads,
   BuildableUnit,
   BuildMenus,
   Gold,
@@ -37,6 +38,16 @@ const atomBombIcon = assetUrl("images/NukeIconWhite.svg");
 const portIcon = assetUrl("images/PortIcon.svg");
 const samlauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const shieldIcon = assetUrl("images/ShieldIconWhite.svg");
+const cruiseMissileIcon = assetUrl("images/CruiseMissileIconWhite.svg");
+const neutronBombIcon = assetUrl("images/NeutronBombIconWhite.svg");
+const empBombIcon = assetUrl("images/EmpBombIconWhite.svg");
+const clusterBombIcon = assetUrl("images/ClusterBombIconWhite.svg");
+const paratroopersIcon = assetUrl("images/ParatroopersIconWhite.svg");
+const hospitalIcon = assetUrl("images/HospitalIconWhite.svg");
+const bankIcon = assetUrl("images/BankIconWhite.svg");
+const bunkerIcon = assetUrl("images/BunkerIconWhite.svg");
+const coastalBatteryIcon = assetUrl("images/CoastalBatteryIconWhite.svg");
+const airbaseIcon = assetUrl("images/AirbaseIconWhite.svg");
 
 export interface BuildItemDisplay {
   unitType: PlayerBuildableUnitType;
@@ -67,6 +78,41 @@ export const buildTable: BuildItemDisplay[][] = [
       icon: hydrogenBombIcon,
       description: "build_menu.desc.hydrogen_bomb",
       key: "unit_type.hydrogen_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.CruiseMissile,
+      icon: cruiseMissileIcon,
+      description: "build_menu.desc.cruise_missile",
+      key: "unit_type.cruise_missile",
+      countable: false,
+    },
+    {
+      unitType: UnitType.ClusterBomb,
+      icon: clusterBombIcon,
+      description: "build_menu.desc.cluster_bomb",
+      key: "unit_type.cluster_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.NeutronBomb,
+      icon: neutronBombIcon,
+      description: "build_menu.desc.neutron_bomb",
+      key: "unit_type.neutron_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.EMPBomb,
+      icon: empBombIcon,
+      description: "build_menu.desc.emp_bomb",
+      key: "unit_type.emp_bomb",
+      countable: false,
+    },
+    {
+      unitType: UnitType.Paratroopers,
+      icon: paratroopersIcon,
+      description: "build_menu.desc.paratroopers",
+      key: "unit_type.paratroopers",
       countable: false,
     },
     {
@@ -116,6 +162,41 @@ export const buildTable: BuildItemDisplay[][] = [
       icon: factoryIcon,
       description: "build_menu.desc.factory",
       key: "unit_type.factory",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Hospital,
+      icon: hospitalIcon,
+      description: "build_menu.desc.hospital",
+      key: "unit_type.hospital",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Bank,
+      icon: bankIcon,
+      description: "build_menu.desc.bank",
+      key: "unit_type.bank",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Bunker,
+      icon: bunkerIcon,
+      description: "build_menu.desc.bunker",
+      key: "unit_type.bunker",
+      countable: true,
+    },
+    {
+      unitType: UnitType.CoastalBattery,
+      icon: coastalBatteryIcon,
+      description: "build_menu.desc.coastal_battery",
+      key: "unit_type.coastal_battery",
+      countable: true,
+    },
+    {
+      unitType: UnitType.Airbase,
+      icon: airbaseIcon,
+      description: "build_menu.desc.airbase",
+      key: "unit_type.airbase",
       countable: true,
     },
   ],
@@ -391,11 +472,9 @@ export class BuildMenu extends LitElement implements Controller {
         ),
       );
     } else if (buildableUnit.canBuild) {
-      const rocketDirectionUp =
-        buildableUnit.type === UnitType.AtomBomb ||
-        buildableUnit.type === UnitType.HydrogenBomb
-          ? this.uiState.rocketDirectionUp
-          : undefined;
+      const rocketDirectionUp = BallisticWarheads.has(buildableUnit.type)
+        ? this.uiState.rocketDirectionUp
+        : undefined;
       this.eventBus.emit(
         new BuildUnitIntentEvent(buildableUnit.type, tile, rocketDirectionUp),
       );

@@ -10,7 +10,6 @@ import {
 } from "@openfront/engine-api/game/GameTypes";
 import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
 import { TeamCountConfig } from "@openfront/engine-api/Schemas";
-import { NukeType } from "@openfront/engine-api/StatsSchemas";
 import { Config } from "@openfront/engine-lib/configuration/Config";
 import { exp, log, pow2 } from "@openfront/engine-lib/DetMath";
 import {
@@ -386,6 +385,38 @@ export class EngineConfig extends Config {
           UnitType.Factory,
           UnitType.Port,
         );
+      case UnitType.CruiseMissile:
+        return this.costWrapper(() => 250_000, UnitType.CruiseMissile);
+      case UnitType.NeutronBomb:
+        return this.costWrapper(() => 2_500_000, UnitType.NeutronBomb);
+      case UnitType.EMPBomb:
+        return this.costWrapper(() => 1_500_000, UnitType.EMPBomb);
+      case UnitType.ClusterBomb:
+        return this.costWrapper(() => 1_200_000, UnitType.ClusterBomb);
+      case UnitType.Paratroopers:
+        return this.costWrapper(() => 150_000, UnitType.Paratroopers);
+      case UnitType.Hospital:
+        return this.costWrapper(
+          (numUnits: number) => Math.min(1_500_000, pow2(numUnits) * 150_000),
+          UnitType.Hospital,
+        );
+      case UnitType.Bank:
+        return this.costWrapper(
+          (numUnits: number) => Math.min(2_000_000, pow2(numUnits) * 200_000),
+          UnitType.Bank,
+        );
+      case UnitType.Bunker:
+        return this.costWrapper(
+          (numUnits: number) => Math.min(1_500_000, (numUnits + 1) * 300_000),
+          UnitType.Bunker,
+        );
+      case UnitType.CoastalBattery:
+        return this.costWrapper(
+          (numUnits: number) => Math.min(1_200_000, (numUnits + 1) * 400_000),
+          UnitType.CoastalBattery,
+        );
+      case UnitType.Airbase:
+        return this.costWrapper(() => 1_000_000, UnitType.Airbase);
       case UnitType.TransportShip:
       case UnitType.Shell:
       case UnitType.SAMMissile:
@@ -667,20 +698,27 @@ export class EngineConfig extends Config {
 
   goldAdditionRate(player: PlayerLike): Gold {
     const multiplier = this.goldMultiplierFor(player);
-    let baseRate: bigint;
+    let baseRate: number;
     if (player.type() === PlayerType.Bot) {
-      baseRate = 50n;
+      baseRate = 50;
     } else {
-      baseRate = 100n;
+      baseRate = 100;
     }
-    return BigInt(Math.floor(Number(baseRate) * multiplier));
+    baseRate +=
+      this.completedLevels(player, UnitType.Bank) * this.bankGoldPerLevel();
+    return BigInt(Math.floor(baseRate * multiplier));
   }
 
   nukeSpeed(unitType: UnitType): number {
     switch (unitType) {
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.NeutronBomb:
+      case UnitType.EMPBomb:
+      case UnitType.ClusterBomb:
         return 10;
+      case UnitType.CruiseMissile:
+        return 14;
       case UnitType.MIRV:
         return 15;
       case UnitType.MIRVWarhead:
@@ -726,7 +764,7 @@ export class EngineConfig extends Config {
 
   // Humans can be soldiers, soldiers attacking, soldiers in boat etc.
   nukeDeathFactor(
-    nukeType: NukeType,
+    nukeType: UnitType,
     humans: number,
     tilesOwned: number,
     maxTroops: number,

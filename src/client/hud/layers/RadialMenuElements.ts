@@ -1,6 +1,7 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
 import {
   AllPlayers,
+  BallisticWarheads,
   BuildableAttacks,
   bulkCost,
   maxBulkAmount,
@@ -571,11 +572,9 @@ function createMenuElements(
                 ),
               );
             } else if (buildableUnit.canBuild !== false) {
-              const rocketDirectionUp =
-                item.unitType === UnitType.AtomBomb ||
-                item.unitType === UnitType.HydrogenBomb
-                  ? params.uiState?.rocketDirectionUp
-                  : undefined;
+              const rocketDirectionUp = BallisticWarheads.has(item.unitType)
+                ? params.uiState?.rocketDirectionUp
+                : undefined;
               params.eventBus.emit(
                 new BuildUnitIntentEvent(
                   buildableUnit.type,

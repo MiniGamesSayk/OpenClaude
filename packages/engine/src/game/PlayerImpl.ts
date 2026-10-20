@@ -1602,10 +1602,17 @@ export class PlayerImpl implements Player {
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.AtomBomb:
       case UnitType.HydrogenBomb:
+      case UnitType.CruiseMissile:
+      case UnitType.NeutronBomb:
+      case UnitType.EMPBomb:
+      case UnitType.ClusterBomb:
         return this.nukeSpawn(targetTile, unitType);
       case UnitType.MIRVWarhead:
         return targetTile;
+      case UnitType.Paratroopers:
+        return this.paratrooperSpawn(targetTile);
       case UnitType.Port:
+      case UnitType.CoastalBattery:
         return this.portSpawn(targetTile, validTiles);
       case UnitType.Warship:
         return this.warshipSpawn(targetTile);
@@ -1623,10 +1630,45 @@ export class PlayerImpl implements Player {
       case UnitType.SAMLauncher:
       case UnitType.City:
       case UnitType.Factory:
+      case UnitType.Hospital:
+      case UnitType.Bank:
+      case UnitType.Bunker:
+      case UnitType.Airbase:
         return this.landBasedStructureSpawn(targetTile, validTiles);
       default:
         assertNever(unitType);
     }
+  }
+
+  /**
+   * The airbase a paratrooper drop on `tile` takes off from: the closest
+   * ready airbase within range. The drop zone must be land the player could
+   * attack (not its own, not a friend's, not an immune player's).
+   */
+  paratrooperSpawn(tile: TileRef): TileRef | false {
+    const mg = this.mg;
+    if (!mg.isLand(tile) || mg.isImpassable(tile)) {
+      return false;
+    }
+    const owner = mg.owner(tile);
+    if (owner === this) {
+      return false;
+    }
+    if (owner.isPlayer() && !this.canAttackPlayer(owner)) {
+      return false;
+    }
+    const range = mg.config().paratrooperRange();
+    const rangeSquared = range * range;
+    const airbase = findClosestBy(
+      this.units(UnitType.Airbase),
+      (a) => mg.euclideanDistSquared(a.tile(), tile),
+      (a) =>
+        a.isActive() &&
+        !a.isInCooldown() &&
+        !a.isUnderConstruction() &&
+        mg.euclideanDistSquared(a.tile(), tile) <= rangeSquared,
+    );
+    return airbase?.tile() ?? false;
   }
 
   nukeSpawn(tile: TileRef, nukeType: UnitType): TileRef | false {

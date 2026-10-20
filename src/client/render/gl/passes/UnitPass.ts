@@ -37,11 +37,17 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import type { RendererConfig, UnitState } from "../../types";
 import {
   SMOOTHED_NUKE_TYPES,
+  TACTICAL_MISSILE_TYPES,
   TrainType,
   UT_ATOM_BOMB,
+  UT_CLUSTER_BOMB,
+  UT_CRUISE_MISSILE,
+  UT_EMP_BOMB,
   UT_HYDROGEN_BOMB,
   UT_MIRV,
   UT_MIRV_WARHEAD,
+  UT_NEUTRON_BOMB,
+  UT_PARATROOPERS,
   UT_SAM_MISSILE,
   UT_SHELL,
   UT_TRADE_SHIP,
@@ -88,6 +94,15 @@ const UNIT_ORDER = [
 ] as const;
 
 const ATLAS_COLS = UNIT_ORDER.length;
+
+/** Units without a sprite of their own, drawn with another type's column. */
+const SPRITE_ALIASES: Readonly<Record<string, (typeof UNIT_ORDER)[number]>> = {
+  [UT_CRUISE_MISSILE]: UT_MIRV_WARHEAD,
+  [UT_NEUTRON_BOMB]: UT_ATOM_BOMB,
+  [UT_EMP_BOMB]: UT_ATOM_BOMB,
+  [UT_CLUSTER_BOMB]: UT_ATOM_BOMB,
+  [UT_PARATROOPERS]: UT_TRANSPORT,
+};
 
 /** Atlas column of the hydrogen bomb — drives the GPU glow halo. */
 const HYDROGEN_BOMB_COL = UNIT_ORDER.indexOf(UT_HYDROGEN_BOMB);
@@ -136,6 +151,7 @@ const FLICKER_TYPES: ReadonlySet<string> = new Set([
   UT_MIRV_WARHEAD,
   UT_SAM_MISSILE,
   UT_SHELL,
+  ...TACTICAL_MISSILE_TYPES,
 ]);
 
 /** Missile/projectile types — rendered on top of structures in the layer order.
@@ -147,6 +163,8 @@ const MISSILE_TYPES: ReadonlySet<string> = new Set([
   UT_SAM_MISSILE,
   UT_SHELL,
   UT_MIRV_WARHEAD,
+  ...TACTICAL_MISSILE_TYPES,
+  UT_PARATROOPERS,
 ]);
 
 /** Values per smoothing segment in the flat `smoothSegs` array:
@@ -279,11 +297,12 @@ export class UnitPass {
 
     // Build unitType string → atlas column mapping
     for (let i = 0; i < header.unitTypes.length; i++) {
+      const type = header.unitTypes[i];
       const col = UNIT_ORDER.indexOf(
-        header.unitTypes[i] as (typeof UNIT_ORDER)[number],
+        (SPRITE_ALIASES[type] ?? type) as (typeof UNIT_ORDER)[number],
       );
       if (col >= 0) {
-        this.typeToAtlasCol.set(header.unitTypes[i], col);
+        this.typeToAtlasCol.set(type, col);
       }
     }
 

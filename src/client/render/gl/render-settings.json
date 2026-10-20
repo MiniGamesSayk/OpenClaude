@@ -151,6 +151,26 @@
       "Missile Silo": {
         "scale": 1.55,
         "iconFill": 0.85
+      },
+      "Hospital": {
+        "scale": 1.3,
+        "iconFill": 0.85
+      },
+      "Bank": {
+        "scale": 1.05,
+        "iconFill": 0.85
+      },
+      "Bunker": {
+        "scale": 1.55,
+        "iconFill": 0.85
+      },
+      "Coastal Battery": {
+        "scale": 1.1,
+        "iconFill": 0.85
+      },
+      "Airbase": {
+        "scale": 1.08,
+        "iconFill": 0.85
       }
     },
     "highlightOutlineWidth": 0.04,

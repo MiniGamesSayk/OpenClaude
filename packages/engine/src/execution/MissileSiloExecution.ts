@@ -37,8 +37,10 @@ export class MissileSiloExecution implements Execution {
       return;
     }
 
+    // Also reloads airbases, which share the silo's one-shot-per-level queue.
     const cooldown =
-      this.mg.config().SiloCooldown() - (this.mg.ticks() - frontTime);
+      this.mg.config().launcherCooldown(this.silo.type()) -
+      (this.mg.ticks() - frontTime);
 
     if (cooldown <= 0) {
       this.silo.reloadMissile();
