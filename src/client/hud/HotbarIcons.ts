@@ -12,6 +12,17 @@ export const tacticalMissileIcon = assetUrl(
   "images/TacticalMissileIconWhite.svg",
 );
 export const empBombIcon = assetUrl("images/EMPBombIconWhite.svg");
+export const cruiseMissileIcon = assetUrl("images/CruiseMissileIconWhite.svg");
+export const neutronBombIcon = assetUrl("images/NeutronBombIconWhite.svg");
+export const clusterBombIcon = assetUrl("images/ClusterBombIconWhite.svg");
+export const paratroopersIcon = assetUrl("images/ParatroopersIconWhite.svg");
+export const hospitalIcon = assetUrl("images/HospitalIconWhite.svg");
+export const bankIcon = assetUrl("images/BankIconWhite.svg");
+export const bunkerIcon = assetUrl("images/BunkerIconWhite.svg");
+export const coastalBatteryIcon = assetUrl(
+  "images/CoastalBatteryIconWhite.svg",
+);
+export const airbaseIcon = assetUrl("images/AirbaseIconWhite.svg");
 export const portIcon = assetUrl("images/PortIcon.svg");
 export const samLauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 export const defensePostIcon = assetUrl("images/ShieldIconWhite.svg");

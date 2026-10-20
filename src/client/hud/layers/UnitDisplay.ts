@@ -3,6 +3,7 @@ import {
   BuildMenus,
   Gold,
   PlayerBuildableUnitType,
+  SiloBombs,
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { renderNumber } from "@openfront/engine-lib/Format";
@@ -16,20 +17,64 @@ import { UserSettings } from "../../UserSettings";
 import { translateText } from "../../Utils";
 import { GameView } from "../../view";
 import {
+  airbaseIcon,
   atomBombIcon,
+  bankIcon,
+  bunkerIcon,
   cityIcon,
+  clusterBombIcon,
+  coastalBatteryIcon,
+  cruiseMissileIcon,
   defensePostIcon,
   empBombIcon,
   factoryIcon,
   goldCoinIcon,
+  hospitalIcon,
   hydrogenBombIcon,
   mirvIcon,
   missileSiloIcon,
+  neutronBombIcon,
+  paratroopersIcon,
   portIcon,
   samLauncherIcon,
   tacticalMissileIcon,
   warshipIcon,
 } from "../HotbarIcons";
+
+/**
+ * Hotbar slots for the newer units, after the classic ones. They have no
+ * default keybind (the free letters ran out), so no hotkey is shown.
+ */
+const EXTRA_STRUCTURE_ITEMS: ReadonlyArray<{
+  icon: string;
+  type: PlayerBuildableUnitType;
+  key: string;
+}> = [
+  { icon: hospitalIcon, type: UnitType.Hospital, key: "hospital" },
+  { icon: bankIcon, type: UnitType.Bank, key: "bank" },
+  { icon: bunkerIcon, type: UnitType.Bunker, key: "bunker" },
+  {
+    icon: coastalBatteryIcon,
+    type: UnitType.CoastalBattery,
+    key: "coastal_battery",
+  },
+  { icon: airbaseIcon, type: UnitType.Airbase, key: "airbase" },
+];
+
+const EXTRA_ATTACK_ITEMS: ReadonlyArray<{
+  icon: string;
+  type: PlayerBuildableUnitType;
+  key: string;
+}> = [
+  {
+    icon: cruiseMissileIcon,
+    type: UnitType.CruiseMissile,
+    key: "cruise_missile",
+  },
+  { icon: clusterBombIcon, type: UnitType.ClusterBomb, key: "cluster_bomb" },
+  { icon: neutronBombIcon, type: UnitType.NeutronBomb, key: "neutron_bomb" },
+  { icon: paratroopersIcon, type: UnitType.Paratroopers, key: "paratroopers" },
+];
 import { TutorialHighlight, TutorialHighlightEvent } from "../Tutorial";
 
 @customElement("unit-display")
@@ -46,6 +91,7 @@ export class UnitDisplay extends LitElement implements Controller {
   private _port = 0;
   private _defensePost = 0;
   private _samLauncher = 0;
+  private _extraLevels = new Map<PlayerBuildableUnitType, number>();
   private allDisabled = false;
   private _hoveredUnit: PlayerBuildableUnitType | null = null;
   private tutorialHighlight: PlayerBuildableUnitType | null = null;
@@ -101,9 +147,17 @@ export class UnitDisplay extends LitElement implements Controller {
       case UnitType.MIRV:
       case UnitType.TacticalMissile:
       case UnitType.EMPBomb:
+      case UnitType.CruiseMissile:
+      case UnitType.NeutronBomb:
+      case UnitType.ClusterBomb:
         return (
           this.cost(item) <= (player?.gold() ?? 0n) &&
           (player?.units(UnitType.MissileSilo).length ?? 0) > 0
+        );
+      case UnitType.Paratroopers:
+        return (
+          this.cost(item) <= (player?.gold() ?? 0n) &&
+          (player?.units(UnitType.Airbase).length ?? 0) > 0
         );
       case UnitType.Warship:
         return (
@@ -128,6 +182,9 @@ export class UnitDisplay extends LitElement implements Controller {
     this._samLauncher = player.totalUnitLevels(UnitType.SAMLauncher);
     this._factories = player.totalUnitLevels(UnitType.Factory);
     this._warships = player.totalUnitLevels(UnitType.Warship);
+    for (const { type } of EXTRA_STRUCTURE_ITEMS) {
+      this._extraLevels.set(type, player.totalUnitLevels(type));
+    }
     this.requestUpdate();
   }
 
@@ -147,7 +204,7 @@ export class UnitDisplay extends LitElement implements Controller {
 
     return html`
       <div class="border-t border-white/10 p-0.5 w-full">
-        <div class="grid grid-rows-1 grid-flow-col gap-0.5 w-fit mx-auto">
+        <div class="flex flex-wrap justify-center gap-0.5 mx-auto">
           ${this.renderUnitItem(
             cityIcon,
             this._cities,
@@ -232,6 +289,18 @@ export class UnitDisplay extends LitElement implements Controller {
             "emp_bomb",
             this.keybinds["buildEMPBomb"]?.key ?? "KeyH",
           )}
+          ${EXTRA_STRUCTURE_ITEMS.map(({ icon, type, key }) =>
+            this.renderUnitItem(
+              icon,
+              this._extraLevels.get(type) ?? 0,
+              type,
+              key,
+              "",
+            ),
+          )}
+          ${EXTRA_ATTACK_ITEMS.map(({ icon, type, key }) =>
+            this.renderUnitItem(icon, null, type, key, ""),
+          )}
         </div>
       </div>
     `;
@@ -272,9 +341,9 @@ export class UnitDisplay extends LitElement implements Controller {
                 class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-gray-200 text-center w-max text-xs bg-gray-800/90 backdrop-blur-xs rounded-sm p-1 z-[100] shadow-lg pointer-events-none"
               >
                 <div class="font-bold text-sm mb-1">
-                  ${translateText(
-                    "unit_type." + structureKey,
-                  )}${` [${displayHotkey}]`}
+                  ${translateText("unit_type." + structureKey)}${displayHotkey
+                    ? ` [${displayHotkey}]`
+                    : ""}
                 </div>
                 <div class="p-2">
                   ${translateText("build_menu.desc." + structureKey)}
@@ -311,16 +380,19 @@ export class UnitDisplay extends LitElement implements Controller {
             this.requestUpdate();
           }}
           @mouseenter=${() => {
+            if (SiloBombs.has(unitType)) {
+              this.eventBus?.emit(
+                new ToggleStructureEvent([
+                  UnitType.MissileSilo,
+                  UnitType.SAMLauncher,
+                ]),
+              );
+              return;
+            }
             switch (unitType) {
-              case UnitType.AtomBomb:
-              case UnitType.HydrogenBomb:
-              case UnitType.TacticalMissile:
-              case UnitType.EMPBomb:
+              case UnitType.Paratroopers:
                 this.eventBus?.emit(
-                  new ToggleStructureEvent([
-                    UnitType.MissileSilo,
-                    UnitType.SAMLauncher,
-                  ]),
+                  new ToggleStructureEvent([UnitType.Airbase]),
                 );
                 break;
               case UnitType.Warship:
