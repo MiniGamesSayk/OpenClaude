@@ -1,5 +1,10 @@
 import { TileRef } from "@openfront/engine-api/game/GameMap";
-import { GameMode, GameType, Gold } from "@openfront/engine-api/game/GameTypes";
+import {
+  GameMode,
+  GameType,
+  Gold,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
 import { GameUpdateType } from "@openfront/engine-api/game/GameUpdates";
 import { ClientID } from "@openfront/engine-api/Schemas";
 import { Config } from "@openfront/engine-lib/configuration/Config";
@@ -11,7 +16,7 @@ import { customElement, state } from "lit/decorators.js";
 import { keyed } from "lit/directives/keyed.js";
 import { Controller } from "../../Controller";
 import { AttackRatioEvent } from "../../InputHandler";
-import { BuyTroopsIntentEvent } from "../../Transport";
+import { AutoFireIntentEvent, BuyTroopsIntentEvent } from "../../Transport";
 import { UIState } from "../../UIState";
 import { USER_SETTINGS_CHANGED_EVENT, UserSettings } from "../../UserSettings";
 import { getGamesPlayed, translateText } from "../../Utils";
@@ -20,6 +25,17 @@ import { PlayerView } from "../../view/PlayerView";
 import { goldCoinIcon, soldierIcon } from "../HotbarIcons";
 import { TutorialHighlight, TutorialHighlightEvent } from "../Tutorial";
 const swordIcon = assetUrl("images/SwordIcon.svg");
+
+/** unit_type.* name of each silo bomb that can be auto-fired. */
+const UNIT_KEYS: Partial<Record<UnitType, string>> = {
+  [UnitType.AtomBomb]: "unit_type.atom_bomb",
+  [UnitType.HydrogenBomb]: "unit_type.hydrogen_bomb",
+  [UnitType.TacticalMissile]: "unit_type.tactical_missile",
+  [UnitType.EMPBomb]: "unit_type.emp_bomb",
+  [UnitType.CruiseMissile]: "unit_type.cruise_missile",
+  [UnitType.NeutronBomb]: "unit_type.neutron_bomb",
+  [UnitType.ClusterBomb]: "unit_type.cluster_bomb",
+};
 
 @customElement("control-panel")
 export class ControlPanel extends LitElement implements Controller {
@@ -204,6 +220,32 @@ export class ControlPanel extends LitElement implements Controller {
 
   private buyMaxTroops(): void {
     this.eventBus.emit(new BuyTroopsIntentEvent());
+  }
+
+  private stopAutoFire(): void {
+    const unit = this.uiState?.autoFire;
+    if (unit === null || unit === undefined) return;
+    this.eventBus.emit(new AutoFireIntentEvent(unit, null));
+    this.uiState.autoFire = null;
+    this.requestUpdate();
+  }
+
+  private renderStopAutoFireButton() {
+    const unit = this.uiState?.autoFire;
+    if (unit === null || unit === undefined) return html``;
+    return html`
+      <button
+        class="flex items-center gap-1 shrink-0 rounded-md border border-red-400 px-1.5 py-0.5 text-xs font-bold text-red-300 hover:bg-red-400/20 active:bg-red-400/30"
+        @click=${() => this.stopAutoFire()}
+        title=${translateText("control_panel.stop_auto_fire_desc")}
+      >
+        <span
+          >${translateText("control_panel.stop_auto_fire", {
+            unit: translateText(UNIT_KEYS[unit] ?? unit),
+          })}</span
+        >
+      </button>
+    `;
   }
 
   private renderBuyTroopsButton() {
@@ -577,7 +619,7 @@ export class ControlPanel extends LitElement implements Controller {
           <img src=${goldCoinIcon} width="13" height="13" class="shrink-0" />
           <span class="tabular-nums">${renderNumber(this._gold)}</span>
         </div>
-        ${this.renderBuyTroopsButton()}
+        ${this.renderBuyTroopsButton()} ${this.renderStopAutoFireButton()}
       </div>
       <!-- Row 2: attack ratio | slider -->
       <div
@@ -655,7 +697,7 @@ export class ControlPanel extends LitElement implements Controller {
           <img src=${goldCoinIcon} width="13" height="13" />
           <span class="px-0.5">${renderNumber(this._gold)}</span>
         </div>
-        ${this.renderBuyTroopsButton()}
+        ${this.renderBuyTroopsButton()} ${this.renderStopAutoFireButton()}
         <!-- Troop bar -->
         <div
           class="w-[40%] shrink-0 flex items-center ${this.tutorialHighlightClass(

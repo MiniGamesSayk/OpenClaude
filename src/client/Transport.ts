@@ -136,6 +136,15 @@ export class BuildUnitIntentEvent implements GameEvent {
   ) {}
 }
 
+/** Start (tile) or stop (tile null) the player's auto-fire order. */
+export class AutoFireIntentEvent implements GameEvent {
+  constructor(
+    public readonly unit: UnitType,
+    public readonly tile: TileRef | null,
+    public readonly rocketDirectionUp?: boolean,
+  ) {}
+}
+
 export class SendTargetPlayerIntentEvent implements GameEvent {
   constructor(public readonly targetID: PlayerID) {}
 }
@@ -341,6 +350,7 @@ export class Transport {
       this.onSendEmbargoAllIntent(e),
     );
     this.subscribe(BuildUnitIntentEvent, (e) => this.onBuildUnitIntent(e));
+    this.subscribe(AutoFireIntentEvent, (e) => this.onAutoFireIntent(e));
 
     this.subscribe(PauseGameIntentEvent, (e) => this.onPauseGameIntent(e));
     this.subscribe(SendWinnerEvent, (e) => this.onSendWinnerEvent(e));
@@ -902,6 +912,15 @@ export class Transport {
       tile: event.tile,
       rocketDirectionUp: event.rocketDirectionUp,
       amount: event.amount,
+    });
+  }
+
+  private onAutoFireIntent(event: AutoFireIntentEvent) {
+    this.sendIntent({
+      type: "auto_fire",
+      unit: event.unit,
+      tile: event.tile,
+      rocketDirectionUp: event.rocketDirectionUp,
     });
   }
 

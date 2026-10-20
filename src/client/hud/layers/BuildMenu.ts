@@ -25,6 +25,7 @@ import {
 } from "../../InputHandler";
 import { TransformHandler } from "../../TransformHandler";
 import {
+  AutoFireIntentEvent,
   BuildUnitIntentEvent,
   SendUpgradeStructureIntentEvent,
 } from "../../Transport";
@@ -350,6 +351,16 @@ export class BuildMenu extends LitElement implements Controller {
       cursor: not-allowed;
       opacity: 0.45;
     }
+    .build-auto-button {
+      left: -4px;
+      right: auto;
+      border-color: #d2553b;
+      background: #60261a;
+      color: #ffd0b0;
+    }
+    .build-auto-button:hover:not(:disabled) {
+      background: #82361c;
+    }
     .build-icon {
       font-size: 40px;
       margin-bottom: 5px;
@@ -541,6 +552,30 @@ export class BuildMenu extends LitElement implements Controller {
     );
   }
 
+  /** Auto-fire needs a silo bomb and at least one finished silo. */
+  private canAutoFire(buildableUnit: BuildableUnit): boolean {
+    const player = this.game.myPlayer();
+    return (
+      SiloBombs.has(buildableUnit.type) &&
+      player !== null &&
+      player
+        .units(UnitType.MissileSilo)
+        .some((silo) => !silo.isUnderConstruction())
+    );
+  }
+
+  private startAutoFire(buildableUnit: BuildableUnit, tile: TileRef): void {
+    this.eventBus.emit(
+      new AutoFireIntentEvent(
+        buildableUnit.type,
+        tile,
+        this.uiState.rocketDirectionUp,
+      ),
+    );
+    this.uiState.autoFire = buildableUnit.type;
+    this.hideMenu();
+  }
+
   private canMaxBuild(buildableUnit: BuildableUnit): boolean {
     return this.maxAmount(buildableUnit) > 0;
   }
@@ -654,6 +689,18 @@ export class BuildMenu extends LitElement implements Controller {
                     >
                       ${translateText("build_menu.max")}
                     </button>
+                    ${SiloBombs.has(item.unitType)
+                      ? html`<button
+                          class="build-max-button build-auto-button"
+                          @click=${() =>
+                            this.startAutoFire(buildableUnit, this.clickedTile)}
+                          ?disabled=${!this.canAutoFire(buildableUnit)}
+                          aria-label=${translateText("build_menu.auto_fire")}
+                          title=${translateText("build_menu.auto_fire_desc")}
+                        >
+                          ${translateText("build_menu.auto")}
+                        </button>`
+                      : ""}
                   </div>
                 `;
               })}

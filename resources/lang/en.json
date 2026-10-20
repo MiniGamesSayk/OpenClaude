@@ -189,6 +189,9 @@
     "until": "Banned until {date}."
   },
   "build_menu": {
+    "auto": "AUTO",
+    "auto_fire": "Auto-fire",
+    "auto_fire_desc": "Keep firing at this target: a missile leaves every time a silo tube is loaded and you have the gold. Stop it from the control panel.",
     "desc": {
       "airbase": "Drops paratroopers anywhere in range to open a new front",
       "atom_bomb": "Small explosion",
@@ -637,6 +640,8 @@
     "attack_ratio": "{percent}%\n({troops})",
     "buy_troops": "MAX troops",
     "low_troops_warning": "You are very low on troops - You should always keep some troops for defense.",
+    "stop_auto_fire": "■ Stop auto-fire ({unit})",
+    "stop_auto_fire_desc": "Stop the standing auto-fire order",
     "teammate_afk_neighbor_info": "You can attack disconnected teammates.",
     "traitor_neighbor_info": "You can betray traitors without becoming a traitor yourself."
   },
