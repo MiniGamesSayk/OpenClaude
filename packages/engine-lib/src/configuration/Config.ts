@@ -261,7 +261,7 @@ export class Config {
     return this.blitzTime(90);
   }
   coastalBatteryCooldown(): number {
-    return this.blitzTime(30);
+    return this.blitzTime(40);
   }
   airbaseCooldown(): number {
     return this.blitzTime(150);
@@ -310,17 +310,17 @@ export class Config {
 
   /** Extra troop regeneration from hospitals, as a fraction (0.5 = +50%). */
   hospitalRegenBonus(levels: number): number {
-    return Math.min(0.6, levels * 0.12);
+    return Math.min(0.3, levels * 0.05);
   }
 
   /** Gold a bank level adds every tick, before the gold multiplier. */
   bankGoldPerLevel(): number {
-    return 40;
+    return 20;
   }
 
-  /** Share of nuke troop losses that bunkers prevent (0 = none, 0.6 = 60%). */
+  /** Share of nuke troop losses that bunkers prevent (0 = none, 0.4 = 40%). */
   bunkerProtection(levels: number): number {
-    return Math.min(0.6, levels * 0.12);
+    return Math.min(0.4, levels * 0.08);
   }
 
   defensePostRange(): number {

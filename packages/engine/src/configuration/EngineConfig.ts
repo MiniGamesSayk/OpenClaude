@@ -393,35 +393,35 @@ export class EngineConfig extends Config {
           UnitType.Port,
         );
       case UnitType.CruiseMissile:
-        return this.costWrapper(() => 250_000, UnitType.CruiseMissile);
+        return this.costWrapper(() => 400_000, UnitType.CruiseMissile);
       case UnitType.NeutronBomb:
-        return this.costWrapper(() => 2_500_000, UnitType.NeutronBomb);
+        return this.costWrapper(() => 4_000_000, UnitType.NeutronBomb);
       case UnitType.ClusterBomb:
-        return this.costWrapper(() => 1_200_000, UnitType.ClusterBomb);
+        return this.costWrapper(() => 2_000_000, UnitType.ClusterBomb);
       case UnitType.Paratroopers:
-        return this.costWrapper(() => 150_000, UnitType.Paratroopers);
+        return this.costWrapper(() => 400_000, UnitType.Paratroopers);
       case UnitType.Hospital:
         return this.costWrapper(
-          (numUnits: number) => Math.min(1_500_000, pow2(numUnits) * 150_000),
+          (numUnits: number) => Math.min(4_000_000, pow2(numUnits) * 400_000),
           UnitType.Hospital,
         );
       case UnitType.Bank:
         return this.costWrapper(
-          (numUnits: number) => Math.min(2_000_000, pow2(numUnits) * 200_000),
+          (numUnits: number) => Math.min(5_000_000, pow2(numUnits) * 500_000),
           UnitType.Bank,
         );
       case UnitType.Bunker:
         return this.costWrapper(
-          (numUnits: number) => Math.min(1_500_000, (numUnits + 1) * 300_000),
+          (numUnits: number) => Math.min(3_000_000, (numUnits + 1) * 600_000),
           UnitType.Bunker,
         );
       case UnitType.CoastalBattery:
         return this.costWrapper(
-          (numUnits: number) => Math.min(1_200_000, (numUnits + 1) * 400_000),
+          (numUnits: number) => Math.min(3_000_000, (numUnits + 1) * 750_000),
           UnitType.CoastalBattery,
         );
       case UnitType.Airbase:
-        return this.costWrapper(() => 1_000_000, UnitType.Airbase);
+        return this.costWrapper(() => 2_000_000, UnitType.Airbase);
       case UnitType.TransportShip:
       case UnitType.Shell:
       case UnitType.SAMMissile:

@@ -1152,16 +1152,22 @@ export class PlayerImpl implements Player {
       target.isAlive() &&
       !this.isFriendly(target) &&
       target.numTilesOwned() > 0 &&
+      // Only a much smaller side can be bought out.
+      target.numTilesOwned() * 2 <= this.numTilesOwned() &&
       this.gold() >= this.territoryPurchaseCost(target)
     );
   }
 
   territoryPurchaseCost(target: Player): Gold {
-    let value = BigInt(target.numTilesOwned()) * 1_000n;
+    // Priced far above taking it by force: every tile, troop and unit the
+    // target holds, doubled.
+    let value =
+      BigInt(target.numTilesOwned()) * 10_000n +
+      BigInt(Math.floor(target.troops())) * 10n;
     for (const unit of target.units()) {
       if (unit.isActive()) value += unit.info().cost(this.mg, target);
     }
-    return (value * 3n) / 2n;
+    return value * 2n;
   }
 
   donateTroops(recipient: Player, troops: number): boolean {

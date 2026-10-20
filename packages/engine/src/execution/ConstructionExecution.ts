@@ -132,7 +132,7 @@ export class ConstructionExecution implements Execution {
       case UnitType.ClusterBomb: {
         const count = this.amount ?? 1;
         for (let i = 0; i < count; i++) {
-          // A batch is launched as a same-tick salvo from the selected silo.
+          // NukeExecution staggers same-tick launches per silo itself.
           this.mg.addExecution(
             new NukeExecution(
               this.constructionType,

@@ -8,7 +8,8 @@ import type {
   SnapshotWriter,
 } from "../snapshot/SnapshotContext";
 
-const GOLD_PER_PURCHASE = 1_000n;
+// 5 gold a troop: a reinforcement, not a replacement for troop growth.
+const GOLD_PER_PURCHASE = 50_000n;
 const TROOPS_PER_PURCHASE = 10_000;
 
 export class BuyTroopsExecution implements Execution {

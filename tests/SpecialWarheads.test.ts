@@ -8,11 +8,14 @@ import {
   Config,
   NukeMagnitude,
 } from "@openfront/engine-lib/configuration/Config";
+import { AutoFireExecution } from "@openfront/engine/execution/AutoFireExecution";
 import { ConstructionExecution } from "@openfront/engine/execution/ConstructionExecution";
+import { MissileSiloExecution } from "@openfront/engine/execution/MissileSiloExecution";
 import { SAMLauncherExecution } from "@openfront/engine/execution/SAMLauncherExecution";
 import { Game, Player } from "@openfront/engine/game/Game";
 import { setup } from "./util/Setup";
 import { TestConfig } from "./util/TestConfig";
+import { executeTicks } from "./util/utils";
 
 /** TestConfig shrinks every blast to 1 tile; these tests need the real ones. */
 class RealBlastConfig extends TestConfig {
@@ -259,5 +262,99 @@ describe("Bunker", () => {
       config.bunkerProtection(1),
     );
     expect(config.bunkerProtection(100)).toBeLessThan(1);
+  });
+});
+
+describe("Auto-fire", () => {
+  beforeEach(makeGame);
+
+  function order(tile: TileRef | null, unit = UnitType.CruiseMissile) {
+    game.addExecution(new AutoFireExecution(attacker, unit, tile));
+  }
+
+  test("keeps launching at the target while silos reload and gold lasts", () => {
+    // Two silos, three tubes in total.
+    const second = attacker.buildUnit(UnitType.MissileSilo, game.ref(8, 8), {});
+    second.increaseLevel();
+    // Silos built straight with buildUnit reload only with their execution.
+    for (const silo of attacker.units(UnitType.MissileSilo)) {
+      game.addExecution(new MissileSiloExecution(silo));
+    }
+    executeTicks(game, game.config().SiloCooldown() + 1);
+    order(game.ref(TARGET_X, TARGET_Y));
+
+    let launched = 0;
+    const seen = new Set<number>();
+    for (let i = 0; i < 3 * game.config().SiloCooldown(); i++) {
+      game.executeNextTick();
+      for (const m of attacker.units(UnitType.CruiseMissile)) {
+        if (!seen.has(m.id())) {
+          seen.add(m.id());
+          launched++;
+        }
+      }
+    }
+    // More than the three tubes: they reloaded and fired again.
+    expect(launched).toBeGreaterThan(3);
+  });
+
+  test("a stop order ends the standing order", () => {
+    order(game.ref(TARGET_X, TARGET_Y));
+    executeTicks(game, 3);
+    expect(attacker.units(UnitType.CruiseMissile).length).toBeGreaterThan(0);
+    order(null);
+    executeTicks(game, 2);
+    const execs = game
+      .executions()
+      .filter((e) => e instanceof AutoFireExecution);
+    expect(execs.every((e) => !e.isActive())).toBe(true);
+  });
+
+  test("stops once the target belongs to the shooter", () => {
+    const target = game.ref(TARGET_X, TARGET_Y);
+    order(target);
+    executeTicks(game, 2);
+    attacker.conquer(target);
+    executeTicks(game, 2);
+    const execs = game
+      .executions()
+      .filter((e) => e instanceof AutoFireExecution);
+    expect(execs.every((e) => !e.isActive())).toBe(true);
+  });
+
+  test("waits without gold and resumes when there is some", async () => {
+    const poorInfo = new PlayerInfo("poor", PlayerType.Human, null, "poor");
+    game = await setup(
+      "big_plains",
+      { infiniteGold: false, instantBuild: true },
+      [
+        poorInfo,
+        new PlayerInfo("defender", PlayerType.Human, null, "defender"),
+      ],
+      undefined,
+      RealBlastConfig,
+    );
+    attacker = game.player("poor");
+    defender = game.player("defender");
+    conquerSquare(attacker, 5, 5, 4);
+    attacker.buildUnit(UnitType.MissileSilo, game.ref(5, 5), {});
+    conquerSquare(defender, TARGET_X, TARGET_Y, 25);
+    attacker.removeGold(attacker.gold());
+
+    order(game.ref(TARGET_X, TARGET_Y));
+    executeTicks(game, 10);
+    expect(attacker.units(UnitType.CruiseMissile)).toHaveLength(0);
+
+    attacker.addGold(
+      game.unitInfo(UnitType.CruiseMissile).cost(game, attacker),
+    );
+    executeTicks(game, 4);
+    expect(attacker.units(UnitType.CruiseMissile)).toHaveLength(1);
+  });
+
+  test("only silo bombs can be auto-fired", () => {
+    order(game.ref(TARGET_X, TARGET_Y), UnitType.MIRV);
+    executeTicks(game, 5);
+    expect(attacker.units(UnitType.MIRV)).toHaveLength(0);
   });
 });

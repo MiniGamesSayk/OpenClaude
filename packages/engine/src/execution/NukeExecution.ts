@@ -301,6 +301,19 @@ export class NukeExecution implements Execution {
       const silo = this.player
         .units(UnitType.MissileSilo)
         .find((silo) => silo.tile() === spawn);
+      // Stacked purchases launch several nukes across ticks; delay each missile
+      // so launches from the same silo trail each other instead of overlapping,
+      // need to check the entire queue because even if nukes have waitticks,
+      // the silo queue will be filled with the same tick.
+      if (silo !== undefined) {
+        let lastDep = 0;
+        for (const launchTick of silo.missileTimerQueue()) {
+          lastDep = Math.max(launchTick + 1, lastDep + 1);
+        }
+        if (lastDep > this.mg.ticks()) {
+          this.waitTicks += lastDep - this.mg.ticks();
+        }
+      }
       this.nuke = this.player.buildUnit(this.nukeType, this.src, {
         targetTile: this.dst,
         trajectory: this.getTrajectory(this.dst),

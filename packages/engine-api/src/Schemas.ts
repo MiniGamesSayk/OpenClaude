@@ -49,7 +49,8 @@ export type Intent =
   | KickPlayerIntent
   | TogglePauseIntent
   | UpdateGameConfigIntent
-  | ToggleGameStartTimer;
+  | ToggleGameStartTimer
+  | AutoFireIntent;
 
 export type AttackIntent = z.infer<typeof AttackIntentSchema>;
 export type CancelAttackIntent = z.infer<typeof CancelAttackIntentSchema>;
@@ -88,6 +89,7 @@ export type UpdateGameConfigIntent = z.infer<
 export type ToggleGameStartTimer = z.infer<
   typeof ToggleGameStartTimerIntentSchema
 >;
+export type AutoFireIntent = z.infer<typeof AutoFireIntentSchema>;
 
 export type Turn = z.infer<typeof TurnSchema>;
 export type GameConfig = z.infer<typeof GameConfigSchema>;
@@ -511,6 +513,15 @@ export const BuildUnitIntentSchema = z.object({
   amount: zb.uint({ min: 1, max: MAX_BUILD_AMOUNT }).optional(),
 });
 
+// Keep launching `unit` (a silo bomb) at `tile` whenever a silo tube is
+// loaded and the gold is there. A null tile stops the player's auto-fire.
+export const AutoFireIntentSchema = z.object({
+  type: z.literal("auto_fire"),
+  unit: z.enum(UnitType),
+  tile: zb.uint().nullable(),
+  rocketDirectionUp: z.boolean().optional(),
+});
+
 export const UpgradeStructureIntentSchema = z.object({
   type: z.literal("upgrade_structure"),
   unit: z.enum(UnitType),
@@ -608,6 +619,8 @@ export const IntentSchema = z.discriminatedUnion("type", [
   TogglePauseIntentSchema,
   UpdateGameConfigIntentSchema,
   ToggleGameStartTimerIntentSchema,
+  // Appended (not inserted): zbin encodes union variants by position.
+  AutoFireIntentSchema,
 ]);
 
 // StampedIntent = Intent with server-stamped clientID (used in turns and execution)

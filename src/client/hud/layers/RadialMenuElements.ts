@@ -322,6 +322,7 @@ const buyTerritoryElement: MenuElement = {
     !params.playerActions?.interaction?.canBuyTerritory,
   color: COLORS.ally,
   icon: donateGoldIcon,
+  tooltipKeys: [{ key: "radial_menu.buy_territory", className: "title" }],
   action: (params: MenuElementParams) => {
     if (params.selected) {
       params.eventBus.emit(new BuyTerritoryIntentEvent(params.selected));

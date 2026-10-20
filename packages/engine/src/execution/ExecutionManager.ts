@@ -12,6 +12,7 @@ import { AllianceRejectExecution } from "./alliance/AllianceRejectExecution";
 import { AllianceRequestExecution } from "./alliance/AllianceRequestExecution";
 import { BreakAllianceExecution } from "./alliance/BreakAllianceExecution";
 import { AttackExecution } from "./AttackExecution";
+import { AutoFireExecution } from "./AutoFireExecution";
 import { BoatRetreatExecution } from "./BoatRetreatExecution";
 import { ConstructionExecution } from "./ConstructionExecution";
 import { DeleteUnitExecution } from "./DeleteUnitExecution";
@@ -111,6 +112,13 @@ export class Executor {
         );
       case "donate_gold":
         return new DonateGoldExecution(player, intent.recipient, intent.gold);
+      case "auto_fire":
+        return new AutoFireExecution(
+          player,
+          intent.unit,
+          intent.tile,
+          intent.rocketDirectionUp,
+        );
       case "buy_troops":
         return new BuyTroopsExecution(player);
       case "buy_territory":

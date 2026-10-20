@@ -216,6 +216,8 @@ function queuedIntent(game: Game, p: Player, tick: number): Intent | null {
     { type: "emoji", recipient: AllPlayers, emoji: 0 },
     { type: "donate_gold", recipient: other.id(), gold: 1 },
     { type: "donate_troops", recipient: other.id(), troops: 1 },
+    { type: "buy_troops" },
+    { type: "buy_territory", target: other.id() },
     { type: "embargo", targetID: other.id(), action: "start" },
     { type: "embargo_all", action: "stop" },
     {
@@ -302,7 +304,7 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
   const other = pick(rand, others);
   const own = (types: UnitType[]) => p.units(types);
 
-  switch (rand.nextInt(0, 23)) {
+  switch (rand.nextInt(0, 24)) {
     case 0:
     case 1:
     case 2: {
@@ -465,6 +467,24 @@ function playIntent(game: Game, p: Player, rand: PseudoRandom): Intent | null {
         return null;
       }
       return { type: "build_unit", unit: UnitType.Paratroopers, tile };
+    }
+    case 23: {
+      if (own([UnitType.MissileSilo]).length === 0 || other === null) {
+        return null;
+      }
+      const unit = pick(rand, [
+        UnitType.TacticalMissile,
+        UnitType.CruiseMissile,
+      ])!;
+      if (rand.chance(4)) return { type: "auto_fire", unit, tile: null };
+      const tile = randomOwnedTile(rand, other);
+      if (tile === null) return null;
+      return {
+        type: "auto_fire",
+        unit,
+        tile,
+        rocketDirectionUp: rand.chance(2),
+      };
     }
   }
   return null;

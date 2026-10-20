@@ -42,26 +42,30 @@ export class BuyTerritoryExecution implements Execution {
     return false;
   }
 
+  // A pending purchase (queued during the spawn phase) has no resolved
+  // target yet, so the target is stored by id and resolved again on restore.
   snapshot(w: SnapshotWriter): ExecRecord {
-    if (this.target === undefined) {
-      throw new Error("cannot snapshot territory purchase without target");
-    }
     return BuyTerritoryExecutionSnapshot.write({
       player: w.player(this.player),
-      targetID: w.player(this.target),
+      targetID: this.targetID,
+      resolved: this.target !== undefined,
     });
   }
 
   restoreSnapshot(s: BuyTerritoryState, r: SnapshotReader): void {
     this.player = r.player(s.player);
-    this.target = r.player(s.targetID);
-    this.targetID = this.target.id();
+    this.targetID = s.targetID;
+    this.target =
+      s.resolved && r.game.hasPlayer(s.targetID)
+        ? r.game.player(s.targetID)
+        : undefined;
   }
 }
 
 const BuyTerritoryStateSchema = z.object({
   player: zPlayerRef(),
-  targetID: zPlayerRef(),
+  targetID: z.string(),
+  resolved: z.boolean(),
 });
 type BuyTerritoryState = z.infer<typeof BuyTerritoryStateSchema>;
 
