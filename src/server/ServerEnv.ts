@@ -137,7 +137,23 @@ export class ServerEnv {
     return 100;
   }
   static gameCreationRate(): number {
+    const override = Number(process.env.GAME_CREATION_RATE_MS);
+    if (Number.isInteger(override) && override > 0) return override;
     return ServerEnv.gameEnv === GameEnv.Dev ? 5 * 1000 : 2 * 60 * 1000;
+  }
+  // Self-hosted without the closed-source API (STANDALONE=1): nothing polls or
+  // posts to `jwtIssuer()` (ranked check-in, cosmetics, game archive), which
+  // would only fail on every call.
+  static standalone(): boolean {
+    const v = process.env.STANDALONE;
+    return v === "1" || v === "true";
+  }
+  // How long the master keeps scheduling public lobbies after the last
+  // visitor left, from IDLE_PAUSE_SEC. 0 (the default) never pauses, which is
+  // the behaviour of the official deployments.
+  static idlePauseMs(): number {
+    const seconds = Number(process.env.IDLE_PAUSE_SEC);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
   }
   static workerIndex(gameID: GameID): number {
     return simpleHash(gameID) % ServerEnv.numWorkers();

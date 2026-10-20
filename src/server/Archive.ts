@@ -13,6 +13,7 @@ import { ServerEnv } from "./ServerEnv";
 const log = logger.child({ component: "Archive" });
 
 export async function archive(gameRecord: GameRecord) {
+  if (ServerEnv.standalone()) return;
   try {
     const parsed = GameRecordSchema.safeParse(gameRecord);
     if (!parsed.success) {
@@ -47,6 +48,7 @@ export async function archive(gameRecord: GameRecord) {
 export async function readGameRecord(
   gameId: GameID,
 ): Promise<GameRecord | null> {
+  if (ServerEnv.standalone()) return null;
   try {
     if (!ID.safeParse(gameId).success) {
       log.error(`invalid game ID: ${gameId}`);

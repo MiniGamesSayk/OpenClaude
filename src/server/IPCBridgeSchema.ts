@@ -54,6 +54,11 @@ const WorkerLobbyListSchema = z.object({
   // when a draining server is empty. Optional for a worker build that
   // predates it; absent counts as zero.
   liveGames: z.number().int().min(0).optional(),
+  // Who is around: browsers on this worker's /lobbies socket, and players
+  // connected to its games. The master pauses public lobby scheduling when
+  // both stay at zero (ServerEnv.idlePauseMs). Optional like liveGames.
+  lobbyViewers: z.number().int().min(0).optional(),
+  activeClients: z.number().int().min(0).optional(),
 });
 
 const WorkerReadySchema = z.object({

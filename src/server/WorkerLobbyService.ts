@@ -225,6 +225,8 @@ export class WorkerLobbyService {
       type: "lobbyList",
       lobbies: [...publicLobbies, ...hostedLobbies],
       liveGames: this.gm.activeGames(),
+      lobbyViewers: this.lobbyClients.size,
+      activeClients: this.gm.activeClients(),
     } satisfies WorkerLobbyList);
   }
 
