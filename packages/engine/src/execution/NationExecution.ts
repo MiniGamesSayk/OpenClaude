@@ -37,6 +37,7 @@ import { NationEmojiBehavior } from "./nation/NationEmojiBehavior";
 import { NationMIRVBehavior } from "./nation/NationMIRVBehavior";
 import { NationNukeBehavior } from "./nation/NationNukeBehavior";
 import { NationStructureBehavior } from "./nation/NationStructureBehavior";
+import { NationSpecialUnitsBehavior } from "./nation/NationSpecialUnitsBehavior";
 import { NationWarshipBehavior } from "./nation/NationWarshipBehavior";
 import { SpawnExecution } from "./SpawnExecution";
 import { AiAttackBehavior } from "./utils/AiAttackBehavior";
@@ -53,6 +54,8 @@ export class NationExecution implements Execution {
   private warshipBehavior!: NationWarshipBehavior;
   private nukeBehavior!: NationNukeBehavior;
   private structureBehavior!: NationStructureBehavior;
+  // Stateless (see the class), so it is rebuilt on restore, not stored.
+  private specialUnitsBehavior!: NationSpecialUnitsBehavior;
   private mg: Game;
   private player: Player | null = null;
 
@@ -227,6 +230,7 @@ export class NationExecution implements Execution {
     this.attackBehavior.maybeAttack();
     this.warshipBehavior.counterWarshipInfestation();
     this.nukeBehavior.maybeSendNuke();
+    this.specialUnitsBehavior.act(ticks);
   }
 
   private initializeBehaviors(): void {
@@ -275,6 +279,10 @@ export class NationExecution implements Execution {
     );
     this.structureBehavior = new NationStructureBehavior(
       this.random,
+      this.mg,
+      this.player,
+    );
+    this.specialUnitsBehavior = new NationSpecialUnitsBehavior(
       this.mg,
       this.player,
     );
@@ -483,6 +491,7 @@ export class NationExecution implements Execution {
     this.attackBehavior = attack;
     this.nukeBehavior = nuke;
     this.structureBehavior = structure;
+    this.specialUnitsBehavior = new NationSpecialUnitsBehavior(r.game, player);
   }
 }
 
