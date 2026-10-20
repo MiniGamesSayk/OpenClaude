@@ -46,6 +46,8 @@ export class MasterLobbyService {
   // Worker id => browsers on its lobby socket plus players in its games, as
   // last reported. Drives the idle pause (ServerEnv.idlePauseMs).
   private readonly workerAudience = new Map<number, number>();
+  // Worker id => players in its games, as last reported (shown on the hub).
+  private readonly workerPlayers = new Map<number, number>();
   private lastAudienceAt = Date.now();
   private idlePaused = false;
   private readonly readyWorkers = new Set<number>();
@@ -115,6 +117,7 @@ export class MasterLobbyService {
         case "lobbyList":
           this.workerLobbies.set(workerId, this.validLobbies(msg.lobbies));
           this.workerLiveGames.set(workerId, msg.liveGames ?? 0);
+          this.workerPlayers.set(workerId, msg.activeClients ?? 0);
           this.workerAudience.set(
             workerId,
             (msg.lobbyViewers ?? 0) + (msg.activeClients ?? 0),
@@ -151,6 +154,7 @@ export class MasterLobbyService {
     this.workerLobbies.delete(workerId);
     this.workerLiveGames.delete(workerId);
     this.workerAudience.delete(workerId);
+    this.workerPlayers.delete(workerId);
     this.readyWorkers.delete(workerId);
   }
 
@@ -159,6 +163,14 @@ export class MasterLobbyService {
   liveGames(): number {
     let total = 0;
     for (const n of this.workerLiveGames.values()) total += n;
+    return total;
+  }
+
+  // Players currently in a game on this server, summed over the workers' last
+  // reports. Exposed on /api/health for the sayk.fr hub.
+  players(): number {
+    let total = 0;
+    for (const n of this.workerPlayers.values()) total += n;
     return total;
   }
 

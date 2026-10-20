@@ -288,7 +288,11 @@ app.get("/api/health", (_req, res) => {
   // instanceId is diagnostics: it tells the machines behind an apex apart.
   const instanceId = ServerEnv.instanceId();
   if (ready) {
-    res.json({ status: "ok", instanceId });
+    res.json({
+      status: "ok",
+      instanceId,
+      players: lobbyService?.players() ?? 0,
+    });
   } else {
     res.status(503).json({ status: "unavailable", instanceId });
   }
