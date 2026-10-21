@@ -17,6 +17,7 @@
  *   RGBA32F effectTex (shared) → per-owner railroad cosmetic effect
  */
 
+import { DIRTY_ROW_MERGE_GAP, dirtyRowsOf } from "../../frame/DirtyRows";
 import type { GhostPreviewData, TerrainRect } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
 import overlayVertSrc from "../shaders/map-overlay/overlay.vert.glsl?raw";
@@ -123,6 +124,11 @@ export class RailroadPass {
    */
   private liveRailroadRef: Uint8Array | null = null;
   private railroadDirty = false;
+  /**
+   * The next flush must send the whole array: the texture is fresh (or the
+   * array changed) so the owner's per-row change record doesn't cover it.
+   */
+  private fullUploadPending = true;
 
   /**
    * Current ghost overlay content, sparse: tile ref → texel value (1-6 =
@@ -134,6 +140,10 @@ export class RailroadPass {
   /** Pending ghost texel writes, interleaved [ref, value, …]. */
   private ghostOps: number[] = [];
   private ghostOwnerID = 0;
+  /** Inputs of the last ghost diff — same references means the same result. */
+  private ghostRailPathsRef: GhostPreviewData["ghostRailPaths"] | null = null;
+  private ghostOverlapRef: GhostPreviewData["overlappingRailroads"] | null =
+    null;
 
   private localPlayerID = 0;
   private localRailColor: [number, number, number] = [0.75, 0.75, 0.75];
@@ -244,6 +254,7 @@ export class RailroadPass {
   }
 
   uploadRailroadState(railroadState: Uint8Array): void {
+    if (railroadState !== this.liveRailroadRef) this.fullUploadPending = true;
     this.liveRailroadRef = railroadState;
     this.railroadDirty = true;
   }
@@ -292,6 +303,20 @@ export class RailroadPass {
   }
 
   updateGhostPreview(data: GhostPreviewData | null): void {
+    // The controller re-sends the preview every frame with the same path
+    // arrays until a new buildable-unit reply arrives; the overlay only
+    // depends on those and the owner, so an unchanged input needs no recompute.
+    if (
+      data !== null &&
+      data.ghostRailPaths === this.ghostRailPathsRef &&
+      data.overlappingRailroads === this.ghostOverlapRef &&
+      data.ownerID === this.ghostOwnerID
+    ) {
+      return;
+    }
+    this.ghostRailPathsRef = data?.ghostRailPaths ?? null;
+    this.ghostOverlapRef = data?.overlappingRailroads ?? null;
+
     const next = new Map<number, number>();
 
     if (data) {
@@ -354,19 +379,7 @@ export class RailroadPass {
 
     // Flush railroad state → GPU
     if (this.railroadDirty && this.liveRailroadRef !== null) {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.railroadTex);
-      gl.texSubImage2D(
-        gl.TEXTURE_2D,
-        0,
-        0,
-        0,
-        this.mapW,
-        this.mapH,
-        gl.RED_INTEGER,
-        gl.UNSIGNED_BYTE,
-        this.liveRailroadRef,
-      );
+      this.flushRailroadState(this.liveRailroadRef);
       this.railroadDirty = false;
     }
 
@@ -411,6 +424,48 @@ export class RailroadPass {
 
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  /**
+   * Upload the railroad state. When the array's owner records which rows it
+   * changed (RailroadCache), only those go up, in runs; otherwise — first
+   * upload, a different array, or nothing recorded — the whole map does.
+   */
+  private flushRailroadState(state: Uint8Array): void {
+    const gl = this.gl;
+    const rows = dirtyRowsOf(state);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.railroadTex);
+    if (this.fullUploadPending || rows === undefined || rows.isClean) {
+      gl.texSubImage2D(
+        gl.TEXTURE_2D,
+        0,
+        0,
+        0,
+        this.mapW,
+        this.mapH,
+        gl.RED_INTEGER,
+        gl.UNSIGNED_BYTE,
+        state,
+      );
+      this.fullUploadPending = false;
+    } else {
+      rows.forEachRun(DIRTY_ROW_MERGE_GAP, (row, rowCount) => {
+        const offset = row * this.mapW;
+        gl.texSubImage2D(
+          gl.TEXTURE_2D,
+          0,
+          0,
+          row,
+          this.mapW,
+          rowCount,
+          gl.RED_INTEGER,
+          gl.UNSIGNED_BYTE,
+          state.subarray(offset, offset + rowCount * this.mapW),
+        );
+      });
+    }
+    rows?.clear();
   }
 
   /**

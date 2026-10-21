@@ -481,6 +481,15 @@ export class UserSettings {
     return this.getBool("settings.cursorCostLabel", legacy);
   }
 
+  /** Low-spec mode for weak PCs (also turned on automatically when needed). */
+  lowSpecMode() {
+    return this.getBool("settings.lowSpecMode", false);
+  }
+
+  toggleLowSpecMode() {
+    this.setBool("settings.lowSpecMode", !this.lowSpecMode());
+  }
+
   snapBuildPreview() {
     return this.getBool("settings.snapBuildPreview", false);
   }
@@ -1072,10 +1081,26 @@ export class UserSettings {
     this.setFloat("settings.attackRatio", value);
   }
 
+  // The last stored string graphicsOverrides() parsed, and its result. Some
+  // HUD layers read the overrides every tick; the JSON parse and schema
+  // validation only need to run when the stored string changes.
+  private static graphicsOverridesRaw = "";
+  private static graphicsOverridesParsed: GraphicsOverrides = {};
+
   // Returns {} if missing, unparseable, or fails schema validation.
   graphicsOverrides(): GraphicsOverrides {
     const raw = this.getString(GRAPHICS_KEY, "");
     if (!raw) return {};
+    if (raw !== UserSettings.graphicsOverridesRaw) {
+      UserSettings.graphicsOverridesParsed =
+        UserSettings.parseGraphicsOverrides(raw);
+      UserSettings.graphicsOverridesRaw = raw;
+    }
+    // A copy, so a caller changing what it got can't alter later reads.
+    return structuredClone(UserSettings.graphicsOverridesParsed);
+  }
+
+  private static parseGraphicsOverrides(raw: string): GraphicsOverrides {
     try {
       const json: unknown = JSON.parse(raw);
       const parsed = GraphicsOverridesSchema.safeParse(json);

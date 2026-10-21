@@ -61,6 +61,8 @@ describe("EventsDisplay handlers", () => {
     smallID: () => 1,
     displayName: () => "Me",
     isAlive: () => true,
+    isTraitor: () => false,
+    getTraitorRemainingTicks: () => 0,
     isFriendly: (p: { smallID: () => number }) => p.smallID() === 2,
   };
   const friend = {

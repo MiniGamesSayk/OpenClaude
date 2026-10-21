@@ -172,6 +172,12 @@ export class SAMRadiusPass {
   private currentTick = 0;
   private lastTickTime: number = performance.now();
   private hasUpgradingSAM: boolean = false;
+  /**
+   * Instances are stale (structures, ally set, local player or color mode
+   * changed). Rebuilt lazily in draw() — only while the overlay is visible,
+   * so the common hidden case costs nothing per tick.
+   */
+  private dirty = false;
   private groupBuckets: SAMCircle[][] = [];
   private lastGeometryTime = 0;
   private static readonly GEOMETRY_REFRESH_INTERVAL_MS = 50; // 20Hz refresh rate
@@ -286,10 +292,9 @@ export class SAMRadiusPass {
   setTick(tick: number): void {
     if (tick === this.currentTick) return;
     this.currentTick = tick;
+    // Upgrading rings follow the continuous tick through draw()'s throttled
+    // refresh, so a new tick needs no rebuild of its own.
     this.lastTickTime = performance.now();
-    if (this.hasUpgradingSAM) {
-      this.rebuild();
-    }
   }
 
   private getContinuousTick(): number {
@@ -301,10 +306,13 @@ export class SAMRadiusPass {
   }
 
   private rebuild(): void {
-    if (this.lastStructures) this.updateStructures(this.lastStructures);
+    this.dirty = true;
   }
 
-  /** Call with current structures to update SAM positions/radii/colors. */
+  /**
+   * Call with current structures to update SAM positions/radii/colors. The
+   * instance buffer is rebuilt on the next visible draw().
+   */
   updateStructures(
     structures: Map<number, UnitState>,
     currentTick?: number,
@@ -313,10 +321,17 @@ export class SAMRadiusPass {
       this.currentTick = currentTick;
       this.lastTickTime = performance.now();
     }
-    this.lastGeometryTime = performance.now();
     this.lastStructures = structures;
+    this.dirty = true;
+  }
+
+  /** Recompute circles + arcs from the last structures and upload them. */
+  private refreshInstances(): void {
+    this.dirty = false;
+    this.lastGeometryTime = performance.now();
+    if (!this.lastStructures) return;
     const circles = this.collectSAMCircles(
-      structures,
+      this.lastStructures,
       this.getContinuousTick(),
     );
     this.uploadInstances(circles);
@@ -540,20 +555,19 @@ export class SAMRadiusPass {
   }
 
   draw(cameraMatrix: Float32Array): void {
-    if (!this.visible || this.instanceCount === 0) return;
+    if (!this.visible) return;
 
-    const now = performance.now();
+    if (this.dirty) {
+      this.refreshInstances();
+    }
+    if (this.instanceCount === 0) return;
+
     if (
       this.hasUpgradingSAM &&
-      this.lastStructures &&
-      now - this.lastGeometryTime >= SAMRadiusPass.GEOMETRY_REFRESH_INTERVAL_MS
+      performance.now() - this.lastGeometryTime >=
+        SAMRadiusPass.GEOMETRY_REFRESH_INTERVAL_MS
     ) {
-      this.lastGeometryTime = now;
-      const circles = this.collectSAMCircles(
-        this.lastStructures,
-        this.getContinuousTick(),
-      );
-      this.uploadInstances(circles);
+      this.refreshInstances();
     }
 
     const gl = this.gl;

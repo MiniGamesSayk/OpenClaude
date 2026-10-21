@@ -2164,6 +2164,9 @@ describe("InputHandler teardown (OPE-411)", () => {
   });
 
   it("clears the pan/zoom interval on destroy()", () => {
+    // The fixture's own handler listens on window too; keep it out of the
+    // key presses and timer counts below.
+    inputHandler.destroy();
     vi.useFakeTimers();
     const handler = makeHandler(
       document.createElement("canvas"),
@@ -2171,6 +2174,9 @@ describe("InputHandler teardown (OPE-411)", () => {
     );
     try {
       handler.initialize();
+      // The loop only runs while a pan/zoom key is held.
+      expect(vi.getTimerCount()).toBe(0);
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
       expect(vi.getTimerCount()).toBe(1);
 
       handler.destroy();
@@ -2181,7 +2187,64 @@ describe("InputHandler teardown (OPE-411)", () => {
     }
   });
 
+  it("pans only while a movement key is held, then stops its timer", () => {
+    // The fixture's own handler listens on window too; keep it out of the
+    // key presses and timer counts below.
+    inputHandler.destroy();
+    vi.useFakeTimers();
+    const bus = new EventBus();
+    const handler = makeHandler(document.createElement("canvas"), bus);
+    const drags: DragEvent[] = [];
+    bus.on(DragEvent, (e) => drags.push(e));
+    try {
+      handler.initialize();
+      vi.advanceTimersByTime(50);
+      expect(drags).toHaveLength(0);
+      expect(vi.getTimerCount()).toBe(0);
+
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+      vi.advanceTimersByTime(10);
+      expect(drags.length).toBeGreaterThan(0);
+      expect(drags.every((d) => d.deltaX === 0 && d.deltaY === 5)).toBe(true);
+
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+      vi.advanceTimersByTime(5);
+      const after = drags.length;
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(50);
+      expect(drags).toHaveLength(after);
+    } finally {
+      handler.destroy();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not start its timer for keys that neither pan nor zoom", () => {
+    // The fixture's own handler listens on window too; keep it out of the
+    // key presses and timer counts below.
+    inputHandler.destroy();
+    vi.useFakeTimers();
+    const handler = makeHandler(
+      document.createElement("canvas"),
+      new EventBus(),
+    );
+    try {
+      handler.initialize();
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { code: "ControlLeft" }),
+      );
+      expect(handler["activeKeys"].has("ControlLeft")).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      handler.destroy();
+      vi.useRealTimers();
+    }
+  });
+
   it("a second initialize() does not orphan the first listeners or interval", () => {
+    // The fixture's own handler listens on window too; keep it out of the
+    // key presses and timer counts below.
+    inputHandler.destroy();
     vi.useFakeTimers();
     const bus = new EventBus();
     const handler = makeHandler(document.createElement("canvas"), bus);
@@ -2192,6 +2255,7 @@ describe("InputHandler teardown (OPE-411)", () => {
     try {
       handler.initialize();
       handler.initialize();
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
       expect(vi.getTimerCount()).toBe(1);
 
       bus.emit(

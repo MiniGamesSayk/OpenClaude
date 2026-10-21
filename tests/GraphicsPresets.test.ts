@@ -63,6 +63,40 @@ describe("built-in graphics presets", () => {
     // The palette swap rides on the palette enum.
     expect(settings.theme).toEqual(createThemeSettings("colorblind"));
   });
+
+  it("performance preset turns off the heavy effects and the day/night composite", () => {
+    const performance = builtinPresets.find(
+      (p) => p.nameKey === "graphics_setting.preset_performance",
+    );
+    expect(performance).toBeDefined();
+    expect(performance!.descKey).toBe(
+      "graphics_setting.preset_performance_desc",
+    );
+
+    const settings = createRenderSettings();
+    // Start from a look that enables lighting, as a previous preset might.
+    settings.lighting.ambient = 0.36;
+    settings.lighting.enabled = true;
+    applyGraphicsOverrides(
+      settings,
+      GraphicsOverridesSchema.parse(performance!.overrides),
+    );
+
+    expect(settings.passEnabled.fx).toBe(false);
+    expect(settings.passEnabled.falloutBloom).toBe(false);
+    expect(settings.passEnabled.falloutLight).toBe(false);
+    expect(settings.smallPlayerGlow.strength).toBe(0);
+    expect(settings.lighting.ambient).toBe(1);
+    expect(settings.lighting.enabled).toBe(false);
+
+    // Other players' costly cosmetics are hidden; the cheap ones stay.
+    const cosmetics = GraphicsOverridesSchema.parse(
+      performance!.overrides,
+    ).cosmetics;
+    expect(cosmetics?.territorySkins).toBe(false);
+    expect(cosmetics?.nukeTrail).toBe(false);
+    expect(cosmetics?.flags).toBeUndefined();
+  });
 });
 
 describe("legacy colorblind flag", () => {

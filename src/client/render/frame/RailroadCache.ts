@@ -20,6 +20,7 @@ import {
   RailroadDestructionUpdate,
   RailroadSnapUpdate,
 } from "@openfront/engine-api/game/GameUpdates";
+import { DirtyRows, trackDirtyRows } from "./DirtyRows";
 
 // Regular enum (not const enum) for cross-package use.
 export enum RailType {
@@ -126,6 +127,14 @@ export class RailroadCache {
   /** Per-tile railroad state (0=none, 1-6 = RailType+1). Ready for GPU upload. */
   readonly railroadState: Uint8Array;
 
+  /**
+   * Rows of railroadState changed since the railroad pass last uploaded it.
+   * Published on railroadState for the pass, which clears it as it uploads —
+   * so unlike railroadDirty it survives clearDirty() and builds up across
+   * ticks until a flush (e.g. while zoomed out too far to draw rails).
+   */
+  private readonly dirtyRows: DirtyRows;
+
   /** True if railroadState changed this tick. */
   railroadDirty = false;
 
@@ -135,6 +144,8 @@ export class RailroadCache {
   constructor(mapW: number, mapH: number) {
     this.mapW = mapW;
     this.railroadState = new Uint8Array(mapW * mapH);
+    this.dirtyRows = new DirtyRows(mapH);
+    trackDirtyRows(this.railroadState, this.dirtyRows);
   }
 
   /**
@@ -201,12 +212,19 @@ export class RailroadCache {
     this.anims.clear();
     this.tileRefCount.clear();
     this.railroadState.fill(0);
+    this.dirtyRows.markAll();
     this.railroadDirty = false;
   }
 
   // -------------------------------------------------------------------------
   // Private
   // -------------------------------------------------------------------------
+
+  /** Write a tile's state and flag its row for upload. */
+  private setTile(ref: number, value: number): void {
+    this.railroadState[ref] = value;
+    this.dirtyRows.mark((ref / this.mapW) | 0);
+  }
 
   private addRailroad(id: number, tileRefs: number[], complete: boolean): void {
     const tiles = computeRailTiles(tileRefs, this.mapW);
@@ -224,7 +242,7 @@ export class RailroadCache {
     }
 
     if (complete) {
-      for (const rt of tiles) this.railroadState[rt.ref] = rt.type + 1;
+      for (const rt of tiles) this.setTile(rt.ref, rt.type + 1);
       this.railroadDirty = true;
     }
   }
@@ -238,7 +256,7 @@ export class RailroadCache {
       const count = (this.tileRefCount.get(rt.ref) ?? 1) - 1;
       if (count <= 0) {
         this.tileRefCount.delete(rt.ref);
-        this.railroadState[rt.ref] = 0;
+        this.setTile(rt.ref, 0);
       } else {
         this.tileRefCount.set(rt.ref, count);
       }
@@ -255,7 +273,7 @@ export class RailroadCache {
       if (anim.tailIndex - anim.headIndex <= 2 * RAIL_INCREMENT) {
         for (let i = anim.headIndex; i < anim.tailIndex; i++) {
           const t = anim.tiles[i]!;
-          this.railroadState[t.ref] = t.type + 1;
+          this.setTile(t.ref, t.type + 1);
           this.revealedRailTiles.push(t.ref);
         }
         anim.headIndex = anim.tailIndex;
@@ -264,12 +282,12 @@ export class RailroadCache {
       } else {
         for (let i = anim.headIndex; i < anim.headIndex + RAIL_INCREMENT; i++) {
           const t = anim.tiles[i]!;
-          this.railroadState[t.ref] = t.type + 1;
+          this.setTile(t.ref, t.type + 1);
           this.revealedRailTiles.push(t.ref);
         }
         for (let i = anim.tailIndex - RAIL_INCREMENT; i < anim.tailIndex; i++) {
           const t = anim.tiles[i]!;
-          this.railroadState[t.ref] = t.type + 1;
+          this.setTile(t.ref, t.type + 1);
           this.revealedRailTiles.push(t.ref);
         }
         anim.headIndex += RAIL_INCREMENT;

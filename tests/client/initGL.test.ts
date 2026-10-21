@@ -1,4 +1,8 @@
 import { GLUnavailableError, initGL } from "../../src/client/render/gl/initGL";
+import {
+  lowSpecMode,
+  setLowSpecMode,
+} from "../../src/client/render/gl/LowSpec";
 
 // WEBGL_debug_renderer_info.UNMASKED_RENDERER_WEBGL
 const UNMASKED_RENDERER_WEBGL = 0x9246;
@@ -44,6 +48,7 @@ function stubGetContext(opts: {
 describe("initGL", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    setLowSpecMode(false);
   });
 
   it("returns ok with the accelerated context when the renderer is hardware", () => {
@@ -56,21 +61,18 @@ describe("initGL", () => {
     expect(res.gl).toBe(accel);
   });
 
-  it("reports software when getContext returns a software renderer (accel off)", () => {
+  it("runs on a software renderer (accel off) in low-spec mode", () => {
     // failIfMajorPerformanceCaveat doesn't reject SwiftShader when hardware
     // acceleration is disabled in settings, so a context is still returned.
-    stubGetContext({
-      accelerated: fakeContext("Google SwiftShader"),
-      probe: null,
-    });
+    // This fork plays on weak PCs: it keeps it instead of gating.
+    const accel = fakeContext("Google SwiftShader");
+    stubGetContext({ accelerated: accel, probe: null });
 
     const res = initGL(document.createElement("canvas"));
 
-    expect(res.status).toBe("software");
-    expect(res.gl).toBeNull();
-    if (res.status === "software") {
-      expect(res.renderer).toBe("Google SwiftShader");
-    }
+    expect(res.status).toBe("ok");
+    expect(res.gl).toBe(accel);
+    expect(lowSpecMode()).toBe(true);
   });
 
   it("requests the accelerated context with the caller's attrs plus the caveat flag", () => {
@@ -88,27 +90,15 @@ describe("initGL", () => {
     });
   });
 
-  it("reports software with the unmasked renderer when only a non-accelerated context exists", () => {
-    stubGetContext({ accelerated: null, probe: fakeContext("SwiftShader") });
+  it("falls back to the non-accelerated context in low-spec mode", () => {
+    const software = fakeContext("SwiftShader");
+    stubGetContext({ accelerated: null, probe: software });
 
     const res = initGL(document.createElement("canvas"));
 
-    expect(res.status).toBe("software");
-    expect(res.gl).toBeNull();
-    if (res.status === "software") {
-      expect(res.renderer).toBe("SwiftShader");
-    }
-  });
-
-  it("reports software with an 'unknown' renderer when the debug extension is unavailable", () => {
-    stubGetContext({ accelerated: null, probe: fakeContext() });
-
-    const res = initGL(document.createElement("canvas"));
-
-    expect(res.status).toBe("software");
-    if (res.status === "software") {
-      expect(res.renderer).toBe("unknown");
-    }
+    expect(res.status).toBe("ok");
+    expect(res.gl).toBe(software);
+    expect(lowSpecMode()).toBe(true);
   });
 
   it("reports limited (but still returns the context) when MAX_TEXTURE_SIZE is below the palette size", () => {
@@ -139,7 +129,7 @@ describe("initGL", () => {
     expect(res.gl).toBe(accel);
   });
 
-  it("reports software (not limited) when a software renderer also has capped textures", () => {
+  it("keeps a software renderer with capped textures (low-spec, not limited)", () => {
     stubGetContext({
       accelerated: fakeContext("Google SwiftShader", 2048),
       probe: null,
@@ -147,7 +137,7 @@ describe("initGL", () => {
 
     const res = initGL(document.createElement("canvas"));
 
-    expect(res.status).toBe("software");
+    expect(res.status).toBe("ok");
   });
 
   it("reports unsupported when no WebGL2 context can be created at all", () => {

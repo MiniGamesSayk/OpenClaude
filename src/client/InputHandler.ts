@@ -582,16 +582,97 @@ export class InputHandler {
     }
   }
 
+  /**
+   * Pans/zooms while a movement key is held. Runs only while one is down:
+   * started from keydown and stopped by its own first tick that finds none
+   * held (keyup, blur and destroy all just empty `activeKeys`), instead of
+   * waking ~250 times a second for the whole game.
+   */
+  private startMoveLoop() {
+    if (this.moveInterval !== null) return;
+    this.moveInterval = setInterval(this.moveTick, 1);
+  }
+
+  private isMoveKey(code: string): boolean {
+    const kb = this.keybinds;
+    return (
+      code === kb.moveUp ||
+      code === kb.moveUpArrow ||
+      code === kb.moveDown ||
+      code === kb.moveDownArrow ||
+      code === kb.moveLeft ||
+      code === kb.moveLeftArrow ||
+      code === kb.moveRight ||
+      code === kb.moveRightArrow ||
+      code === kb.zoomOut ||
+      code === kb.zoomOutMinus ||
+      code === kb.zoomOutNumpad ||
+      code === kb.zoomIn ||
+      code === kb.zoomInEqual ||
+      code === kb.zoomInNumpad
+    );
+  }
+
+  private stopMoveLoop() {
+    if (this.moveInterval === null) return;
+    clearInterval(this.moveInterval);
+    this.moveInterval = null;
+  }
+
+  private moveTick = () => {
+    const keys = this.activeKeys;
+    const kb = this.keybinds;
+    const up = keys.has(kb.moveUp) || keys.has(kb.moveUpArrow);
+    const down = keys.has(kb.moveDown) || keys.has(kb.moveDownArrow);
+    const left = keys.has(kb.moveLeft) || keys.has(kb.moveLeftArrow);
+    const right = keys.has(kb.moveRight) || keys.has(kb.moveRightArrow);
+    const zoomOut =
+      keys.has(kb.zoomOut) ||
+      keys.has(kb.zoomOutMinus) ||
+      keys.has(kb.zoomOutNumpad);
+    const zoomIn =
+      keys.has(kb.zoomIn) ||
+      keys.has(kb.zoomInEqual) ||
+      keys.has(kb.zoomInNumpad);
+    if (!(up || down || left || right || zoomOut || zoomIn)) {
+      this.stopMoveLoop();
+      return;
+    }
+
+    // Skip if select warship modifier is held down
+    if (keys.has(kb.boxSelectWarships)) {
+      return;
+    }
+
+    let deltaX = 0;
+    let deltaY = 0;
+    if (up) deltaY += this.PAN_SPEED;
+    if (down) deltaY -= this.PAN_SPEED;
+    if (left) deltaX += this.PAN_SPEED;
+    if (right) deltaX -= this.PAN_SPEED;
+
+    if (deltaX || deltaY) {
+      this.eventBus.emit(new DragEvent(deltaX, deltaY));
+    }
+
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+
+    if (zoomOut) {
+      this.eventBus.emit(new ZoomEvent(cx, cy, this.ZOOM_SPEED));
+    }
+    if (zoomIn) {
+      this.eventBus.emit(new ZoomEvent(cx, cy, -this.ZOOM_SPEED));
+    }
+  };
+
   private initializePointerAndKeyboardEvents() {
     // A second initialize() would otherwise orphan the first listener set and
     // interval: nothing else holds the old controller, so they could never be
     // removed. Production only initializes once, but this keeps that from
     // being load-bearing.
     this.listenerAbort?.abort();
-    if (this.moveInterval !== null) {
-      clearInterval(this.moveInterval);
-      this.moveInterval = null;
-    }
+    this.stopMoveLoop();
     this.resetPointerState();
     this.listenerAbort = new AbortController();
     const { signal } = this.listenerAbort;
@@ -681,59 +762,6 @@ export class InputHandler {
       { signal },
     );
     this.pointers.clear();
-
-    this.moveInterval = setInterval(() => {
-      let deltaX = 0;
-      let deltaY = 0;
-
-      // Skip if select warship modifier is held down
-      if (this.activeKeys.has(this.keybinds.boxSelectWarships)) {
-        return;
-      }
-
-      if (
-        this.activeKeys.has(this.keybinds.moveUp) ||
-        this.activeKeys.has(this.keybinds.moveUpArrow)
-      )
-        deltaY += this.PAN_SPEED;
-      if (
-        this.activeKeys.has(this.keybinds.moveDown) ||
-        this.activeKeys.has(this.keybinds.moveDownArrow)
-      )
-        deltaY -= this.PAN_SPEED;
-      if (
-        this.activeKeys.has(this.keybinds.moveLeft) ||
-        this.activeKeys.has(this.keybinds.moveLeftArrow)
-      )
-        deltaX += this.PAN_SPEED;
-      if (
-        this.activeKeys.has(this.keybinds.moveRight) ||
-        this.activeKeys.has(this.keybinds.moveRightArrow)
-      )
-        deltaX -= this.PAN_SPEED;
-
-      if (deltaX || deltaY) {
-        this.eventBus.emit(new DragEvent(deltaX, deltaY));
-      }
-
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-
-      if (
-        this.activeKeys.has(this.keybinds.zoomOut) ||
-        this.activeKeys.has(this.keybinds.zoomOutMinus) ||
-        this.activeKeys.has(this.keybinds.zoomOutNumpad)
-      ) {
-        this.eventBus.emit(new ZoomEvent(cx, cy, this.ZOOM_SPEED));
-      }
-      if (
-        this.activeKeys.has(this.keybinds.zoomIn) ||
-        this.activeKeys.has(this.keybinds.zoomInEqual) ||
-        this.activeKeys.has(this.keybinds.zoomInNumpad)
-      ) {
-        this.eventBus.emit(new ZoomEvent(cx, cy, -this.ZOOM_SPEED));
-      }
-    }, 1);
 
     window.addEventListener(
       "keydown",
@@ -867,6 +895,7 @@ export class InputHandler {
           ].includes(e.code)
         ) {
           this.activeKeys.add(e.code);
+          if (this.isMoveKey(e.code)) this.startMoveLoop();
         }
 
         // warship box selection mode.
@@ -1543,10 +1572,7 @@ export class InputHandler {
   }
 
   destroy() {
-    if (this.moveInterval !== null) {
-      clearInterval(this.moveInterval);
-      this.moveInterval = null;
-    }
+    this.stopMoveLoop();
     globalThis.removeEventListener(
       `${USER_SETTINGS_CHANGED_EVENT}:${KEYBINDS_KEY}`,
       this.onKeybindsChanged,

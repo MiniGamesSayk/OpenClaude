@@ -412,6 +412,10 @@ export class UserSettingModal extends BaseModal {
     );
   }
 
+  private toggleLowSpecMode() {
+    this.userSettings.toggleLowSpecMode();
+  }
+
   private toggleSnapBuildPreview() {
     this.userSettings.toggleSnapBuildPreview();
 
@@ -1862,6 +1866,15 @@ export class UserSettingModal extends BaseModal {
         id="cursor_cost_label-toggle"
         .checked=${this.userSettings.cursorCostLabel()}
         @change=${this.toggleCursorCostLabel}
+      ></setting-toggle>
+
+      <!-- 🐢 Low-spec mode -->
+      <setting-toggle
+        label="${translateText("user_setting.low_spec_mode_label")}"
+        description="${translateText("user_setting.low_spec_mode_desc")}"
+        id="low-spec-mode-toggle"
+        .checked=${this.userSettings.lowSpecMode()}
+        @change=${this.toggleLowSpecMode}
       ></setting-toggle>
 
       <!-- 🧲 Snap Build Preview -->

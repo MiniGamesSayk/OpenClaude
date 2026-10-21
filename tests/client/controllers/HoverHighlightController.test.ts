@@ -22,13 +22,11 @@ describe("HoverHighlightController", () => {
     );
 
     eventBus = { on: vi.fn() };
+    // Screen (x, y) maps to world tile (x, y), pointer in the tile's middle.
     transformHandler = {
       screenToWorldCoordinatesFloat: vi
         .fn()
-        .mockReturnValue({ x: 100.5, y: 200.5 }),
-      screenToWorldCoordinates: vi
-        .fn()
-        .mockImplementation((x, y) => ({ x, y })),
+        .mockImplementation((x, y) => ({ x: x + 0.5, y: y + 0.5 })),
     };
     view = {
       setMouseWorldPos: vi.fn(),
@@ -61,7 +59,7 @@ describe("HoverHighlightController", () => {
       200,
       200,
     );
-    expect(view.setMouseWorldPos).toHaveBeenCalledWith(100.5, 200.5);
+    expect(view.setMouseWorldPos).toHaveBeenCalledWith(200.5, 200.5);
     expect(view.setHighlightOwner).toHaveBeenCalledWith(player1.smallID());
   });
 

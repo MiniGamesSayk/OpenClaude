@@ -1,3 +1,5 @@
+import { lowSpecMode } from "../LowSpec";
+
 /**
  * Device-pixel-ratio used by the WebGL renderer for its backing store and all
  * screen↔world math. Capped at 2 to avoid rendering at 3x on very high-DPI
@@ -9,5 +11,7 @@
  * on the same coordinate system.
  */
 export function renderDpr(): number {
+  // Low-spec mode renders at 1x: up to 4x less fragment work on HiDPI screens.
+  if (lowSpecMode()) return 1;
   return Math.min(window.devicePixelRatio || 2, 2);
 }

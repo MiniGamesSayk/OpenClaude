@@ -10,6 +10,7 @@
  */
 
 import type { WebGLGateStatus } from "../../components/WebGLGate";
+import { setLowSpecMode } from "./LowSpec";
 import { getPaletteSize } from "./utils/ColorUtils";
 import { readRenderer } from "./utils/GlUtils";
 
@@ -61,7 +62,10 @@ export function initGL(
     // (~1fps) on it either way.
     const renderer = readRenderer(accel);
     if (SOFTWARE_RENDERER.test(renderer)) {
-      return { gl: null, status: "software", renderer };
+      // This fork plays on very weak machines too: run on the software
+      // context in low-spec mode rather than refusing to start.
+      setLowSpecMode(true);
+      return { gl: accel, status: "ok" };
     }
     // Fingerprinting protection caps texture sizes on an otherwise
     // hardware-accelerated context; the map renders with black areas (#4357).
@@ -78,7 +82,13 @@ export function initGL(
   const probe = document.createElement("canvas").getContext("webgl2");
   if (!probe) return { gl: null, status: "unsupported", renderer: "" };
 
-  // WebGL2 exists but couldn't be obtained accelerated → treat as software.
+  // WebGL2 exists but couldn't be obtained accelerated: take the software
+  // context (the failed call above did not lock the canvas) in low-spec mode.
+  const software = canvas.getContext("webgl2", attrs);
+  if (software !== null) {
+    setLowSpecMode(true);
+    return { gl: software, status: "ok" };
+  }
   return { gl: null, status: "software", renderer: readRenderer(probe) };
 }
 

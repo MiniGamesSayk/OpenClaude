@@ -18,7 +18,10 @@ const MIN_CITIES = 4;
 const SPARE_GOLD_MULTIPLE = 3n;
 
 /** Odds (1 in N) that an attack tick ends in a special-warhead strike. */
-const STRIKE_ODDS = 4;
+const STRIKE_ODDS = 3;
+
+/** Cities a nation owns before it builds an airbase for paratroopers. */
+const AIRBASE_MIN_CITIES = 6;
 
 /**
  * How far from an anchor building (city or port) a new building is looked
@@ -65,6 +68,9 @@ export class NationSpecialUnitsBehavior {
     if (this.enemySilosExist()) {
       wants.push([UnitType.Bunker, Math.min(2, Math.floor(cities / 4))]);
     }
+    if (cities >= AIRBASE_MIN_CITIES) {
+      wants.push([UnitType.Airbase, 1]);
+    }
     const ports = this.player.units(UnitType.Port);
     if (ports.length > 0) {
       wants.push([
@@ -96,6 +102,14 @@ export class NationSpecialUnitsBehavior {
     const enemy = this.currentEnemy();
     if (enemy === null) return;
 
+    // Drop paratroopers behind the front when an airbase is in range.
+    if (rand.chance(3)) {
+      const city = this.pick(rand, enemy.units(UnitType.City));
+      if (city !== null && this.tryBuild(UnitType.Paratroopers, city.tile())) {
+        return;
+      }
+    }
+
     // Open the enemy's air defense: an EMP over a SAM cluster, else a cheap
     // precise strike on a SAM, else a strike on one of its cities.
     const sams = enemy.units(UnitType.SAMLauncher);
@@ -103,10 +117,24 @@ export class NationSpecialUnitsBehavior {
       const sam = this.pick(rand, sams);
       if (sam !== null && this.tryBuild(UnitType.EMPBomb, sam.tile())) return;
     }
+    // Tactical missiles take out the defense posts holding the front.
+    const posts = enemy.units(UnitType.DefensePost);
+    if (posts.length > 0 && rand.chance(2)) {
+      const post = this.pick(rand, posts);
+      if (
+        post !== null &&
+        this.tryBuild(UnitType.TacticalMissile, post.tile())
+      ) {
+        return;
+      }
+    }
     const targets = sams.length > 0 ? sams : enemy.units(UnitType.City);
     const target = this.pick(rand, targets);
     if (target === null) return;
     if (rand.chance(3) && this.tryBuild(UnitType.NeutronBomb, target.tile())) {
+      return;
+    }
+    if (rand.chance(2) && this.tryBuild(UnitType.ClusterBomb, target.tile())) {
       return;
     }
     this.tryBuild(UnitType.CruiseMissile, target.tile());

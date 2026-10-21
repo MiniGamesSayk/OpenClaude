@@ -7,6 +7,11 @@
  * is referenced from the caller's array, not copied.
  */
 
+import {
+  DIRTY_ROW_MERGE_GAP,
+  DirtyRows,
+  dirtyRowsOf,
+} from "../../frame/DirtyRows";
 import type { RenderSettings } from "../RenderSettings";
 import { getPaletteSize, MAX_TRAIL_COLORS } from "../utils/ColorUtils";
 import { createMapQuad, createProgram, shaderSrc } from "../utils/GlUtils";
@@ -48,9 +53,10 @@ export class TrailPass {
    */
   private liveTrailRef: Uint16Array | null = null;
 
-  /** Dirty row range for partial trail upload. Infinity/-1 = full upload. */
-  private dirtyRowMin = Infinity;
-  private dirtyRowMax = -1;
+  /** Rows changed since the last flush, for partial trail upload. */
+  private readonly dirtyRows: DirtyRows;
+  /** The whole array must go up (first tick, seek, replay): rows don't apply. */
+  private fullUploadPending = false;
 
   constructor(
     gl: WebGL2RenderingContext,
@@ -65,6 +71,7 @@ export class TrailPass {
     this.settings = settings;
     this.mapW = mapW;
     this.mapH = mapH;
+    this.dirtyRows = new DirtyRows(mapH);
     this.trailTex = trailTex;
     this.paletteTex = paletteTex;
     this.effectTex = effectTex;
@@ -108,22 +115,29 @@ export class TrailPass {
   /** Live-game path: reference the game's own trail array directly. */
   setLiveRef(trailState: Uint16Array): void {
     this.liveTrailRef = trailState;
+    this.fullUploadPending = true;
+    this.dirtyRows.clear();
     this.trailsDirty = true;
   }
 
-  /** Live trail delta: update live ref + accept dirty row range from TrailManager. */
+  /**
+   * Live trail delta: update live ref + accept the dirty rows from
+   * TrailManager. `dirtyRowMin..dirtyRowMax` bounds this tick's changes; the
+   * manager's per-row flags (when it keeps them) pick the rows within it.
+   */
   applyLiveDelta(
     trailState: Uint16Array,
     dirtyRowMin: number,
     dirtyRowMax: number,
   ): void {
     this.liveTrailRef = trailState;
-    if (dirtyRowMax >= 0) {
-      const isFullUploadPending = this.trailsDirty && this.dirtyRowMax < 0;
-      // If a full upload is already pending, don't narrow the bounds to the delta
-      if (!isFullUploadPending) {
-        this.dirtyRowMin = Math.min(this.dirtyRowMin, dirtyRowMin);
-        this.dirtyRowMax = Math.max(this.dirtyRowMax, dirtyRowMax);
+    // If a full upload is already pending, don't narrow it to the delta
+    if (dirtyRowMax >= 0 && !this.fullUploadPending) {
+      const tracked = dirtyRowsOf(trailState);
+      if (tracked !== undefined) {
+        this.dirtyRows.merge(tracked, dirtyRowMin, dirtyRowMax);
+      } else {
+        this.dirtyRows.markRange(dirtyRowMin, dirtyRowMax);
       }
     }
     this.trailsDirty = true;
@@ -138,22 +152,22 @@ export class TrailPass {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.trailTex);
 
-    if (this.dirtyRowMax >= 0) {
-      // Partial upload — only dirty rows
-      const minRow = this.dirtyRowMin;
-      const rowCount = this.dirtyRowMax - minRow + 1;
-      const offset = minRow * this.mapW;
-      gl.texSubImage2D(
-        gl.TEXTURE_2D,
-        0,
-        0,
-        minRow,
-        this.mapW,
-        rowCount,
-        gl.RED_INTEGER,
-        gl.UNSIGNED_SHORT,
-        src.subarray(offset, offset + rowCount * this.mapW),
-      );
+    if (!this.fullUploadPending && !this.dirtyRows.isClean) {
+      // Partial upload — only the dirty rows, in runs
+      this.dirtyRows.forEachRun(DIRTY_ROW_MERGE_GAP, (row, rowCount) => {
+        const offset = row * this.mapW;
+        gl.texSubImage2D(
+          gl.TEXTURE_2D,
+          0,
+          0,
+          row,
+          this.mapW,
+          rowCount,
+          gl.RED_INTEGER,
+          gl.UNSIGNED_SHORT,
+          src.subarray(offset, offset + rowCount * this.mapW),
+        );
+      });
     } else {
       // Full upload (first tick, seek, replay, etc.)
       gl.texSubImage2D(
@@ -169,8 +183,8 @@ export class TrailPass {
       );
     }
 
-    this.dirtyRowMin = Infinity;
-    this.dirtyRowMax = -1;
+    this.dirtyRows.clear();
+    this.fullUploadPending = false;
     this.trailsDirty = false;
   }
 

@@ -98,6 +98,9 @@ export class GameView implements GameLike {
   private _names = new Map<string, NameEntry>();
   /** Reusable scratch buffers for per-tick deltas. */
   private readonly _trailIdsScratch: number[] = [];
+  private readonly _transitiveTargetsScratch = new Set<number>();
+  /** TerraNulliusImpl is stateless, so one instance serves every lookup. */
+  private readonly terraNullius = new TerraNulliusImpl();
   /**
    * The single long-lived FrameData object. Fields are mutated in place each
    * tick by update(). Renderer reads this each frame via frameData().
@@ -396,11 +399,12 @@ export class GameView implements GameLike {
 
     for (const unit of this._units.values()) {
       unit._wasUpdated = false;
-      // Only trim when a move appended a position — slicing a ≤1-element
-      // array would allocate an identical array per unit per tick, and most
-      // units (structures) never move.
-      if (unit.lastPos.length > 1) {
-        unit.lastPos = unit.lastPos.slice(-1);
+      // Only trim when a move appended a position — most units (structures)
+      // never move. Trimmed in place; nothing keeps the array across ticks.
+      const lastPos = unit.lastPos;
+      if (lastPos.length > 1) {
+        lastPos[0] = lastPos[lastPos.length - 1];
+        lastPos.length = 1;
       }
     }
     gu.updates[GameUpdateType.Unit].forEach((update) => {
@@ -519,15 +523,21 @@ export class GameView implements GameLike {
     f.trailDirtyRowMin = this.trailManager.dirtyRowMin;
     f.trailDirtyRowMax = this.trailManager.dirtyRowMax;
 
+    // Transitive targets (own, allies', teammates' and tutorial-marked) are
+    // collected once per tick; computePlayerStatus looks them up per player.
+    const transitiveTargets = this._transitiveTargetsScratch;
+    transitiveTargets.clear();
+    this._myPlayer?.collectTransitiveTargets(transitiveTargets);
+    if (this._markedPlayers !== null) {
+      for (const sid of this._markedPlayers) transitiveTargets.add(sid);
+    }
     f.playerStatus = computePlayerStatus(this._playerStates, this._unitStates, {
       localPlayerSmallID: this._myPlayer?.smallID() ?? 0,
       localPlayerID: this._myPlayer?.id() ?? "",
       tileState: this._map.tileStateBuffer(),
       tick: gu.tick,
       allianceDuration: this._config.allianceDuration(),
-      isTransitiveTarget: (sid) =>
-        (this._markedPlayers?.has(sid) ?? false) ||
-        (this._myPlayer?.hasTransitiveTarget(sid) ?? false),
+      isTransitiveTarget: (sid) => transitiveTargets.has(sid),
       doomsdayClockWarnTicks:
         this._config.doomsdayClockConfig().warnSeconds * 10,
     });
@@ -803,7 +813,7 @@ export class GameView implements GameLike {
 
   playerBySmallID(id: number): PlayerView | TerraNullius {
     if (id === 0) {
-      return new TerraNulliusImpl();
+      return this.terraNullius;
     }
     const playerId = this.smallIDToID.get(id);
     if (playerId === undefined) {
@@ -813,14 +823,10 @@ export class GameView implements GameLike {
   }
 
   playerByClientID(id: ClientID): PlayerView | null {
-    const player =
-      Array.from(this._players.values()).filter(
-        (p) => p.clientID() === id,
-      )[0] ?? null;
-    if (player === null) {
-      return null;
+    for (const p of this._players.values()) {
+      if (p.clientID() === id) return p;
     }
-    return player;
+    return null;
   }
   hasPlayer(id: PlayerID): boolean {
     return false;

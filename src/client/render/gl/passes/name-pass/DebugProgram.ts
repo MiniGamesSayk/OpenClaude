@@ -19,7 +19,6 @@ export class DebugProgram {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private playerDataTex: WebGLTexture;
-  private maxPlayers: number;
 
   private uCamera: WebGLUniformLocation;
   private uTime: WebGLUniformLocation;
@@ -32,11 +31,9 @@ export class DebugProgram {
     gl: WebGL2RenderingContext,
     atlas: ParsedAtlas,
     playerDataTex: WebGLTexture,
-    maxPlayers: number,
   ) {
     this.gl = gl;
     this.playerDataTex = playerDataTex;
-    this.maxPlayers = maxPlayers;
 
     this.program = createProgram(
       gl,
@@ -78,6 +75,7 @@ export class DebugProgram {
     cameraMatrix: Float32Array,
     settings: RenderSettings,
     vao: WebGLVertexArrayObject,
+    playerCount: number,
   ): void {
     const gl = this.gl;
     const ns = settings.name;
@@ -95,7 +93,7 @@ export class DebugProgram {
 
     gl.bindVertexArray(vao);
     // 3 instances per player: name box, flag box, center dot
-    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, this.maxPlayers * 3);
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, playerCount * 3);
   }
 
   dispose(): void {

@@ -430,6 +430,26 @@ export class ReplayGameView {
       ? all
       : all.filter((u) => types.includes(u.type()));
   }
+  /** Active units of the given types within `searchRange` of a tile. */
+  nearbyUnits(
+    tile: TileRef,
+    searchRange: number,
+    types: UnitType | readonly UnitType[],
+  ): { unit: ReplayUnitView; distSquared: number }[] {
+    const x = this.x(tile);
+    const y = this.y(tile);
+    const rangeSquared = searchRange * searchRange;
+    const nearby: { unit: ReplayUnitView; distSquared: number }[] = [];
+    for (const unit of this.units(
+      ...(Array.isArray(types) ? types : [types]),
+    )) {
+      const dx = this.x(unit.tile()) - x;
+      const dy = this.y(unit.tile()) - y;
+      const distSquared = dx * dx + dy * dy;
+      if (distSquared <= rangeSquared) nearby.push({ unit, distSquared });
+    }
+    return nearby;
+  }
   numTilesWithFallout(): number {
     return this.frame?.falloutTiles ?? 0;
   }
