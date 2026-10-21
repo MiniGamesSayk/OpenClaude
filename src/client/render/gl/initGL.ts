@@ -98,26 +98,6 @@ export class GLUnavailableError extends Error {
 }
 
 /**
- * Report the WebGL2 GPU-init outcome to analytics (Google Tag). Fires on every
- * session so we can size the share of users on a software or missing WebGL2
- * context. `renderer` is the unmasked GPU string for non-ok outcomes, empty
- * otherwise.
- */
-export function trackGLInit(
-  status: "ok" | "software" | "unsupported" | "limited",
-  renderer: string,
-  maxTextureSize?: number,
-): void {
-  window.gtag?.("event", "gl_init", {
-    status,
-    renderer: status === "ok" ? "" : renderer,
-    ...(maxTextureSize !== undefined && {
-      max_texture_size: maxTextureSize,
-    }),
-  });
-}
-
-/**
  * Show the full-screen WebGL gate (no GPU-accelerated context). The markup and
  * per-browser fix steps live in the <webgl-gate> Lit component, which is loaded
  * on demand — it's only ever needed in this failure case.

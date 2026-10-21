@@ -70,16 +70,6 @@ import { terrainMapFileLoader } from "./TerrainMapFileLoader";
 export const START_PREPARE_DEADLINE_MS = 15_000;
 
 /**
- * Ceiling on the portal midgame ad, deliberately far above
- * START_PREPARE_DEADLINE_MS: an ad creative routinely runs 15-30s and it has
- * to gate the start, because dispatching behind one puts gameplay — spawn
- * selection included — under a still-visible overlay. This exists only for an
- * SDK that never calls adFinished or adError at all. Off a portal,
- * requestMidgameAd() resolves immediately and none of this is reached.
- */
-export const MIDGAME_AD_DEADLINE_MS = 60_000;
-
-/**
  * `work`, or `onDeadline()` if it has not settled within `ms`. The timer is
  * always cleared, so the fast path costs nothing.
  */
@@ -993,8 +983,6 @@ export class SinglePlayerModal extends BaseModal {
    * START_PREPARE_DEADLINE_MS cuts it short rather than pinning Start at
    * "Starting…" for the rest of the session, which would take startTutorial()
    * down with it on the re-entrancy guard.
-   *
-   * The midgame ad is deliberately not part of this — see awaitMidgameAd.
    */
   private async resolveNameAndCosmetics(
     usernameInput: UsernameInput | null,
@@ -1032,32 +1020,6 @@ export class SinglePlayerModal extends BaseModal {
     );
 
     return prepared;
-  }
-
-  /**
-   * The portal midgame ad, on a bound of its own.
-   *
-   * Separate from resolveNameAndCosmetics because an ad is not the same kind
-   * of wait. It is the player watching something, legitimately for longer than
-   * START_PREPARE_DEADLINE_MS — racing it there cut real creatives short and
-   * dropped the player into spawn selection underneath a live overlay. So the
-   * ad gates the start, the button staying busy while it plays is correct
-   * rather than a hang, and MIDGAME_AD_DEADLINE_MS is sized only to catch an
-   * SDK that has stopped answering (requestMidgameAd resolves solely from its
-   * adFinished/adError callbacks).
-   *
-   * Only ever called for a start that is still live — an ad shown for a game
-   * that will not start is worse than no ad. Off a portal this resolves
-   * immediately.
-   */
-  private awaitMidgameAd(): Promise<void> {
-    return withDeadline(
-      gamePortal.requestMidgameAd(),
-      MIDGAME_AD_DEADLINE_MS,
-      () => {
-        console.warn("Midgame ad never signalled completion; starting anyway");
-      },
-    );
   }
 
   private async startGame() {
@@ -1134,11 +1096,6 @@ export class SinglePlayerModal extends BaseModal {
       // and profile, which happens on any cosmetics resolution (menu
       // background, store, inventory) rather than as a consequence of this
       // start.
-      if (attempt !== this.startAttempt) return;
-
-      await this.awaitMidgameAd();
-
-      // The ad is long enough that the modal can be closed while it runs.
       if (attempt !== this.startAttempt) return;
 
       this.dispatchEvent(

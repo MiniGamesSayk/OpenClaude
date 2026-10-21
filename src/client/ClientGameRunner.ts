@@ -91,7 +91,6 @@ import {
   renderDpr,
   type RenderSettings,
   showGLGate,
-  trackGLInit,
 } from "./render/gl";
 import { ALL_UNIT_TYPES, UnitState } from "./render/types";
 import { audioMixer, initAudioMixer } from "./sound/AudioMixer";
@@ -528,9 +527,6 @@ function createWebGLView(
       captureCaf,
     );
   } catch (e) {
-    if (e instanceof GLUnavailableError) {
-      trackGLInit(e.glStatus, e.renderer);
-    }
     // The renderer never took ownership of the canvas, so remove it here —
     // otherwise it lingers in the DOM holding a (possibly software) GL context.
     glCanvas.remove();
@@ -539,14 +535,7 @@ function createWebGLView(
   // Fingerprint-capped context (#4357): the game runs, but the map may render
   // with black areas. Warn with fix instructions; the player can continue.
   if (view.glLimited) {
-    trackGLInit(
-      "limited",
-      view.glLimited.renderer,
-      view.glLimited.maxTextureSize,
-    );
     showGLGate("limited");
-  } else {
-    trackGLInit("ok", "");
   }
 
   (window as unknown as { __webglView?: unknown }).__webglView = view;

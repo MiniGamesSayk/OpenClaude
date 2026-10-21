@@ -140,7 +140,6 @@ export class FeaturedStream extends LitElement {
   @state() private dragPos: { x: number; y: number } | null = null; // free pos while dragging
   @state() private dismissed = false; // closed for this visit; only ⊘ persists it
   @state() private stream: LiveStream | null = null; // broadcast the API reports live
-  @state() private adFree = false; // entitlement from /user/me; gates "hide for today"
 
   private player?: TwitchPlayer;
   private mountGen = 0; // bumped each mount; events from older mounts are ignored
@@ -173,17 +172,12 @@ export class FeaturedStream extends LitElement {
     // Stay up through the lobby/queue wait; hide only once the game actually starts.
     document.addEventListener("game-starting", this.onGameStart);
     document.addEventListener("leave-lobby", this.onLeave);
-    // Covers login, logout and a session dropped mid-visit, all of which route through
-    // Main's onUserMe and re-dispatch this.
-    document.addEventListener("userMeResponse", this.syncAdFree);
-    this.syncAdFree(); // /user/me may already have resolved before we mounted
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener("game-starting", this.onGameStart);
     document.removeEventListener("leave-lobby", this.onLeave);
-    document.removeEventListener("userMeResponse", this.syncAdFree);
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.teardownPlayer();
@@ -457,20 +451,7 @@ export class FeaturedStream extends LitElement {
     this.kickPlay(); // resume playback after the resize either way
   };
 
-  // Everyone can minimize and close; ad-free users additionally get "hide for today"
-  // (any shop purchase makes a user adfree for life, which zeroes window.adsEnabled).
-  // Checked with `=== false` so the extra button doesn't flash before /user/me resolves
-  // the entitlement — a click landing before then simply closes for the visit instead.
-  //
-  // It must be reactive state fed by the userMeResponse event, not a read of
-  // window.adsEnabled at render time: the entitlement lands one round trip after load and
-  // the panel renders as soon as the feed does, so a plain read is very often taken while
-  // the flag is still undefined, and no later state change re-renders the header.
-  private syncAdFree = () => {
-    this.adFree = window.adsEnabled === false;
-  };
-
-  // Everyone can close. ✕ is always just for this page visit; only the ad-free ⊘ makes it
+  // ✕ is always just for this page visit; only the ⊘ makes it
   // stick, so a close never silently outlives the visit the user expected it to.
   private onClose = () => this.dismiss(false);
   private onHideToday = () => this.dismiss(true);
@@ -541,16 +522,14 @@ export class FeaturedStream extends LitElement {
             >
               ✕
             </button>
-            ${this.adFree
-              ? html`<button
-                  class="px-1 text-lg leading-none text-white/70 hover:text-white"
-                  aria-label=${translateText("featured_stream.hide_today")}
-                  title=${translateText("featured_stream.hide_today")}
-                  @click=${this.onHideToday}
-                >
-                  ⊘
-                </button>`
-              : ""}
+            <button
+              class="px-1 text-lg leading-none text-white/70 hover:text-white"
+              aria-label=${translateText("featured_stream.hide_today")}
+              title=${translateText("featured_stream.hide_today")}
+              @click=${this.onHideToday}
+            >
+              ⊘
+            </button>
           </div>
         </div>
         <div

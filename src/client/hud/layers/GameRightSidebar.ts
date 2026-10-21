@@ -276,7 +276,6 @@ export class GameRightSidebar extends LitElement implements Controller {
       );
       if (!isConfirmed) return;
     }
-    await gamePortal.requestMidgameAd();
     await gamePortal.gameplayStop();
     // redirect to the home page
     window.location.href = homeHref();

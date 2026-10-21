@@ -1,4 +1,3 @@
-import { Howler } from "howler";
 import type { PortalUser } from "./GamePortal";
 
 const POKI_SDK_URL = "https://game-cdn.poki.com/scripts/v2/poki-sdk.js";
@@ -18,7 +17,6 @@ declare global {
       gameLoadingFinished(): void;
       gameplayStart(): void;
       gameplayStop(): void;
-      commercialBreak(onStart?: () => void): Promise<void>;
       shareableURL(params: Record<string, string>): Promise<string>;
       getURLParam(name: string): string;
       openExternalLink(url: string): void;
@@ -305,22 +303,6 @@ export class PokiSDK {
       return null;
     }
     return window.PokiSDK!.getURLParam("gameId") || null;
-  }
-
-  // Poki decides whether an ad actually plays, and requires gameplay stopped
-  // and audio muted for its duration.
-  async requestMidgameAd(): Promise<void> {
-    if (!this.isReady()) {
-      return;
-    }
-    await this.gameplayStop();
-    try {
-      await window.PokiSDK!.commercialBreak(() => Howler.mute(true));
-    } catch (error) {
-      console.warn("Poki commercial break failed:", error);
-    } finally {
-      Howler.mute(false);
-    }
   }
 }
 

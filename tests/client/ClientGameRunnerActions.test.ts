@@ -51,7 +51,6 @@ vi.mock("../../src/client/render/gl", () => ({
   preloadAtlasData: vi.fn(async () => {}),
   renderDpr: () => 1,
   showGLGate: vi.fn(),
-  trackGLInit: vi.fn(),
 }));
 vi.mock("../../src/client/WebGLFrameBuilder", () => ({
   WebGLFrameBuilder: class {},

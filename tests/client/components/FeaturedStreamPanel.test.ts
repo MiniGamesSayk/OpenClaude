@@ -90,7 +90,6 @@ describe("featured-stream panel", () => {
     // feed arrives, or leave polling stopped.
     streamsFeed.reset();
     delete (window as unknown as { Twitch?: unknown }).Twitch;
-    delete (window as unknown as { adsEnabled?: boolean }).adsEnabled;
     vi.useRealTimers();
     vi.clearAllMocks();
   });
@@ -212,52 +211,15 @@ describe("featured-stream panel", () => {
       btn!.click();
     };
 
-    // The panel is up and playing before /user/me has said anything, which is the real
-    // load order: the streams feed and the profile are independent requests.
-    const openUnresolved = async () => {
-      delete (window as unknown as { adsEnabled?: boolean }).adsEnabled;
+    const open = async () => {
       const el = await mount(stream("openfrontmasters"));
       FakePlayer.last!.fire(FakePlayer.READY);
       await el.updateComplete;
       return el;
     };
 
-    const open = async (adFree: boolean) => {
-      (window as unknown as { adsEnabled?: boolean }).adsEnabled = !adFree;
-      const el = await mount(stream("openfrontmasters"));
-      FakePlayer.last!.fire(FakePlayer.READY);
-      await el.updateComplete;
-      return el;
-    };
-
-    // The point of this change: closing no longer requires minimising first, and is no
-    // longer reserved for people who have paid.
-    it("offers close to an ad-supported user without minimising first", async () => {
-      const el = await open(false);
-      expect(el.querySelector('[aria-label="common.close"]')).not.toBeNull();
-      expect(
-        el.querySelector('[aria-label="featured_stream.hide_today"]'),
-      ).toBeNull(); // hide-for-today stays ad-free only
-    });
-
-    // Regression: the entitlement arrives from /user/me well after the panel can already
-    // be on screen, and nothing re-rendered the header when it landed, so an ad-free user
-    // whose profile resolved late never got the button for the rest of the visit.
-    it("adds hide-for-today when the entitlement resolves after the panel is up", async () => {
-      const el = await openUnresolved();
-      expect(
-        el.querySelector('[aria-label="featured_stream.hide_today"]'),
-      ).toBeNull();
-      (window as unknown as { adsEnabled?: boolean }).adsEnabled = false;
-      document.dispatchEvent(new CustomEvent("userMeResponse", { detail: {} }));
-      await el.updateComplete;
-      expect(
-        el.querySelector('[aria-label="featured_stream.hide_today"]'),
-      ).not.toBeNull();
-    });
-
-    it("offers all three controls to an ad-free user", async () => {
-      const el = await open(true);
+    it("offers all three controls", async () => {
+      const el = await open();
       expect(
         el.querySelector('[aria-label="featured_stream.minimize"]'),
       ).not.toBeNull();
@@ -268,7 +230,7 @@ describe("featured-stream panel", () => {
     });
 
     it("removes the panel and stops polling entirely", async () => {
-      const el = await open(false);
+      const el = await open();
       clickByLabel(el, "common.close");
       await el.updateComplete;
       expect(card()).toBeNull();
@@ -288,7 +250,7 @@ describe("featured-stream panel", () => {
     });
 
     it("does not come back when a game ends", async () => {
-      const el = await open(false);
+      const el = await open();
       clickByLabel(el, "common.close");
       await el.updateComplete;
       document.dispatchEvent(new CustomEvent("leave-lobby"));
@@ -299,15 +261,15 @@ describe("featured-stream panel", () => {
     });
 
     // A plain close is for this visit only, whoever you are.
-    it("does not persist an ordinary close, even for an ad-free user", async () => {
-      const el = await open(true);
+    it("does not persist an ordinary close", async () => {
+      const el = await open();
       clickByLabel(el, "common.close");
       await el.updateComplete;
       expect(localStorage.getItem("featured-stream-closed")).toBeNull();
     });
 
     it("persists hide-for-today and suppresses the panel on the next visit", async () => {
-      const el = await open(true);
+      const el = await open();
       clickByLabel(el, "featured_stream.hide_today");
       await el.updateComplete;
       expect(localStorage.getItem("featured-stream-closed")).not.toBeNull();

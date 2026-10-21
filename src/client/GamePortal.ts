@@ -57,5 +57,4 @@ export const gamePortal = {
     (await active()?.createInviteLink(gameId)) ?? null,
   getInviteGameId: async (): Promise<string | null> =>
     (await active()?.getInviteGameId()) ?? null,
-  requestMidgameAd: async (): Promise<void> => active()?.requestMidgameAd(),
 };
