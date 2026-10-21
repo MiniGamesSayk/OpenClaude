@@ -485,6 +485,21 @@ export class PlayerView implements PlayerLike {
       .reduce((a, b) => a + b, 0);
   }
 
+  /**
+   * `totalUnitLevels` for several types at once, in a single pass over the
+   * player's units. `out[i]` is the total for `types[i]`.
+   */
+  totalUnitLevelsFor(types: readonly UnitType[], out: number[]): number[] {
+    out.length = types.length;
+    out.fill(0);
+    for (const unit of this.game.unitsOwnedBy(this.smallID())) {
+      if (unit.isUnderConstruction()) continue;
+      const i = types.indexOf(unit.type());
+      if (i !== -1) out[i] += unit.level();
+    }
+    return out;
+  }
+
   isMe(): boolean {
     return this.smallID() === this.game.myPlayer()?.smallID();
   }
@@ -558,6 +573,31 @@ export class PlayerView implements PlayerLike {
     }
 
     return result;
+  }
+
+  /**
+   * Adds the smallIDs `hasTransitiveTarget` would report true for (own,
+   * allies' and teammates' targets) to `out` — one pass over the allies and
+   * players instead of one per queried smallID.
+   */
+  collectTransitiveTargets(out: Set<number>): void {
+    for (const id of this.state.targets) out.add(id);
+
+    for (const allyID of this.state.allies) {
+      const ally = this.game.playerBySmallID(allyID) as PlayerView;
+      if (ally) {
+        for (const id of ally.state.targets) out.add(id);
+      }
+    }
+
+    const myTeam = this.static.team;
+    if (myTeam !== null) {
+      for (const p of this.game.playerViews()) {
+        if (p !== this && p.static.team === myTeam) {
+          for (const id of p.state.targets) out.add(id);
+        }
+      }
+    }
   }
 
   hasTransitiveTarget(sid: number): boolean {

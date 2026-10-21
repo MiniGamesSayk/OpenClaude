@@ -6,7 +6,6 @@ import {
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import { AllianceView } from "@openfront/engine-api/game/GameUpdates";
-import { UnitLike } from "@openfront/engine-api/game/ReadViews";
 import { renderNumber, renderTroops } from "@openfront/engine-lib/Format";
 import { assetUrl } from "@openfront/shared/AssetUrls";
 import { EventBus } from "@openfront/shared/EventBus";
@@ -63,25 +62,15 @@ const portIcon = assetUrl("images/PortIcon.svg");
 const samLauncherIcon = assetUrl("images/SamLauncherIconWhite.svg");
 const soldierIcon = assetUrl("images/SoldierIcon.svg");
 
-function euclideanDistWorld(
-  coord: { x: number; y: number },
-  tileRef: TileRef,
-  game: GameView,
-): number {
-  const x = game.x(tileRef);
-  const y = game.y(tileRef);
-  const dx = coord.x - x;
-  const dy = coord.y - y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function distSortUnitWorld(coord: { x: number; y: number }, game: GameView) {
-  return (a: UnitLike, b: UnitLike) => {
-    const distA = euclideanDistWorld(coord, a.tile(), game);
-    const distB = euclideanDistWorld(coord, b.tile(), game);
-    return distA - distB;
-  };
-}
+const SHIP_TYPES = [
+  UnitType.Warship,
+  UnitType.TradeShip,
+  UnitType.TransportShip,
+];
+const SHIP_HOVER_RANGE = 50;
+// The profile (relations) changes slowly; refetch while the pointer stays on
+// the same player at most this often.
+const PROFILE_REFRESH_MS = 1000;
 
 @customElement("player-info-overlay")
 export class PlayerInfoOverlay extends LitElement implements Controller {
@@ -142,6 +131,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
   }
 
   private lastMouseUpdate = 0;
+  private profileFetchedAt = 0;
 
   init() {
     this.eventBus.on(MouseMoveEvent, (e: MouseMoveEvent) =>
@@ -168,6 +158,7 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
       this.markActionTaken(e.tile, "target"),
     );
     this._isActive = true;
+    this.requestUpdate();
   }
 
   // Once I act on the shown player (button or keybind), drop that button
@@ -218,36 +209,81 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
   }
 
   public maybeShow(x: number, y: number) {
-    this.hide();
     const worldCoord = this.transform.screenToWorldCoordinates(x, y);
     if (!this.game.isValidCoord(worldCoord.x, worldCoord.y)) {
+      this.hide();
       return;
     }
 
     const tile = this.game.ref(worldCoord.x, worldCoord.y);
-    if (!tile) return;
+    if (!tile) {
+      this.hide();
+      return;
+    }
 
     const owner = this.game.owner(tile);
+
+    // Still on the shown player: keep the card as it is instead of tearing it
+    // down and rebuilding it (and asking for the profile again) on every move.
+    if (
+      owner &&
+      owner.isPlayer() &&
+      owner === this.player &&
+      this._isInfoVisible
+    ) {
+      this.pointerOnPanel = false;
+      if (tile !== this.tile) {
+        this.tile = tile;
+        this.requestUpdate();
+      }
+      this.fetchProfile(this.player);
+      this.refreshPlayerActions(this.player, tile);
+      return;
+    }
+
+    this.hide();
 
     if (owner && owner.isPlayer()) {
       this.player = owner as PlayerView;
       this.tile = tile;
-      this.player.profile().then((p) => {
-        this.playerProfile = p;
-      });
+      this.profileFetchedAt = 0;
+      this.fetchProfile(this.player);
       this.refreshPlayerActions(this.player, tile);
       this.setVisible(true);
     } else if (!this.game.isLand(tile)) {
-      const units = this.game
-        .units(UnitType.Warship, UnitType.TradeShip, UnitType.TransportShip)
-        .filter((u) => euclideanDistWorld(worldCoord, u.tile(), this.game) < 50)
-        .sort(distSortUnitWorld(worldCoord, this.game));
+      // Closest ship within range of the pointer.
+      let nearest: UnitView | null = null;
+      let nearestDistSquared = SHIP_HOVER_RANGE * SHIP_HOVER_RANGE;
+      for (const { unit, distSquared } of this.game.nearbyUnits(
+        tile,
+        SHIP_HOVER_RANGE,
+        SHIP_TYPES,
+      )) {
+        if (
+          distSquared < nearestDistSquared ||
+          (distSquared === nearestDistSquared &&
+            nearest !== null &&
+            unit.id() < nearest.id())
+        ) {
+          nearestDistSquared = distSquared;
+          nearest = unit;
+        }
+      }
 
-      if (units.length > 0) {
-        this.unit = units[0];
+      if (nearest !== null) {
+        this.unit = nearest;
         this.setVisible(true);
       }
     }
+  }
+
+  private fetchProfile(player: PlayerView) {
+    const now = Date.now();
+    if (now - this.profileFetchedAt < PROFILE_REFRESH_MS) return;
+    this.profileFetchedAt = now;
+    player.profile().then((p) => {
+      this.playerProfile = p;
+    });
   }
 
   // Asks what I can do to the hovered player when it changes, and at most
@@ -297,8 +333,10 @@ export class PlayerInfoOverlay extends LitElement implements Controller {
   }
 
   tick() {
+    // Nothing to keep current while the card is hidden.
+    if (!this._isInfoVisible) return;
     // Keep the action buttons current while the mouse rests on a player.
-    if (this._isInfoVisible && this.player && this.tile !== null) {
+    if (this.player && this.tile !== null) {
       this.refreshPlayerActions(this.player, this.tile);
     }
     this.requestUpdate();

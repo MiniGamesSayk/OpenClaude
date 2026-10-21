@@ -144,12 +144,15 @@ export function decompressGameRecord(gameRecord: GameRecord) {
   return gameRecord;
 }
 
+// Built once: every worker request mints an id, and customAlphabet sets up a
+// generator (alphabet mask and step) on each call.
+const nanoid8 = customAlphabet(
+  "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ",
+  8,
+);
+
 export function generateID(): GameID {
-  const nanoid = customAlphabet(
-    "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ",
-    8,
-  );
-  return nanoid();
+  return nanoid8();
 }
 
 // Multi-server game id (docs/MultiServer.md): the minting deployment's

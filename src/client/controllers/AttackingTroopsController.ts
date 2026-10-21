@@ -234,7 +234,10 @@ export class AttackingTroopsController implements Controller {
     }
 
     const now = performance.now();
-    const out: AttackTroopLabel[] = [];
+    // The pass reads the labels while drawing, never between frames, so the
+    // buffer and its label objects are refilled in place.
+    const out = this.labelBuf;
+    let count = 0;
 
     for (const entry of this.attacks.values()) {
       const r = entry.isIncoming ? INCOMING_R : OUTGOING_R;
@@ -244,18 +247,29 @@ export class AttackingTroopsController implements Controller {
         const t = Math.min(1, (now - slot.startMs) / ANIM_MS);
         slot.curX = slot.srcX + (slot.dstX - slot.srcX) * t;
         slot.curY = slot.srcY + (slot.dstY - slot.srcY) * t;
-        out.push({
-          x: slot.curX,
-          y: slot.curY,
-          text: entry.text,
-          colorR: r,
-          colorG: g,
-          colorB: b,
-        });
+        const label = out[count];
+        if (label === undefined) {
+          out.push({
+            x: slot.curX,
+            y: slot.curY,
+            text: entry.text,
+            colorR: r,
+            colorG: g,
+            colorB: b,
+          });
+        } else {
+          label.x = slot.curX;
+          label.y = slot.curY;
+          label.text = entry.text;
+          label.colorR = r;
+          label.colorG = g;
+          label.colorB = b;
+        }
+        count++;
       }
     }
 
-    this.labelBuf = out;
+    out.length = count;
     this.view.setAttackTroopLabels(out);
   }
 }

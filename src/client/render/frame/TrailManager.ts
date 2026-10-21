@@ -21,6 +21,7 @@
 
 import type { UnitState } from "../types";
 import { SMOOTHED_NUKE_TYPES } from "../types";
+import { DirtyRows, trackDirtyRows } from "./DirtyRows";
 
 // Bit 12 of the trail texel flags a nuke trail (vs a boat trail); bits 0-11 are
 // the owner smallID. Must match the mask/shift in trail.frag.glsl (owner & 0xFFF,
@@ -41,14 +42,16 @@ export class TrailManager {
   private readonly trailCounts: Uint16Array;
   private readonly unitTrails = new Map<number, UnitTrail>();
   private readonly mapW: number;
-
-  private _dirtyRowMin = Infinity;
-  private _dirtyRowMax = -1;
+  // Rows stamped this tick. Published on trailState so the trail pass can
+  // upload just those rows rather than the min..max span.
+  private readonly dirtyRows: DirtyRows;
 
   constructor(mapW: number, mapH: number) {
     this.mapW = mapW;
     this.trailState = new Uint16Array(mapW * mapH);
     this.trailCounts = new Uint16Array(mapW * mapH);
+    this.dirtyRows = new DirtyRows(mapH);
+    trackDirtyRows(this.trailState, this.dirtyRows);
   }
 
   getTrailState(): Uint16Array {
@@ -56,23 +59,21 @@ export class TrailManager {
   }
 
   get dirtyRowMin(): number {
-    return this._dirtyRowMin;
+    return this.dirtyRows.min;
   }
   get dirtyRowMax(): number {
-    return this._dirtyRowMax;
+    return this.dirtyRows.max;
   }
 
   clearDirtyRows(): void {
-    this._dirtyRowMin = Infinity;
-    this._dirtyRowMax = -1;
+    this.dirtyRows.clear();
   }
 
   reset(): void {
     this.unitTrails.clear();
     this.trailState.fill(0);
     this.trailCounts.fill(0);
-    this._dirtyRowMin = Infinity;
-    this._dirtyRowMax = -1;
+    this.dirtyRows.clear();
   }
 
   /**
@@ -130,9 +131,7 @@ export class TrailManager {
 
   private stamp(ref: number, value: number): void {
     this.trailState[ref] = value;
-    const row = (ref / this.mapW) | 0;
-    if (row < this._dirtyRowMin) this._dirtyRowMin = row;
-    if (row > this._dirtyRowMax) this._dirtyRowMax = row;
+    this.dirtyRows.mark((ref / this.mapW) | 0);
   }
 
   private bresenham(from: number, to: number, trail: UnitTrail): void {

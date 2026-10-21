@@ -77,12 +77,29 @@ const EXTRA_ATTACK_ITEMS: ReadonlyArray<{
 ];
 import { TutorialHighlight, TutorialHighlightEvent } from "../Tutorial";
 
+// The unit types whose level totals the hotbar shows, in the order tick()
+// reads them back.
+const LEVEL_TYPES: readonly UnitType[] = [
+  UnitType.City,
+  UnitType.MissileSilo,
+  UnitType.Port,
+  UnitType.DefensePost,
+  UnitType.SAMLauncher,
+  UnitType.Factory,
+  UnitType.Warship,
+  ...EXTRA_STRUCTURE_ITEMS.map(({ type }) => type),
+];
+/** Entries of LEVEL_TYPES before the newer structures. */
+const CLASSIC_LEVEL_TYPES = 7;
+
 @customElement("unit-display")
 export class UnitDisplay extends LitElement implements Controller {
   public game: GameView;
   public eventBus: EventBus;
   public uiState: UIState;
   private playerBuildables: BuildableUnit[] | null = null;
+  private buildablesPending = false;
+  private levelTotals: number[] = [];
   private keybinds: Record<string, { value: string; key: string }> = {};
   private _cities = 0;
   private _warships = 0;
@@ -171,20 +188,45 @@ export class UnitDisplay extends LitElement implements Controller {
 
   tick() {
     const player = this.game?.myPlayer();
-    if (!player) return;
-    player.buildables(undefined, BuildMenus.types).then((buildables) => {
-      this.playerBuildables = buildables;
-    });
-    this._cities = player.totalUnitLevels(UnitType.City);
-    this._missileSilo = player.totalUnitLevels(UnitType.MissileSilo);
-    this._port = player.totalUnitLevels(UnitType.Port);
-    this._defensePost = player.totalUnitLevels(UnitType.DefensePost);
-    this._samLauncher = player.totalUnitLevels(UnitType.SAMLauncher);
-    this._factories = player.totalUnitLevels(UnitType.Factory);
-    this._warships = player.totalUnitLevels(UnitType.Warship);
-    for (const { type } of EXTRA_STRUCTURE_ITEMS) {
-      this._extraLevels.set(type, player.totalUnitLevels(type));
+    // Nothing is shown (see render) while the hotbar is hidden, so skip the
+    // worker round-trip and the counting until it is back.
+    if (
+      !player ||
+      this.allDisabled ||
+      this.game.inSpawnPhase() ||
+      !player.isAlive()
+    ) {
+      return;
     }
+    // One request at a time: a busy worker would otherwise queue one per tick.
+    if (!this.buildablesPending) {
+      this.buildablesPending = true;
+      const firstFetch = this.playerBuildables === null;
+      player
+        .buildables(undefined, BuildMenus.types)
+        .then((buildables) => {
+          this.playerBuildables = buildables;
+          // Costs are otherwise a tick behind; don't show them as free when
+          // the hotbar first appears.
+          if (firstFetch) this.requestUpdate();
+        })
+        .finally(() => {
+          this.buildablesPending = false;
+        });
+    }
+    const totals = player.totalUnitLevelsFor(LEVEL_TYPES, this.levelTotals);
+    [
+      this._cities,
+      this._missileSilo,
+      this._port,
+      this._defensePost,
+      this._samLauncher,
+      this._factories,
+      this._warships,
+    ] = totals;
+    EXTRA_STRUCTURE_ITEMS.forEach(({ type }, i) =>
+      this._extraLevels.set(type, totals[CLASSIC_LEVEL_TYPES + i]),
+    );
     this.requestUpdate();
   }
 

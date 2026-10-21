@@ -49,11 +49,17 @@ interface PlayerIconParams {
 }
 
 export function getFirstPlacePlayer(game: GameView): PlayerView | null {
-  const sorted = game
-    .playerViews()
-    .sort((a, b) => b.numTilesOwned() - a.numTilesOwned());
-
-  return sorted.length > 0 ? sorted[0] : null;
+  // The player owning the most tiles; on a tie, the first of them.
+  let first: PlayerView | null = null;
+  let firstTiles = 0;
+  for (const p of game.playerViews()) {
+    const tiles = p.numTilesOwned();
+    if (first === null || tiles > firstTiles) {
+      first = p;
+      firstTiles = tiles;
+    }
+  }
+  return first;
 }
 
 export function getPlayerIcons(

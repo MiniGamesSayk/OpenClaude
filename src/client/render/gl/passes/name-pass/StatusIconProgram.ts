@@ -27,7 +27,6 @@ export class StatusIconProgram {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private playerDataTex: WebGLTexture;
-  private maxPlayers: number;
 
   private statusAtlasTex: WebGLTexture | null = null;
   private atlasReady = false;
@@ -50,12 +49,10 @@ export class StatusIconProgram {
     playerDataTex: WebGLTexture,
     // Crown-cosmetic images; skins the first-place crown (slot 0).
     private crownAtlas: FlagAtlasArray,
-    maxPlayers: number,
     allianceFlashWindowTicks: number,
   ) {
     this.gl = gl;
     this.playerDataTex = playerDataTex;
-    this.maxPlayers = maxPlayers;
 
     this.program = createProgram(
       gl,
@@ -163,6 +160,7 @@ export class StatusIconProgram {
     cameraMatrix: Float32Array,
     settings: RenderSettings,
     vao: WebGLVertexArrayObject,
+    playerCount: number,
     fadeOwnerID: number,
   ): void {
     if (!this.atlasReady) return;
@@ -190,12 +188,7 @@ export class StatusIconProgram {
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.crownAtlas.texture);
 
     gl.bindVertexArray(vao);
-    gl.drawArraysInstanced(
-      gl.TRIANGLES,
-      0,
-      6,
-      this.maxPlayers * MAX_STATUS_ICONS,
-    );
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, playerCount * MAX_STATUS_ICONS);
   }
 
   dispose(): void {

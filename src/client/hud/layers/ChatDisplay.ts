@@ -108,7 +108,8 @@ export class ChatDisplay extends LitElement implements Controller {
       this.chatEvents = this.chatEvents.slice(-100);
     }
 
-    this.requestUpdate();
+    // Nothing is drawn until active.
+    if (this.active) this.requestUpdate();
   }
 
   private getChatContent(

@@ -32,6 +32,8 @@ import { getMessageTypeClasses, translateText } from "../../Utils";
 interface GameEvent {
   description: string;
   unsafeDescription?: boolean;
+  /** `description` run through onlyImages, set once in addEvent. */
+  sanitizedDescription?: string;
   type: MessageType;
   highlight?: boolean;
   /** Show in the small feed even if the type is normally tier 1. */
@@ -79,6 +81,30 @@ export class EventsDisplay extends LitElement implements Controller {
   @query(".important-events-container")
   private _importantEventsContainer?: HTMLDivElement;
   private _shouldScrollImportantToBottom = true;
+  /** Betrayal-debuff countdown last rendered; 0 when the timer is hidden. */
+  private _betrayalSeconds = 0;
+
+  // Whether each list was scrolled to the bottom before this update, so the
+  // update can keep following new events. Measured here, once per render,
+  // rather than on every tick.
+  willUpdate(changed: Map<string, unknown>) {
+    super.willUpdate(changed);
+    if (this._eventsContainer) {
+      const el = this._eventsContainer;
+      this._shouldScrollToBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 5;
+    } else {
+      this._shouldScrollToBottom = true;
+    }
+
+    if (this._importantEventsContainer) {
+      const el = this._importantEventsContainer;
+      this._shouldScrollImportantToBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 5;
+    } else {
+      this._shouldScrollImportantToBottom = true;
+    }
+  }
 
   updated(changed: Map<string, unknown>) {
     super.updated(changed);
@@ -172,22 +198,6 @@ export class EventsDisplay extends LitElement implements Controller {
   tick() {
     this.active = true;
 
-    if (this._eventsContainer) {
-      const el = this._eventsContainer;
-      this._shouldScrollToBottom =
-        el.scrollHeight - el.scrollTop - el.clientHeight < 5;
-    } else {
-      this._shouldScrollToBottom = true;
-    }
-
-    if (this._importantEventsContainer) {
-      const el = this._importantEventsContainer;
-      this._shouldScrollImportantToBottom =
-        el.scrollHeight - el.scrollTop - el.clientHeight < 5;
-    } else {
-      this._shouldScrollImportantToBottom = true;
-    }
-
     if (!this._isVisible && !this.game.inSpawnPhase()) {
       this._isVisible = true;
       this.requestUpdate();
@@ -239,10 +249,24 @@ export class EventsDisplay extends LitElement implements Controller {
       this.requestUpdate();
     }
 
-    this.requestUpdate();
+    // The only other thing that changes between ticks is the betrayal
+    // countdown, which shows whole seconds.
+    const betrayalSeconds = this.betrayalSeconds(myPlayer);
+    if (betrayalSeconds !== this._betrayalSeconds) {
+      this._betrayalSeconds = betrayalSeconds;
+      this.requestUpdate();
+    }
+  }
+
+  private betrayalSeconds(myPlayer: PlayerView): number {
+    if (!myPlayer.isTraitor()) return 0;
+    return Math.max(0, Math.ceil(myPlayer.getTraitorRemainingTicks() / 10));
   }
 
   private addEvent(event: GameEvent) {
+    if (event.unsafeDescription) {
+      event.sanitizedDescription = onlyImages(event.description);
+    }
     this.events = [...this.events, event];
     this.requestUpdate();
   }
@@ -619,8 +643,8 @@ export class EventsDisplay extends LitElement implements Controller {
   private getEventDescription(
     event: GameEvent,
   ): string | DirectiveResult<typeof UnsafeHTMLDirective> {
-    return event.unsafeDescription
-      ? unsafeHTML(onlyImages(event.description))
+    return event.sanitizedDescription !== undefined
+      ? unsafeHTML(event.sanitizedDescription)
       : event.description;
   }
 

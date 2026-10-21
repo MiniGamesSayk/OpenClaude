@@ -109,6 +109,12 @@ const GRID_VIEW_KEY = "renderer:grid_view_enabled";
 /** King of the Hill zone ring color (gold). */
 const HILL_ZONE_COLOR = [1.0, 0.82, 0.2] as const;
 
+function sameMembers(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
 export class GPURenderer {
   private gl: WebGL2RenderingContext;
   private camera: Camera;
@@ -183,6 +189,9 @@ export class GPURenderer {
   /** Per-player anchor (x,y) for skin sampling. (0,0) = world-origin anchor. */
   private skinAnchorTex: WebGLTexture;
   private skinAnchorCpu: Uint16Array;
+  /** CPU mirrors changed since the last upload (see flushSkinTables). */
+  private skinLayerDirty = false;
+  private skinAnchorDirty = false;
   private canvas: HTMLCanvasElement;
   private settings: RenderSettings;
   private sceneTarget: RenderTarget;
@@ -191,21 +200,40 @@ export class GPURenderer {
 
   private animId: number | null = null;
   private frameTick = 0;
+  private backgroundHex: string | null = null;
+  private backgroundParsed: readonly [number, number, number] = [60, 60, 60];
   private mapW = 0;
   private mapH = 0;
 
   // Last-uploaded unit/structure maps (selection box + bar pass inputs)
   private lastUnits: Map<number, UnitState> = new Map();
   private lastStructures: Map<number, UnitState> = new Map();
+  /** performance.now() of the last updateUnits (nuke-light smoothing origin). */
+  private lastUnitsAtMs = 0;
+  /**
+   * Point lights lag lastUnits: they only feed the day/night lightmap, so
+   * they are packed per tick while lighting is on, and caught up from
+   * lastUnits on the first frame it turns on.
+   */
+  private pointLightsStale = true;
 
   // Local player relationship data (for SAM radius coloring)
   private localPlayerID = 0;
   private playerTeams = new Map<number, string>(); // smallID → team
+  /** Allies + teammates last handed to the passes; replaced only on change. */
+  private friendlyOwners = new Set<number>();
+  private friendlyOwnersApplied = false;
+  /** Scratch for the current tick's friendly set, compared before adopting. */
+  private readonly friendlyScratch = new Set<number>();
 
   // Alt-view: affiliation recoloring (space hold)
   private altView = false;
   // Grid-view: coordinate grid overlay (M toggle)
   private gridView = false;
+
+  // Cached multiplier badge text for the build ghost (see ghostMultiplierText)
+  private ghostBadgeMultiplier = 0;
+  private ghostBadgeText = "";
 
   // SAM radius visibility tracking (show if either source is true)
   private samGhostVisible = false;
@@ -845,19 +873,7 @@ export class GPURenderer {
     const off = smallID * 2;
     this.skinAnchorCpu[off] = x;
     this.skinAnchorCpu[off + 1] = y;
-    const gl = this.gl;
-    gl.bindTexture(gl.TEXTURE_2D, this.skinAnchorTex);
-    gl.texSubImage2D(
-      gl.TEXTURE_2D,
-      0,
-      0,
-      0,
-      getPaletteSize(),
-      1,
-      gl.RG_INTEGER,
-      gl.UNSIGNED_SHORT,
-      this.skinAnchorCpu,
-    );
+    this.skinAnchorDirty = true;
   }
 
   /**
@@ -888,23 +904,48 @@ export class GPURenderer {
       if (layer < 0) return;
     }
     this.skinLayerCpu[smallID] = layer + 1;
-    this.uploadSkinLayerTex();
+    this.skinLayerDirty = true;
   }
 
-  private uploadSkinLayerTex(): void {
+  /**
+   * Push the per-player skin tables changed since the last frame. Spawn and
+   * skin setters run once per player at game start, so they only mark the
+   * CPU mirror dirty and the (whole-row) upload happens once, before drawing.
+   */
+  private flushSkinTables(): void {
     const gl = this.gl;
-    gl.bindTexture(gl.TEXTURE_2D, this.skinLayerTex);
-    gl.texSubImage2D(
-      gl.TEXTURE_2D,
-      0,
-      0,
-      0,
-      getPaletteSize(),
-      1,
-      gl.RED_INTEGER,
-      gl.UNSIGNED_BYTE,
-      this.skinLayerCpu,
-    );
+    if (this.skinAnchorDirty) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.skinAnchorTex);
+      gl.texSubImage2D(
+        gl.TEXTURE_2D,
+        0,
+        0,
+        0,
+        getPaletteSize(),
+        1,
+        gl.RG_INTEGER,
+        gl.UNSIGNED_SHORT,
+        this.skinAnchorCpu,
+      );
+      this.skinAnchorDirty = false;
+    }
+    if (this.skinLayerDirty) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.skinLayerTex);
+      gl.texSubImage2D(
+        gl.TEXTURE_2D,
+        0,
+        0,
+        0,
+        getPaletteSize(),
+        1,
+        gl.RED_INTEGER,
+        gl.UNSIGNED_BYTE,
+        this.skinLayerCpu,
+      );
+      this.skinLayerDirty = false;
+    }
   }
 
   uploadRailroadState(data: Uint8Array): void {
@@ -913,13 +954,20 @@ export class GPURenderer {
 
   updateUnits(units: Map<number, UnitState>, gameTick: number): void {
     this.lastUnits = units;
+    this.lastUnitsAtMs = performance.now();
     this.frameTick++;
     this.unitPass.setFrameTick(this.frameTick);
     this.unitPass.updateUnits(units, gameTick);
     this.samRadiusPass.setTick(gameTick);
     this.barPass.updateBars(units, this.lastStructures, gameTick);
-    this.pointLightPass.updateLights(units);
+    this.pointLightsStale = true;
+    if (this.isLightCompositingActive()) this.refreshPointLights();
     this.heatManager.decayHeat();
+  }
+
+  private refreshPointLights(): void {
+    this.pointLightsStale = false;
+    this.pointLightPass.updateLights(this.lastUnits, this.lastUnitsAtMs);
   }
 
   updateNames(
@@ -933,15 +981,26 @@ export class GPURenderer {
     // Extract local player's allies + teammates for SAM radius coloring
     if (this.localPlayerID > 0) {
       const localPS = players.get(this.localPlayerID);
-      const friendly = new Set(localPS?.allies ?? []);
+      const friendly = this.friendlyScratch;
+      friendly.clear();
+      if (localPS) for (const sid of localPS.allies) friendly.add(sid);
       const myTeam = this.playerTeams.get(this.localPlayerID);
       if (myTeam !== undefined) {
         for (const [sid, team] of this.playerTeams) {
           if (team === myTeam && sid !== this.localPlayerID) friendly.add(sid);
         }
       }
-      this.samRadiusPass.setAllies(friendly);
-      this.unitPass.setAllies(friendly);
+      // The set rarely changes, and the passes treat a new one as a reason to
+      // rebuild — hand over a fresh copy only when the membership differs.
+      if (
+        !this.friendlyOwnersApplied ||
+        !sameMembers(friendly, this.friendlyOwners)
+      ) {
+        this.friendlyOwners = new Set(friendly);
+        this.friendlyOwnersApplied = true;
+        this.samRadiusPass.setAllies(this.friendlyOwners);
+        this.unitPass.setAllies(this.friendlyOwners);
+      }
     }
   }
 
@@ -1079,12 +1138,7 @@ export class GPURenderer {
     // The multiplier badge (x5) rides on the cost label but must show even
     // when there is no cost line — e.g. infinite gold (cost 0) or the
     // cursor-cost-label setting turned off.
-    const topText =
-      data?.multiplier && data.multiplier > 1
-        ? translateText("build_menu.upgrade_amount", {
-            amount: data.multiplier.toString(),
-          })
-        : undefined;
+    const topText = this.ghostMultiplierText(data?.multiplier);
     const showCost = data !== null && data.showCost && data.cost > 0;
     this.worldTextPass.setGhostCostLabel(
       data && (showCost || topText !== undefined)
@@ -1103,6 +1157,27 @@ export class GPURenderer {
     this.samRadiusPass.setVisible(
       this.samGhostVisible || this.samHighlightVisible,
     );
+  }
+
+  /**
+   * The "x5" badge text. The ghost preview is pushed every frame, so the
+   * translated string is cached per multiplier; dropping the ghost clears it
+   * so a language change shows up on the next one.
+   */
+  private ghostMultiplierText(
+    multiplier: number | undefined,
+  ): string | undefined {
+    if (!multiplier || multiplier <= 1) {
+      this.ghostBadgeMultiplier = 0;
+      return undefined;
+    }
+    if (multiplier !== this.ghostBadgeMultiplier) {
+      this.ghostBadgeMultiplier = multiplier;
+      this.ghostBadgeText = translateText("build_menu.upgrade_amount", {
+        amount: multiplier.toString(),
+      });
+    }
+    return this.ghostBadgeText;
   }
 
   updateNukeTrajectory(data: NukeTrajectoryData | null): void {
@@ -1272,6 +1347,7 @@ export class GPURenderer {
   }
 
   private uploadTextures(): void {
+    this.flushSkinTables();
     if (this.altView) this.affiliationPalette.flush();
     if (this.inSpawnPhase) {
       this.territoryPass.flushAllDripBuckets();
@@ -1308,11 +1384,18 @@ export class GPURenderer {
     const compositingActive = this.isLightCompositingActive();
 
     if (compositingActive) {
+      if (this.pointLightsStale) this.refreshPointLights();
       this.resizeSceneTargetIfNeeded(cw, ch);
       const sceneTex = toTarget(this.gl, this.sceneTarget, () =>
         this.drawBaseLayer(cam),
       );
-      const lightTex = this.lightmapPass.draw(cam, cw, ch, this.frameTick);
+      const lightTex = this.lightmapPass.draw(
+        cam,
+        cw,
+        ch,
+        this.frameTick,
+        this.territoryPass.hasFallout(),
+      );
       toScreen(this.gl, cw, ch, () =>
         this.nightCompositePass.draw(sceneTex, lightTex),
       );
@@ -1346,12 +1429,20 @@ export class GPURenderer {
     );
   }
 
+  /** Background clear color; the hex parse is cached until the setting changes. */
+  private backgroundRgb(): readonly [number, number, number] {
+    const hex = this.settings.terrain.backgroundColor;
+    if (hex !== this.backgroundHex) {
+      this.backgroundHex = hex;
+      this.backgroundParsed = hexToRgb(hex) ?? [60, 60, 60];
+    }
+    return this.backgroundParsed;
+  }
+
   private drawBaseLayer(cam: Float32Array): void {
     const gl = this.gl;
     const pe = this.settings.passEnabled;
-    const [bgR, bgG, bgB] = hexToRgb(this.settings.terrain.backgroundColor) ?? [
-      60, 60, 60,
-    ];
+    const [bgR, bgG, bgB] = this.backgroundRgb();
     gl.clearColor(bgR / 255, bgG / 255, bgB / 255, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.disable(gl.BLEND);
@@ -1376,7 +1467,10 @@ export class GPURenderer {
     if (pe.borderStamp) this.borderStampPass.draw(cam);
     if (pe.railroad) this.railroadPass.draw(cam, zoom);
     if (pe.unit) this.unitPass.drawGround(cam);
-    if (pe.falloutBloom) this.bloomPass.draw(cam, this.frameTick);
+    // Without fallout the extract discards every texel, so the bloom is a no-op.
+    if (pe.falloutBloom && this.territoryPass.hasFallout()) {
+      this.bloomPass.draw(cam, this.frameTick);
+    }
     this.samRadiusPass.draw(cam);
     this.hillZonePass.draw(cam);
     this.rangeCirclePass.draw(cam);

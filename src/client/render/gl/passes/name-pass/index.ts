@@ -101,13 +101,22 @@ export class NamePass {
   /** Slots waiting on a crown URL → set of slots that want that URL's layer. */
   private slotsWaitingForCrown = new Map<string, Set<PlayerSlot>>();
 
-  // CPU-side mirrors — batched upload in draw()
+  // CPU-side mirrors — batched upload in draw(). Dirty spans are inclusive
+  // row ranges (min > max when clean): player data is one row per slot, text
+  // (strings + cursors) is LINES_PER_PLAYER rows per slot.
   private cpuPlayerData: Float32Array;
   private cpuStringData: Uint8Array;
   private cpuCursorData: Float32Array;
-  private playerDataDirty = false;
-  private stringDataDirty = false;
-  private cursorDataDirty = false;
+  private playerDataRowMin = Infinity;
+  private playerDataRowMax = -1;
+  private textRowMin = Infinity;
+  private textRowMax = -1;
+  /**
+   * One past the highest slot index handed out. Slot indices are the instance
+   * (and texture row) order the shaders decode player-major, so draws and
+   * uploads only need to cover the first `slotCount` players, not maxPlayers.
+   */
+  private slotCount = 0;
 
   // Reusable buffers for text layout
   private stringRow: Uint8Array;
@@ -219,22 +228,15 @@ export class NamePass {
       atlas,
       this.playerDataTex,
       this.flagAtlas,
-      this.maxPlayers,
     );
     this.statusIconProgram = new StatusIconProgram(
       gl,
       atlas,
       this.playerDataTex,
       this.crownAtlas,
-      this.maxPlayers,
       config.allianceExtensionPromptOffset(),
     );
-    this.debugProgram = new DebugProgram(
-      gl,
-      atlas,
-      this.playerDataTex,
-      this.maxPlayers,
-    );
+    this.debugProgram = new DebugProgram(gl, atlas, this.playerDataTex);
   }
 
   // -------------------------------------------------------------------------
@@ -416,6 +418,7 @@ export class NamePass {
             allianceRemainingTicks: 0,
           };
           this.slots.set(p.id, slot);
+          this.slotCount = Math.max(this.slotCount, slot.index + 1);
           this.resolveSlotFlag(slot);
           this.resolveSlotCrown(slot);
         } else {
@@ -622,8 +625,8 @@ export class NamePass {
     const off = row * MAX_CHARS;
     this.cpuStringData.set(this.stringRow, off);
     this.cpuCursorData.set(this.cursorRow, off);
-    this.stringDataDirty = true;
-    this.cursorDataDirty = true;
+    if (row < this.textRowMin) this.textRowMin = row;
+    if (row > this.textRowMax) this.textRowMax = row;
 
     return halfWidth;
   }
@@ -718,7 +721,8 @@ export class NamePass {
     ].filter(Boolean).length;
     d[off + 35] = 0.0;
 
-    this.playerDataDirty = true;
+    if (slot.index < this.playerDataRowMin) this.playerDataRowMin = slot.index;
+    if (slot.index > this.playerDataRowMax) this.playerDataRowMax = slot.index;
   }
 
   // -------------------------------------------------------------------------
@@ -794,59 +798,70 @@ export class NamePass {
     if (this.slots.size === 0) return;
 
     const gl = this.gl;
-    if (this.stringDataDirty) {
+    // Upload only the rows written since the last draw.
+    if (this.textRowMax >= 0) {
+      const row = this.textRowMin;
+      const rows = this.textRowMax - row + 1;
       gl.bindTexture(gl.TEXTURE_2D, this.stringTex);
       gl.texSubImage2D(
         gl.TEXTURE_2D,
         0,
         0,
-        0,
+        row,
         MAX_CHARS,
-        this.maxPlayers * LINES_PER_PLAYER,
+        rows,
         gl.RED_INTEGER,
         gl.UNSIGNED_BYTE,
         this.cpuStringData,
+        row * MAX_CHARS,
       );
-      this.stringDataDirty = false;
-    }
-    if (this.cursorDataDirty) {
       gl.bindTexture(gl.TEXTURE_2D, this.cursorTex);
       gl.texSubImage2D(
         gl.TEXTURE_2D,
         0,
         0,
-        0,
+        row,
         MAX_CHARS,
-        this.maxPlayers * LINES_PER_PLAYER,
+        rows,
         gl.RED,
         gl.FLOAT,
         this.cpuCursorData,
+        row * MAX_CHARS,
       );
-      this.cursorDataDirty = false;
+      this.textRowMin = Infinity;
+      this.textRowMax = -1;
     }
-    if (this.playerDataDirty) {
+    if (this.playerDataRowMax >= 0) {
+      const row = this.playerDataRowMin;
+      const rows = this.playerDataRowMax - row + 1;
       gl.bindTexture(gl.TEXTURE_2D, this.playerDataTex);
       gl.texSubImage2D(
         gl.TEXTURE_2D,
         0,
         0,
-        0,
+        row,
         PLAYER_DATA_COLS,
-        this.maxPlayers,
+        rows,
         gl.RGBA,
         gl.FLOAT,
         this.cpuPlayerData,
+        row * PLAYER_DATA_COLS * 4,
       );
-      this.playerDataDirty = false;
+      this.playerDataRowMin = Infinity;
+      this.playerDataRowMax = -1;
     }
 
     const fadeOwnerID = this.hitTestNamePlate(performance.now() / 1000);
 
+    // Slots are contiguous from 0 and unused texture rows are all-zero
+    // (dead), so drawing just the allocated players is identical to drawing
+    // maxPlayers of them.
+    const playerCount = this.slotCount;
     this.textProgram.draw(
       cameraMatrix,
       this.settings,
       this.vao,
-      this.maxPlayers,
+      playerCount,
       ambient,
       this.highlightOwnerID,
       fadeOwnerID,
@@ -855,12 +870,24 @@ export class NamePass {
       cameraMatrix,
       this.settings,
       this.vao,
+      playerCount,
       fadeOwnerID,
     );
-    this.iconProgram.draw(cameraMatrix, this.settings, this.vao, fadeOwnerID);
+    this.iconProgram.draw(
+      cameraMatrix,
+      this.settings,
+      this.vao,
+      playerCount,
+      fadeOwnerID,
+    );
 
     if (this.settings.passEnabled.nameDebug) {
-      this.debugProgram.draw(cameraMatrix, this.settings, this.vao);
+      this.debugProgram.draw(
+        cameraMatrix,
+        this.settings,
+        this.vao,
+        playerCount,
+      );
     }
   }
 

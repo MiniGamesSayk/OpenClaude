@@ -136,6 +136,9 @@ export class WorldTextPass {
     colorG: number;
     colorB: number;
   } | null = null;
+  // Formatted cost of the ghost label — it is re-pushed every frame.
+  private ghostCostValue = -1;
+  private ghostCostText = "";
 
   // Persistent attack-troop labels. Controller pushes the full list each frame
   // (already interpolated), so we just iterate and render.
@@ -358,13 +361,22 @@ export class WorldTextPass {
     this.ghostCostLabel = {
       x: label.tileX,
       y: label.tileY,
-      // cost 0 means "no cost line" (multiplier-badge-only label).
-      text: label.cost > 0 ? renderNumber(label.cost) : "",
+      text: this.formatGhostCost(label.cost),
       topText: label.topText,
       colorR: r,
       colorG: g,
       colorB: b,
     };
+  }
+
+  private formatGhostCost(cost: number): string {
+    // cost 0 means "no cost line" (multiplier-badge-only label).
+    if (cost <= 0) return "";
+    if (cost !== this.ghostCostValue) {
+      this.ghostCostValue = cost;
+      this.ghostCostText = renderNumber(cost);
+    }
+    return this.ghostCostText;
   }
 
   /**

@@ -54,6 +54,7 @@ describe("Nations and the newer units", () => {
     actFor(new NationSpecialUnitsBehavior(game, nation), 10);
     expect(nation.units(UnitType.Hospital).length).toBeGreaterThan(0);
     expect(nation.units(UnitType.Bank).length).toBeGreaterThan(0);
+    expect(nation.units(UnitType.Airbase).length).toBeGreaterThan(0);
   });
 
   test("bunkers only once an enemy has missile silos", async () => {
@@ -93,10 +94,32 @@ describe("Nations and the newer units", () => {
     for (let i = 0; i < 60; i++) {
       behavior.act(game.ticks());
       executeTicks(game, 2);
-      for (const type of [UnitType.CruiseMissile, UnitType.NeutronBomb]) {
+      for (const type of [
+        UnitType.CruiseMissile,
+        UnitType.NeutronBomb,
+        UnitType.ClusterBomb,
+        UnitType.TacticalMissile,
+      ]) {
         for (const u of nation.units(type)) fired.add(u.id());
       }
     }
     expect(fired.size).toBeGreaterThan(0);
+  });
+
+  test("tactical missiles go for the enemy's defense posts", async () => {
+    await makeGame(Difficulty.Hard, 6);
+    nation.buildUnit(UnitType.MissileSilo, game.ref(60, 60), {});
+    enemy.buildUnit(UnitType.DefensePost, game.ref(140, 40), {});
+    const behavior = new NationSpecialUnitsBehavior(game, nation);
+    actFor(behavior, 10);
+    nation.createAttack(enemy, 1_000, null, new Set());
+
+    let tactical = 0;
+    for (let i = 0; i < 80 && tactical === 0; i++) {
+      behavior.act(game.ticks());
+      executeTicks(game, 1);
+      tactical += nation.units(UnitType.TacticalMissile).length;
+    }
+    expect(tactical).toBeGreaterThan(0);
   });
 });

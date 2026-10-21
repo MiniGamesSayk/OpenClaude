@@ -89,6 +89,23 @@ describe("GameView.update — players", () => {
     expect(terra.isPlayer()).toBe(false);
   });
 
+  it("playerBySmallID(0) hands out one shared TerraNullius", () => {
+    const game = makeGameView();
+    expect(game.playerBySmallID(0)).toBe(game.playerBySmallID(0));
+  });
+
+  it("playerByClientID finds the player with that client, else null", () => {
+    const game = makeGameView();
+    game.update(
+      withPlayers(1, [
+        makePlayerUpdate({ id: "alice", smallID: 1, clientID: "c-a" }),
+        makePlayerUpdate({ id: "bob", smallID: 2, clientID: "c-b" }),
+      ]),
+    );
+    expect(game.playerByClientID("c-b")?.id()).toBe("bob");
+    expect(game.playerByClientID("c-nobody")).toBeNull();
+  });
+
   it("myPlayer() is resolved once the local player update arrives", () => {
     const game = makeGameView({ myClientID: "c-me" });
     expect(game.myPlayer()).toBeNull();
@@ -527,6 +544,65 @@ describe("GameView.update — units", () => {
     expect(game.unit(7)).toBeUndefined();
   });
 
+  it("keeps only the newest position of the previous ticks in lastTiles()", () => {
+    const game = makeGameView();
+    for (const [tick, pos] of [
+      [1, 0],
+      [2, 1],
+      [3, 2],
+      [4, 3],
+    ]) {
+      const gu = makeEmptyGu(tick);
+      gu.updates[GameUpdateType.Unit] = [makeUnitUpdate({ id: 9, pos })];
+      game.update(gu);
+    }
+    const unit = game.unit(9)!;
+    expect(unit.lastTiles()).toEqual([2, 3]);
+    expect(unit.lastTile()).toBe(2);
+
+    // A tick without a move leaves one position behind.
+    game.update(makeEmptyGu(5));
+    expect(unit.lastTiles()).toEqual([3]);
+  });
+
+  it("totalUnitLevelsFor sums finished levels per type in one pass", () => {
+    const game = makeGameView();
+    game.update(
+      withPlayers(1, [makePlayerUpdate({ id: "alice", smallID: 1 })]),
+    );
+    const gu = makeEmptyGu(2);
+    gu.updates[GameUpdateType.Unit] = [
+      makeUnitUpdate({ id: 1, unitType: UnitType.City, level: 2 }),
+      makeUnitUpdate({ id: 2, unitType: UnitType.City, level: 3 }),
+      makeUnitUpdate({
+        id: 3,
+        unitType: UnitType.City,
+        level: 4,
+        underConstruction: true,
+      }),
+      makeUnitUpdate({ id: 4, unitType: UnitType.Port, level: 1 }),
+      makeUnitUpdate({ id: 5, unitType: UnitType.Port, level: 1, ownerID: 2 }),
+      makeUnitUpdate({
+        id: 6,
+        unitType: UnitType.Factory,
+        level: 7,
+        isActive: false,
+      }),
+    ];
+    game.update(gu);
+
+    const alice = game.player("alice");
+    const types = [
+      UnitType.City,
+      UnitType.Port,
+      UnitType.Factory,
+      UnitType.SAMLauncher,
+    ];
+    const totals = alice.totalUnitLevelsFor(types, []);
+    expect(totals).toEqual([5, 1, 0, 0]);
+    expect(totals).toEqual(types.map((t) => alice.totalUnitLevels(t)));
+  });
+
   it("_wasUpdated resets to false at start of tick, then flips back on update", () => {
     const game = makeGameView();
 
@@ -544,6 +620,94 @@ describe("GameView.update — units", () => {
     gu3.updates[GameUpdateType.Unit] = [makeUnitUpdate({ id: 5 })];
     game.update(gu3);
     expect(game.unit(5)?.wasUpdated()).toBe(true);
+  });
+});
+
+describe("GameView.update — transitive targets in playerStatus", () => {
+  const target = (game: ReturnType<typeof makeGameView>, smallID: number) =>
+    game.frameData().playerStatus.get(smallID)?.target ?? false;
+
+  it("flags my own, my allies', my teammates' and the marked players", () => {
+    const game = makeGameView({ myClientID: "c-me" });
+    game.update(
+      withPlayers(1, [
+        makePlayerUpdate({
+          id: "me",
+          smallID: 1,
+          clientID: "c-me",
+          team: "red" as never,
+          allies: [2],
+          targets: [3],
+        }),
+        makePlayerUpdate({
+          id: "ally",
+          smallID: 2,
+          clientID: "c-2",
+          targets: [4],
+        }),
+        makePlayerUpdate({ id: "p3", smallID: 3, clientID: "c-3" }),
+        makePlayerUpdate({ id: "p4", smallID: 4, clientID: "c-4" }),
+        makePlayerUpdate({
+          id: "mate",
+          smallID: 5,
+          clientID: "c-5",
+          team: "red" as never,
+          targets: [6],
+        }),
+        makePlayerUpdate({ id: "p6", smallID: 6, clientID: "c-6" }),
+        makePlayerUpdate({ id: "p7", smallID: 7, clientID: "c-7" }),
+        makePlayerUpdate({
+          id: "rival",
+          smallID: 8,
+          clientID: "c-8",
+          team: "blue" as never,
+          targets: [9],
+        }),
+        makePlayerUpdate({ id: "p9", smallID: 9, clientID: "c-9" }),
+      ]),
+    );
+    game.setMarkedPlayers(new Set([7]));
+    game.update(makeEmptyGu(2));
+
+    for (const targeted of [3, 4, 6, 7]) {
+      expect(target(game, targeted)).toBe(true);
+    }
+    // Not a target of me, my allies or my team (a rival team's doesn't count).
+    for (const other of [2, 5, 8, 9]) {
+      expect(target(game, other)).toBe(false);
+    }
+    // Same answer as the per-player lookup the set replaces.
+    const me = game.myPlayer()!;
+    for (let sid = 2; sid <= 9; sid++) {
+      expect(target(game, sid)).toBe(me.hasTransitiveTarget(sid) || sid === 7);
+    }
+  });
+
+  it("drops a target once nobody targets it any more", () => {
+    const game = makeGameView({ myClientID: "c-me" });
+    game.update(
+      withPlayers(1, [
+        makePlayerUpdate({
+          id: "me",
+          smallID: 1,
+          clientID: "c-me",
+          targets: [2],
+        }),
+        makePlayerUpdate({ id: "p2", smallID: 2, clientID: "c-2" }),
+      ]),
+    );
+    expect(target(game, 2)).toBe(true);
+    game.update(
+      withPlayers(2, [
+        makePlayerUpdate({
+          id: "me",
+          smallID: 1,
+          clientID: "c-me",
+          targets: [],
+        }),
+      ]),
+    );
+    expect(target(game, 2)).toBe(false);
   });
 });
 

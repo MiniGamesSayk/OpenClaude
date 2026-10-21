@@ -26,7 +26,6 @@ export class IconProgram {
   private program: WebGLProgram;
   private playerDataTex: WebGLTexture;
   private flagAtlas: FlagAtlasArray;
-  private maxPlayers: number;
 
   private emojiAtlasTex: WebGLTexture | null = null;
   private emojiReady = false;
@@ -48,12 +47,10 @@ export class IconProgram {
     atlas: ParsedAtlas,
     playerDataTex: WebGLTexture,
     flagAtlas: FlagAtlasArray,
-    maxPlayers: number,
   ) {
     this.gl = gl;
     this.playerDataTex = playerDataTex;
     this.flagAtlas = flagAtlas;
-    this.maxPlayers = maxPlayers;
 
     this.program = createProgram(gl, iconVertSrc, iconFragSrc, "IconProgram");
     gl.useProgram(this.program);
@@ -150,6 +147,7 @@ export class IconProgram {
     cameraMatrix: Float32Array,
     settings: RenderSettings,
     vao: WebGLVertexArrayObject,
+    playerCount: number,
     fadeOwnerID: number,
   ): void {
     if (!this.emojiReady) return;
@@ -177,12 +175,7 @@ export class IconProgram {
     gl.bindTexture(gl.TEXTURE_2D, this.emojiAtlasTex!);
 
     gl.bindVertexArray(vao);
-    gl.drawArraysInstanced(
-      gl.TRIANGLES,
-      0,
-      6,
-      this.maxPlayers * ICONS_PER_PLAYER,
-    );
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, playerCount * ICONS_PER_PLAYER);
   }
 
   dispose(): void {

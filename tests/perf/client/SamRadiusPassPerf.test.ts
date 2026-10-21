@@ -199,9 +199,11 @@ describe("SAMRadiusPass WebGL Performance", () => {
 
     for (let frame = 1; frame <= FRAMES; frame++) {
       const tick = Math.floor(frame / 6);
-      pass.setTick(tick);
 
+      // setTick only marks the instances stale; draw() rebuilds them, so the
+      // frame's cost is the two together.
       const t0 = performance.now();
+      pass.setTick(tick);
       pass.draw(cameraMatrix);
       const dt = performance.now() - t0;
       frameStats.record(frame, dt);

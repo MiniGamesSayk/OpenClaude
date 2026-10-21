@@ -21,6 +21,14 @@ import overlayVertSrc from "../shaders/map-overlay/overlay.vert.glsl?raw";
 import territoryFragSrc from "../shaders/map-overlay/territory.frag.glsl?raw";
 import { TileScatterPass } from "./TileScatterPass";
 
+function countFalloutTiles(tiles: Uint16Array): number {
+  let n = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    if ((tiles[i] & FALLOUT_BIT) !== 0) n++;
+  }
+  return n;
+}
+
 export class TerritoryPass {
   private gl: WebGL2RenderingContext;
   private settings: RenderSettings;
@@ -70,6 +78,13 @@ export class TerritoryPass {
    * this to activate the heat-decay pass only while fallout is in play.
    */
   private falloutTouched = false;
+
+  /**
+   * Number of tiles with the fallout bit set in cpuTileState (what the GPU
+   * holds once flushed). Lets the renderer skip the fallout passes — which
+   * draw nothing without fallout — while it is zero.
+   */
+  private falloutCount = 0;
 
   /**
    * True after a full state replacement (initial load / seek). flushTileTexture
@@ -208,6 +223,7 @@ export class TerritoryPass {
   /** Live-game path: snapshot the initial tile state and clear pending drip. */
   setLiveRef(tileState: Uint16Array): void {
     this.cpuTileState.set(tileState);
+    this.falloutCount = countFalloutTiles(this.cpuTileState);
     this.clearDripBuckets();
     this.scatter.clear();
     this.fullUploadPending = true;
@@ -259,6 +275,7 @@ export class TerritoryPass {
         const prev = ts[ref];
         if (((prev ^ state) & FALLOUT_BIT) !== 0) {
           this.falloutTouched = true;
+          this.falloutCount += (state & FALLOUT_BIT) !== 0 ? 1 : -1;
         }
         ts[ref] = state;
         if (!pending) {
@@ -296,6 +313,7 @@ export class TerritoryPass {
         const prev = ts[ref];
         if (((prev ^ state) & FALLOUT_BIT) !== 0) {
           this.falloutTouched = true;
+          this.falloutCount += (state & FALLOUT_BIT) !== 0 ? 1 : -1;
         }
         ts[ref] = state;
         if (!pending) {
@@ -331,6 +349,15 @@ export class TerritoryPass {
     const touched = this.falloutTouched;
     this.falloutTouched = false;
     return touched;
+  }
+
+  /**
+   * Whether any tile in the display state has the fallout bit set. When false
+   * the fallout bloom/light extracts discard every texel, so the renderer
+   * skips them.
+   */
+  hasFallout(): boolean {
+    return this.falloutCount > 0;
   }
 
   // ---------------------------------------------------------------------------

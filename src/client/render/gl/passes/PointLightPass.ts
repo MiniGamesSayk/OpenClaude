@@ -203,11 +203,18 @@ export class PointLightPass {
     gl.bindVertexArray(null);
   }
 
-  /** Pack all light-emitting entities into the instance buffer and upload. Called every tick. */
-  updateLights(units: Map<number, UnitState>): void {
+  /**
+   * Pack all light-emitting entities into the instance buffer and upload.
+   * Called every tick; `atMs` is when `units` arrived (the start of the
+   * nuke-smoothing interval), which is earlier than now for a catch-up call.
+   */
+  updateLights(
+    units: Map<number, UnitState>,
+    atMs: number = performance.now(),
+  ): void {
     let count = 0;
     this.smoothSegs.length = 0;
-    this.lastUnitsUpdateMs = performance.now();
+    this.lastUnitsUpdateMs = atMs;
 
     for (const unit of units.values()) {
       if (!unit.isActive || unit.waitTicks > 0) continue;

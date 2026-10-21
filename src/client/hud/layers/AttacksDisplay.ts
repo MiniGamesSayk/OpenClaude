@@ -110,9 +110,7 @@ export class AttacksDisplay extends LitElement implements Controller {
       .outgoingAttacks()
       .filter((a) => a.targetID === 0);
 
-    this.outgoingBoats = myPlayer
-      .units()
-      .filter((u) => u.type() === UnitType.TransportShip);
+    this.outgoingBoats = myPlayer.units(UnitType.TransportShip);
 
     this.requestUpdate();
   }
