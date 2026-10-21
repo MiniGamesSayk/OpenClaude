@@ -100,6 +100,25 @@ export class WaterPathMemo implements PathFinder<TileRef> {
     return this.liveBytes;
   }
   findPath(from: TileRef | TileRef[], to: TileRef): TileRef[] | null {
+    if (typeof from !== "number") {
+      this.syncWaterVersion();
+      return this.inner.findPath(from, to);
+    }
+    const path = this.lookup(from, to);
+    return path === null ? null : Array.from(path);
+  }
+
+  /**
+   * findPath as a typed copy (a memcpy): late game hundreds of trade-ship
+   * voyages a minute each copied a thousands-of-tiles route twice
+   * (typed → plain array → typed again in the stepper).
+   */
+  findPathTyped(from: TileRef, to: TileRef): Uint32Array | null {
+    const path = this.lookup(from, to);
+    return path === null ? null : path.slice();
+  }
+
+  private syncWaterVersion(): void {
     // The throttled waterGraphVersion (which rebuilds the chain and with it
     // this memo) lags an actual conversion by up to 20 ticks, and the
     // component check inside the chain reads state that WaterManager mutates
@@ -113,14 +132,18 @@ export class WaterPathMemo implements PathFinder<TileRef> {
       this.paths.clear();
       this.liveBytes = 0;
     }
-    if (typeof from !== "number") return this.inner.findPath(from, to);
+  }
+
+  /** The stored route for (from, to), computing and storing it on a miss. */
+  private lookup(from: TileRef, to: TileRef): Uint32Array | null {
+    this.syncWaterVersion();
     const key = from * this.numTiles + to;
     const hit = this.paths.get(key);
     if (hit !== undefined) {
       // LRU: re-insert so the hot pairs (near ports are drawn most often) outlive the cold ones
       this.paths.delete(key);
       this.paths.set(key, hit);
-      return hit === null ? null : Array.from(hit);
+      return hit;
     }
     const path = this.inner.findPath(from, to);
     const stored = path === null ? null : Uint32Array.from(path);
@@ -133,7 +156,7 @@ export class WaterPathMemo implements PathFinder<TileRef> {
       this.liveBytes -=
         oldest === null || oldest === undefined ? 16 : oldest.byteLength;
     }
-    return path;
+    return stored;
   }
 }
 

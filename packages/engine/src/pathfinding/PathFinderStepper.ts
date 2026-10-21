@@ -61,9 +61,13 @@ export class PathFinderStepper<T> implements SteppingPathFinder<T> {
 
     // Compute path if not cached
     if (this.path === null) {
-      let path: T[] | null;
+      let path: T[] | Uint32Array | null;
       try {
-        path = this.finder.findPath(from, to);
+        // A finder that builds typed routes saves the array-to-typed copy.
+        path =
+          this.finder.findPathTyped !== undefined
+            ? this.finder.findPathTyped(from, to)
+            : this.finder.findPath(from, to);
       } catch (err) {
         console.error("PathFinder threw an error during findPath", err);
         return { status: PathStatus.NOT_FOUND };
@@ -74,11 +78,13 @@ export class PathFinderStepper<T> implements SteppingPathFinder<T> {
       }
 
       this.path =
-        path.length > 0 && typeof path[0] === "number"
-          ? new Uint32Array(path as number[])
-          : path;
+        path instanceof Uint32Array
+          ? path
+          : path.length > 0 && typeof path[0] === "number"
+            ? new Uint32Array(path as number[])
+            : path;
       this.pathIndex = 0;
-      if (path.length > 0 && this.config.equals(path[0], from)) {
+      if (path.length > 0 && this.config.equals(path[0] as T, from)) {
         this.pathIndex = 1;
       }
     }

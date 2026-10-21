@@ -20,6 +20,12 @@ export type PathResult<T> =
  */
 export interface PathFinder<T> {
   findPath(from: T | T[], to: T): T[] | null;
+  /**
+   * Optional: the same route as findPath(from, to), as a typed array the
+   * caller owns. Lets a stepper (which stores routes as Uint32Array) skip
+   * building a plain array only to copy it.
+   */
+  findPathTyped?(from: T, to: T): Uint32Array | null;
 }
 
 /**

@@ -38,6 +38,30 @@ export class AirPathFinder implements PathFinder<TileRef> {
     return path;
   }
 
+  /**
+   * findPath's route, built straight into a typed array: every step closes
+   * the Manhattan gap by one, so the length is known up front. Shells chasing
+   * a moving target re-plan every tick; this skips the array-then-copy.
+   */
+  findPathTyped(from: TileRef, to: TileRef): Uint32Array {
+    const random = new PseudoRandom(this.seed);
+    const path = new Uint32Array(this.game.manhattanDist(from, to) + 1);
+    path[0] = from;
+    let n = 1;
+    let current = from;
+    while (current !== to && n < path.length) {
+      const next = this.computeNext(current, to, random);
+      if (next === current) break; // Prevent infinite loop if something breaks
+      current = next;
+      path[n++] = current;
+    }
+    if (current !== to) {
+      // Unreachable by construction; fall back to the reference walk.
+      return Uint32Array.from(this.findPath(from, to)!);
+    }
+    return n === path.length ? path : path.slice(0, n);
+  }
+
   private computeNext(
     from: TileRef,
     to: TileRef,
