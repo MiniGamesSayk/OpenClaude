@@ -1150,7 +1150,7 @@ export class PlayerImpl implements Player {
       target !== this &&
       this.isAlive() &&
       target.isAlive() &&
-      !this.isFriendly(target) &&
+      this.canAttackPlayer(target) &&
       target.numTilesOwned() > 0 &&
       // Only a much smaller side can be bought out.
       target.numTilesOwned() * 2 <= this.numTilesOwned() &&
@@ -1996,11 +1996,16 @@ export class PlayerImpl implements Player {
     player: Player,
     treatAFKFriendly: boolean = false,
   ): boolean {
-    if (this.type() !== PlayerType.Human) {
-      // Only human attackers respect PVP immunity
-      return !this.isFriendly(player, treatAFKFriendly);
-    }
-    return !player.isImmune() && !this.isFriendly(player, treatAFKFriendly);
+    if (this.isFriendly(player, treatAFKFriendly)) return false;
+    // An immune player can't be attacked, by anyone.
+    if (player.isImmune()) return false;
+    // While a human is still immune it can't start fights either, except
+    // against tribes (bots), which are never immune.
+    return !(
+      this.type() === PlayerType.Human &&
+      this.isImmune() &&
+      player.type() !== PlayerType.Bot
+    );
   }
 
   public canAttack(tile: TileRef): boolean {

@@ -565,6 +565,17 @@ describe("Attack immunity", () => {
     expect(playerA.outgoingAttacks()).toHaveLength(1);
   });
 
+  test("Can't buy an immune player's territory", async () => {
+    // Make A big enough to buy B out.
+    game.forEachTile((t) => {
+      if (game.isLand(t) && game.owner(t) !== playerB) playerA.conquer(t);
+    });
+    playerA.addGold(playerA.territoryPurchaseCost(playerB) * 2n);
+    expect(playerA.canBuyTerritory(playerB)).toBe(false);
+    waitForImmunityToEnd();
+    expect(playerA.canBuyTerritory(playerB)).toBe(true);
+  });
+
   test("Can't send nuke during immunity phase", async () => {
     constructionExecution(game, playerA, 7, 0, UnitType.MissileSilo);
     expect(playerA.units(UnitType.MissileSilo)).toHaveLength(1);
@@ -593,7 +604,7 @@ describe("Attack immunity", () => {
     expect(playerA.units(UnitType.TransportShip)).toHaveLength(0);
   });
 
-  test("Nation can attack human during PVP immunity", async () => {
+  test("Nation cannot attack human during PVP immunity", async () => {
     const nationInfo = new PlayerInfo(
       "nation",
       PlayerType.Nation,
@@ -605,26 +616,48 @@ describe("Attack immunity", () => {
     game.executeNextTick();
     giveBorderTile(playerA, nation);
 
-    // Nation attacks playerA during PVP immunity - should succeed
+    // Nation attacks playerA during PVP immunity - blocked
+    game.addExecution(new AttackExecution(null, nation, "playerA_id", null));
+    game.executeNextTick();
+    expect(nation.outgoingAttacks()).toHaveLength(0);
+
+    // Once immunity is over it goes through.
+    waitForImmunityToEnd();
     game.addExecution(new AttackExecution(null, nation, "playerA_id", null));
     game.executeNextTick();
     expect(nation.outgoingAttacks()).toHaveLength(1);
   });
 
-  test("Bot can attack human during PVP immunity", async () => {
+  test("An immune human cannot attack a nation whose own immunity is over", async () => {
+    (game.config() as TestConfig).setNationSpawnImmunityDuration(0);
+    const nation = addPlayerToGame(
+      new PlayerInfo("nation", PlayerType.Nation, null, "nation_id"),
+      game,
+      game.ref(15, 0),
+    );
+    game.executeNextTick();
+    giveBorderTile(playerA, nation);
+
+    game.addExecution(new AttackExecution(null, playerA, "nation_id", null));
+    game.executeNextTick();
+    expect(playerA.outgoingAttacks()).toHaveLength(0);
+  });
+
+  test("Bot cannot attack human during PVP immunity", async () => {
     const botInfo = new PlayerInfo("bot", PlayerType.Bot, null, "bot_id");
     const bot = addPlayerToGame(botInfo, game, game.ref(15, 0));
     game.executeNextTick();
     game.executeNextTick();
     giveBorderTile(playerA, bot);
 
-    // Bot attacks playerA during PVP immunity - should succeed
+    // Bot attacks playerA during PVP immunity - blocked
     game.addExecution(new AttackExecution(null, bot, "playerA_id", null));
     game.executeNextTick();
-    expect(bot.outgoingAttacks()).toHaveLength(1);
+    expect(bot.outgoingAttacks()).toHaveLength(0);
   });
 
-  test("Nation can attack nation during PVP immunity", async () => {
+  test("Nation can attack nation once nation immunity is over", async () => {
+    (game.config() as TestConfig).setNationSpawnImmunityDuration(0);
     const nationAInfo = new PlayerInfo(
       "nationA",
       PlayerType.Nation,
