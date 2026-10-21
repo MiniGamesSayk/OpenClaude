@@ -136,6 +136,19 @@ export class ServerEnv {
   static turnIntervalMs(): number {
     return 100;
   }
+  // Anonymous play: joins presenting a bare persistent ID instead of an API
+  // JWT. Always on in dev; in a self-hosted standalone deployment too, where
+  // there is no API to sign anyone in and every player is anonymous.
+  static anonymousJoins(): boolean {
+    return ServerEnv.gameEnv === GameEnv.Dev || ServerEnv.standalone();
+  }
+  // OpenClaude: the master only mints scheduled public lobbies (ffa, team,
+  // special) when PUBLIC_LOBBIES=1. Off by default, so the only games are the
+  // ones players create themselves (private lobbies, singleplayer).
+  static publicLobbies(): boolean {
+    const v = process.env.PUBLIC_LOBBIES;
+    return v === "1" || v === "true";
+  }
   static gameCreationRate(): number {
     const override = Number(process.env.GAME_CREATION_RATE_MS);
     if (Number.isInteger(override) && override > 0) return override;

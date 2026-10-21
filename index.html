@@ -145,19 +145,6 @@
         `url("<%- mobileLogoImageUrl %>")`,
       );
     </script>
-
-    <!-- CrazyGames SDK -->
-    <script
-      src="https://sdk.crazygames.com/crazygames-sdk-v3.js"
-      async
-    ></script>
-
-    <!-- Cloudflare Turnstile -->
-    <script
-      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-      async
-      defer
-    ></script>
   </head>
 
   <body
@@ -229,23 +216,9 @@
         class="sticky top-0 z-[60] in-[.page-open]:static"
       ></desktop-nav-bar>
 
-      <div
-        id="turnstile-container"
-        class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-99999"
-      ></div>
-
-      <banned-modal></banned-modal>
-      <marketing-consent-toast></marketing-consent-toast>
-      <purchase-nudge-modal></purchase-nudge-modal>
-
       <!-- Main container with responsive padding -->
       <main-layout class="contents">
         <play-page class="contents"></play-page>
-        <matchmaking-modal
-          id="page-matchmaking"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></matchmaking-modal>
         <news-modal
           id="page-news"
           inline
@@ -266,47 +239,17 @@
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></join-lobby-modal>
-        <store-modal
-          id="page-item-store"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></store-modal>
         <user-setting
           id="page-settings"
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></user-setting>
-        <leaderboard-modal
-          id="page-leaderboard"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></leaderboard-modal>
         <troubleshooting-modal
           id="page-troubleshooting"
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></troubleshooting-modal>
 
-        <clan-modal
-          id="page-clan"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></clan-modal>
-        <account-modal
-          id="page-account"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></account-modal>
-        <game-stats-modal
-          id="page-stats"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></game-stats-modal>
-        <player-profile-modal
-          id="page-profile"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></player-profile-modal>
         <help-modal
           id="page-help"
           inline
@@ -322,29 +265,11 @@
           inline
           class="hidden w-full h-full page-content relative z-50"
         ></inventory-modal>
-        <ranked-modal
-          id="page-ranked"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></ranked-modal>
-        <detailed-view-modal
-          id="page-detailed-view"
-          inline
-          class="hidden w-full h-full page-content relative z-50"
-        ></detailed-view-modal>
       </main-layout>
 
       <div class="[.in-game_&]:hidden mt-auto flex flex-col shrink-0">
         <page-footer></page-footer>
       </div>
-
-      <!-- Global Modals -->
-      <steam-link-modal></steam-link-modal>
-      <steam-handoff-modal></steam-handoff-modal>
-      <!-- Opened from the nav profile menu (#modal=...) -->
-      <account-settings-modal></account-settings-modal>
-      <change-username-modal></change-username-modal>
-      <subscription-modal></subscription-modal>
     </div>
 
     <!-- Game components -->
@@ -421,12 +346,6 @@
     <performance-overlay></performance-overlay>
     <player-info-overlay></player-info-overlay>
     <heads-up-message></heads-up-message>
-
-    <!-- Featured stream: direct <body> child (NOT inside the in-[.in-game]:hidden
-         home container) so the Twitch iframe is never display:none'd during a game,
-         which would unmount the player and break ToS-compliant playback. The
-         component is position:fixed and self-manages visibility (pauses in-game). -->
-    <featured-stream></featured-stream>
 
     <!-- Steam shell status bar. A direct <body> child, like
          featured-stream above, so it is not inside the home container -- but

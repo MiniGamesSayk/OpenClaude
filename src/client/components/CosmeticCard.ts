@@ -1,15 +1,9 @@
-import { Subscription } from "@openfront/shared/CosmeticSchemas";
 import { html, LitElement, nothing, TemplateResult } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ResolvedCosmetic, translateCosmetic } from "../Cosmetics";
-import { isDesktopShell } from "../DesktopShell";
 import { translateText } from "../Utils";
 import "./CosmeticInfo";
-import {
-  cosmeticDisplayName,
-  cosmeticRarity,
-  cosmeticSelectionLabel,
-} from "./CosmeticPresentation";
+import { cosmeticDisplayName, cosmeticRarity } from "./CosmeticPresentation";
 import "./CosmeticPreview";
 import "./CosmeticPreviewBubble";
 
@@ -354,26 +348,6 @@ export class CosmeticCard extends LitElement {
     </div>`;
   }
 
-  private subscriptionPerks(): Array<{ label: string; info: string }> {
-    if (this.activeResolved.type !== "subscription") return [];
-    const subscription = this.activeResolved.cosmetic as Subscription;
-    // The Steam licence a buyer of this tier must hold already confers these.
-    if (subscription.requiresSteamLicence) return [];
-    const perks = [
-      {
-        label: translateText("cosmetics.verified_name"),
-        info: translateText("cosmetics.verified_name_info"),
-      },
-    ];
-    if (subscription.canCreatePublicLobbies) {
-      perks.push({
-        label: translateText("cosmetics.public_lobbies"),
-        info: translateText("cosmetics.public_lobbies_info"),
-      });
-    }
-    return perks;
-  }
-
   render() {
     const active = this.activeResolved;
     const rarity = cosmeticRarity(active);
@@ -388,20 +362,12 @@ export class CosmeticCard extends LitElement {
     const priced = active.cosmetic as {
       artist?: string;
       aiDisclosed?: boolean;
-      priceHard?: number;
     } | null;
-    const usdValue =
-      priced?.priceHard !== undefined ? priced.priceHard / 20 : undefined;
-    // A subscription lists its perks as text, which wraps to more lines than a
-    // square box holds once cards are phone-width — let it take the height it
-    // needs rather than clipping the last perk.
-    const previewShape =
-      active.type === "subscription" ? "h-auto" : "aspect-square";
     // The name leads the card, so the equipped badge hangs over the artwork
     // below it rather than over the text. The artwork clips inside its own box
     // so the info tooltip can still overflow the card.
     const content = html`
-      <div class="relative w-full flex-1 ${previewShape}">
+      <div class="relative w-full flex-1 aspect-square">
         <div
           class="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-white/5 p-2"
         >
@@ -497,11 +463,6 @@ export class CosmeticCard extends LitElement {
                 .aiDisclosed=${priced?.aiDisclosed}
                 .rarity=${rarity}
                 .colorPalette=${active.colorPalette?.name}
-                .showAdFree=${active.relationship === "purchasable" &&
-                !isDesktopShell()}
-                .usdValue=${usdValue}
-                .perks=${this.subscriptionPerks()}
-                .items=${(active.packItems ?? []).map(cosmeticSelectionLabel)}
               ></cosmetic-info>
               <cosmetic-preview-bubble
                 .resolved=${active}

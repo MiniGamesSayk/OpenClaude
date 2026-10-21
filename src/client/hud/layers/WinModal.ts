@@ -1,7 +1,4 @@
-import { GameType, RankedType } from "@openfront/engine-api/game/GameTypes";
 import { GameUpdateType } from "@openfront/engine-api/game/GameUpdates";
-import type { GameXpEligible, Progress } from "@openfront/shared/ApiSchemas";
-import { Pattern } from "@openfront/shared/CosmeticSchemas";
 import { EventBus } from "@openfront/shared/EventBus";
 import { html, LitElement, TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
@@ -10,69 +7,14 @@ import {
   getGamesPlayed,
   getTranslatedPlayerTeamLabel,
   homeHref,
-  isInIframe,
   translateText,
   TUTORIAL_VIDEO_URL,
 } from "../../../client/Utils";
-import { fetchUserMeUncached, getUserMe, invalidateUserMe } from "../../Api";
-import "../../components/CosmeticCard";
-import { cosmeticSelectionLabel } from "../../components/CosmeticPresentation";
-import type { GameXpPanelState } from "../../components/GameXpPanel";
-import type { LegendCeremony } from "../../components/LegendCeremony";
-import "../../components/ProfileShare";
-import "../../components/PurchaseButton";
-import "../../components/SteamWishlist";
 import { Controller } from "../../Controller";
-import {
-  fetchCosmetics,
-  purchaseCosmetic,
-  resolveCosmetics,
-} from "../../Cosmetics";
-import { isDesktopShell } from "../../DesktopShell";
-import { gamePortal } from "../../GamePortal";
-import {
-  gameShareMoment,
-  momentShareLabel,
-  momentShareText,
-  momentShareUrl,
-} from "../../MomentShare";
 import { Platform } from "../../Platform";
-import { MAX_PRESTIGE, reachedLegendThisGame } from "../../Progression";
-import { resolveXpAccount } from "../../ProgressionAccount";
-import { fetchProgressionConfig, pollGameXp } from "../../ProgressionApi";
-import {
-  applyGameXp,
-  firstGameXp,
-  type PendingGameKind,
-  recordPendingXp,
-  withPendingXp,
-} from "../../ProvisionalProgress";
-import {
-  loadProvisionalXp,
-  type ProvisionalXp,
-  provisionalXpRules,
-  reconcileXp,
-} from "../../ProvisionalXpAtDeath";
 import { PlaySoundEffectEvent } from "../../sound/Sounds";
-import { steamSDK } from "../../SteamSDK";
 import { SendWinnerEvent } from "../../Transport";
 import { GameView } from "../../view";
-
-type LegendCeremonyModule = typeof import("../../components/LegendCeremony");
-
-// The XP section stays out of the startup bundle: it's fetched when a game
-// starts (see init), long before the game ends, so the reveal never waits on
-// it. Should it still be on its way, the section shows the moment it lands.
-let xpPanelModule: Promise<unknown> | null = null;
-function loadGameXpPanel(): void {
-  xpPanelModule ??= import("../../components/GameXpPanel").catch(
-    (err: unknown) => {
-      // Tried again at the end of the game, or the next one.
-      xpPanelModule = null;
-      console.warn("WinModal: XP section failed to load", err);
-    },
-  );
-}
 
 @customElement("win-modal")
 export class WinModal extends LitElement implements Controller {
@@ -87,46 +29,7 @@ export class WinModal extends LitElement implements Controller {
   @state()
   private isWin = false;
 
-  @state()
-  private isRankedGame = false;
-
-  @state()
-  private patternContent: TemplateResult | null = null;
-
-  // The XP this game earned. Stays hidden unless there is something to say:
-  // no progression, a spectator or a replay never see the section at all.
-  @state()
-  private xpView: GameXpPanelState = { kind: "hidden" };
-  // Polling starts once, at the end of the game.
-  private xpPolling = false;
-  private xpAbort: AbortController | null = null;
-  // The XP result the panel has finished revealing (or skipped to the end
-  // of): the share button waits for it.
-  @state()
-  private xpSettled: GameXpPanelState | null = null;
-  // The signed-in player's public ID, for the share link. Empty when signed
-  // out (or unknown): no share button.
-  @state()
-  private sharePublicId = "";
-  // The provisional figure shown at death, if any: the server's figure is
-  // compared with it when the game ends.
-  private provisionalXp: ProvisionalXp | null = null;
-  // A detach cut the end-of-game poll short; re-attaching restarts it (the
-  // Win update that started it is delivered only once).
-  private xpPollAborted = false;
-  // Whose XP the section shows: the Legend ceremony plays once per account.
-  private xpPublicId: string | null = null;
-  // The Legend ceremony, fetched only for a player who could become a Legend
-  // (see preloadLegendCeremony); null until it has arrived.
-  private legendCeremony: LegendCeremonyModule | null = null;
-  private legendCeremonyLoad: Promise<void> | null = null;
-  // Replaceable for tests.
-  loadLegendCeremony: () => Promise<LegendCeremonyModule> = () =>
-    import("../../components/LegendCeremony");
-
   private _title: string;
-
-  private rand = Math.random();
 
   // Override to prevent shadow DOM creation
   createRenderRoot() {
@@ -148,19 +51,10 @@ export class WinModal extends LitElement implements Controller {
           ${this._title || ""}
         </h2>
         <div class="min-h-0 flex-1 overflow-y-auto pr-0.5">
-          <game-xp-panel
-            .view=${this.xpView}
-            .onScreen=${this.isVisible}
-            @xp-reveal-settled=${(e: CustomEvent<GameXpPanelState>) =>
-              (this.xpSettled = e.detail)}
-            .gameType=${this.game?.config().gameConfig().gameType ?? null}
-            @xp-legend=${this.onXpLegend}
-          ></game-xp-panel>
           ${this.innerHtml()}
         </div>
         <!-- Leaving is the quieter action, on the left; staying in the game
-             is the main one, on the right. Sharing a milestone sits between
-             them, or on its own row above where three don't fit. -->
+             is the main one, on the right. -->
         <div class="mt-4 flex flex-wrap justify-between gap-2.5 shrink-0">
           ${this.actionButton(
             "quiet",
@@ -168,15 +62,6 @@ export class WinModal extends LitElement implements Controller {
             () => this._handleExit(),
             "exit",
           )}
-          ${this.renderShare()}
-          ${this.isRankedGame
-            ? this.actionButton(
-                "main",
-                translateText("win_modal.requeue"),
-                () => this._handleRequeue(),
-                "requeue",
-              )
-            : null}
           ${this.actionButton(
             "main",
             this.game?.myPlayer()?.isAlive()
@@ -188,64 +73,8 @@ export class WinModal extends LitElement implements Controller {
         </div>
         ${this.renderActionStyles()}
       </div>
-      <legend-ceremony
-        @legend-ceremony-closed=${this.onLegendCeremonyClosed}
-      ></legend-ceremony>
     `;
   }
-
-  // The server's result for this game made the player a Legend: the moment
-  // gets the whole screen, the first time on this account. The XP section
-  // rests on its final state behind it, so Continue comes back to the
-  // settled popup. Should the ceremony not have arrived (a slow or failed
-  // fetch), the XP section plays its own Legend moment instead.
-  private onXpLegend = (e: CustomEvent<GameXpEligible>): void => {
-    const publicId = this.xpPublicId;
-    const legend = this.legendCeremony;
-    if (publicId === null || legend === null) return;
-    if (legend.legendCeremonySeen(publicId)) return;
-    const ceremony = this.querySelector<LegendCeremony>("legend-ceremony");
-    if (ceremony === null) return;
-    e.preventDefault();
-    legend.markLegendCeremonySeen(publicId);
-    ceremony.show({
-      lifetimeXp: e.detail.after.lifetimeXp,
-      at: new Date(),
-      publicId,
-    });
-  };
-
-  // Fetches the Legend ceremony ahead of its moment: once the account is
-  // known to be on its last prestige run, and again (should that have missed
-  // it) as soon as the server's result says this game made a Legend, while
-  // the reveal is still climbing to level 100.
-  private preloadLegendCeremony(): void {
-    if (this.legendCeremonyLoad !== null) return;
-    this.legendCeremonyLoad = this.loadLegendCeremony().then(
-      (module) => {
-        this.legendCeremony = module;
-      },
-      (err: unknown) => {
-        this.legendCeremonyLoad = null;
-        console.warn("WinModal: Legend ceremony failed to load", err);
-      },
-    );
-  }
-
-  // The first of those: where the last run is comes from the config, as the
-  // server may move it, and from the client's own constant only without one.
-  private async preloadIfLastRun(prestige: number): Promise<void> {
-    const config = await fetchProgressionConfig();
-    const last =
-      config !== false && config.maxPrestige > 0
-        ? config.maxPrestige
-        : MAX_PRESTIGE;
-    if (prestige >= last) this.preloadLegendCeremony();
-  }
-
-  private onLegendCeremonyClosed = (): void => {
-    this.querySelector<HTMLElement>('[data-win-action="keep"]')?.focus();
-  };
 
   // The modal's own buttons, textured like the store's tiles and buy buttons:
   // a tinted gradient with a coloured border, and on hover they lift, glow
@@ -265,33 +94,6 @@ export class WinModal extends LitElement implements Controller {
     >
       <span class="relative">${label}</span>
     </button>`;
-  }
-
-  // Sharing a milestone or becoming a Legend, once the reveal has shown it.
-  // Only for the server's result (gameShareMoment), and only for a signed-in
-  // player with a profile to link to.
-  private renderShare(): TemplateResult | null {
-    if (this.sharePublicId === "" || this.xpSettled !== this.xpView) {
-      return null;
-    }
-    const moment = gameShareMoment(this.xpView);
-    if (moment === null || moment.kind === "prestige") return null;
-    const url = momentShareUrl(this.sharePublicId, moment);
-    if (url === null) return null;
-    // Three labelled buttons fit side by side from md up; below that (and
-    // beside a ranked game's requeue button) it takes a row of its own.
-    const placement = this.isRankedGame
-      ? "order-first basis-full"
-      : "order-first basis-full md:order-none md:basis-0 md:flex-1";
-    return html`<profile-share
-      data-win-share
-      class="flex ${placement}"
-      layout="menu"
-      .label=${momentShareLabel(moment)}
-      .url=${url}
-      .text=${momentShareText(moment)}
-      triggerClass="win-action win-action-quiet w-full"
-    ></profile-share>`;
   }
 
   private renderActionStyles(): TemplateResult {
@@ -404,24 +206,11 @@ export class WinModal extends LitElement implements Controller {
   }
 
   innerHtml() {
-    // The Steam desktop build has nothing to wishlist — fall through to the
-    // other promos so the box is never empty.
-    const canWishlist = !steamSDK.isOnSteam();
-
-    if (isInIframe()) {
-      return canWishlist ? this.steamWishlist() : this.discordDisplay();
-    }
-
+    // The first couple of losses get the beginner's tutorial video.
     if (!this.isWin && getGamesPlayed() < 3) {
       return this.renderYoutubeTutorial();
     }
-    if (this.rand < 0.25 && canWishlist) {
-      return this.steamWishlist();
-    } else if (this.rand < 0.5) {
-      return this.discordDisplay();
-    } else {
-      return this.renderPatternButton();
-    }
+    return null;
   }
 
   renderYoutubeTutorial() {
@@ -452,120 +241,8 @@ export class WinModal extends LitElement implements Controller {
     `;
   }
 
-  renderPatternButton() {
-    return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("win_modal.support_openfront")}
-        </h3>
-        ${isDesktopShell()
-          ? null
-          : html`<p class="text-white mb-3">
-              ${translateText("win_modal.territory_pattern")}
-            </p>`}
-        <div
-          class="mx-auto w-full overflow-x-auto overflow-y-visible rounded-sm"
-        >
-          <div
-            class="flex min-w-max items-start justify-center gap-4 px-1 py-1"
-          >
-            ${this.patternContent}
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  async loadPatternContent() {
-    const me = await getUserMe();
-    const cosmetics = await fetchCosmetics();
-
-    const purchasable = resolveCosmetics(cosmetics, me, null).filter(
-      (r) => r.type === "pattern" && r.relationship === "purchasable",
-    );
-
-    if (purchasable.length === 0) {
-      this.patternContent = html``;
-      return;
-    }
-
-    // Shuffle the array and take patterns. Will always be 3 wide to allow scrolling
-    const shuffled = [...purchasable].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(3, shuffled.length));
-
-    this.patternContent = html`
-      <div class="flex gap-4 flex-nowrap justify-start items-start">
-        ${selected.map((resolved) => {
-          // Only patterns were selected above.
-          const pattern = resolved.cosmetic as Pattern | null;
-          return html`
-            <div data-win-cosmetic-promo class="flex w-40 flex-col gap-2">
-              <cosmetic-card
-                .resolved=${resolved}
-                .interactive=${false}
-              ></cosmetic-card>
-              <purchase-button
-                .priceHard=${pattern?.priceHard ?? null}
-                .priceSoft=${pattern?.priceSoft ?? null}
-                .rarity=${pattern?.rarity ?? "common"}
-                .itemName=${cosmeticSelectionLabel(resolved)}
-                .onPurchaseHard=${() => purchaseCosmetic(resolved, "hard")}
-                .onPurchaseSoft=${() => purchaseCosmetic(resolved, "soft")}
-              ></purchase-button>
-            </div>
-          `;
-        })}
-      </div>
-    `;
-  }
-
-  steamWishlist(): TemplateResult {
-    return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("steam_wishlist.buy_on_steam")}
-        </h3>
-        <steam-wishlist
-          campaign="win_modal"
-          .active=${this.isVisible}
-        ></steam-wishlist>
-      </div>
-    `;
-  }
-
-  discordDisplay(): TemplateResult {
-    return html`
-      <div class="text-center mb-6 bg-black/30 p-2.5 rounded-sm">
-        <h3 class="text-xl font-semibold text-white mb-3">
-          ${translateText("win_modal.join_discord")}
-        </h3>
-        <p class="text-white mb-3">
-          ${translateText("win_modal.discord_description")}
-        </p>
-        <a
-          href="https://discord.com/invite/openfront"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-block px-6 py-3 bg-indigo-600 text-white rounded-sm font-semibold transition-all duration-200 hover:bg-indigo-700 hover:-translate-y-px no-underline"
-        >
-          ${translateText("win_modal.join_server")}
-        </a>
-      </div>
-    `;
-  }
-
-  async show() {
-    gamePortal.gameplayStop();
-    this.isRankedGame =
-      this.game.config().gameConfig().rankedType !== undefined;
+  show() {
     this.isVisible = true;
-    this.requestUpdate();
-    try {
-      await this.loadPatternContent();
-    } catch (error) {
-      console.warn("Failed to load win modal cosmetics", error);
-      return;
-    }
     this.requestUpdate();
   }
 
@@ -574,253 +251,12 @@ export class WinModal extends LitElement implements Controller {
     this.requestUpdate();
   }
 
-  connectedCallback(): void {
-    super.connectedCallback();
-    if (this.xpPollAborted) {
-      this.xpPollAborted = false;
-      void this.updateXp(true);
-    }
-  }
-
-  disconnectedCallback(): void {
-    this.xpAbort?.abort();
-    super.disconnectedCallback();
-  }
-
-  /**
-   * Fills the XP section. `gameOver` is false when the player died while the
-   * game carries on: the server only awards XP once the game is archived, so
-   * that shows a provisional figure worked out here (or, when there can't be
-   * one, says XP comes at the end), and the poll starts when the game really
-   * ends.
-   */
-  private async updateXp(gameOver: boolean): Promise<void> {
-    if (this.xpPolling) return;
-    // Normally here since the game started; tried again should that fetch
-    // have failed.
-    loadGameXpPanel();
-    try {
-      const game = this.game;
-      // Spectators and replay viewers have no XP of their own.
-      if (game.config().isReplay() || !game.myPlayer()) return;
-      const account = await resolveXpAccount();
-      // /users/@me failed while there is a session: a signed-in player must
-      // not be told to sign in over a network blip, so say nothing.
-      if (account.kind === "unknown") return;
-      if (account.kind === "signed_out") {
-        // Only pitch XP when progression is actually on. There is no
-        // /users/@me progress to go by here, so ask the public config (404
-        // when progression is off; any failure also says nothing).
-        const config = await fetchProgressionConfig();
-        if (config === false || this.xpPolling) return;
-        this.xpView = { kind: "signed_out" };
-        return;
-      }
-      // /users/@me carries progress whenever progression is on (level 1
-      // before a first scored game); absent means off: no section at all.
-      const progress = account.me.player.progress;
-      if (progress === undefined) return;
-      this.sharePublicId = account.me.player.publicId;
-      this.xpPublicId = account.me.player.publicId ?? null;
-      if (!progress.legend) void this.preloadIfLastRun(progress.prestige);
-      // The game may have ended while this was resolving; the end-of-game
-      // call owns the section from then on.
-      if (this.xpPolling) return;
-      if (!gameOver) {
-        const provisional = await this.loadProvisionalXp(progress);
-        if (this.xpPolling) return;
-        if (provisional === null) {
-          this.xpView = { kind: "awaiting_end" };
-          return;
-        }
-        this.provisionalXp = provisional;
-        this.xpView = { kind: "provisional", provisional, confirming: false };
-        this.keepPendingXp(provisional);
-        return;
-      }
-      this.xpPolling = true;
-      const provisional = this.provisionalXp;
-      // A provisional figure stays up while the server's is fetched.
-      this.xpView =
-        provisional === null
-          ? { kind: "calculating" }
-          : { kind: "provisional", provisional, confirming: true };
-      const abort = new AbortController();
-      this.xpAbort = abort;
-      const result = await pollGameXp(game.gameID(), { signal: abort.signal });
-      // Detached mid-poll: leave the section be (a provisional figure stays
-      // up, still confirming) and poll again on re-attach (right away if that
-      // happened while this poll was winding down).
-      if (abort.signal.aborted) {
-        this.xpPolling = false;
-        if (this.isConnected) void this.updateXp(true);
-        else this.xpPollAborted = true;
-        return;
-      }
-      // Scored: the figure kept for the account menu and profile is done.
-      if (result !== null && this.xpPublicId !== null) {
-        applyGameXp(
-          this.xpPublicId,
-          result,
-          this.pendingAbout(progress.daily?.day),
-        );
-      }
-      if (result?.eligible && reachedLegendThisGame(result)) {
-        this.preloadLegendCeremony();
-      }
-      if (result === null) {
-        // Timed out, signed out or unreadable: hide rather than show an error
-        // (or, worse, a zero). A provisional figure stays, still provisional.
-        this.xpView =
-          provisional === null
-            ? { kind: "hidden" }
-            : { kind: "provisional", provisional, confirming: false };
-        return;
-      }
-      // A game that unlocked cosmetics changed what the player owns: the
-      // Locker (and everything else reading /users/@me) refetches.
-      if (result.eligible && (result.flares ?? []).length > 0) {
-        invalidateUserMe();
-      }
-      if (provisional === null) {
-        this.xpView = { kind: "result", data: result };
-        return;
-      }
-      const outcome = reconcileXp(provisional.result, result, {
-        disconnectedOpponents: provisional.inputs.disconnectedOpponents,
-      });
-      if (outcome.drift) {
-        // Not explained by what only the end of the game adds: the client's
-        // copy of the formula may have drifted from the server's.
-        console.warn("Provisional XP differed from the server's", {
-          gameId: result.gameId,
-          provisional: outcome.provisionalTotal,
-          server: result.eligible ? result.breakdown.total : null,
-          provisionalResult: provisional.result,
-          serverResult: result.eligible
-            ? result.breakdown
-            : { reason: result.reason },
-          inputs: provisional.inputs,
-        });
-      }
-      this.xpView = {
-        kind: "result",
-        data: result,
-        reconciled: { provisional, outcome },
-      };
-    } catch (err) {
-      console.warn("WinModal: XP section failed", err);
-      this.xpView = { kind: "hidden" };
-    }
-  }
-
-  // The lifetime XP of the account the provisional figure was worked out
-  // from (ProvisionalProgress: a figure up to it doesn't include this game).
-  private provisionalReadLifetime: number | null = null;
-
-  // Keeps an eligible provisional figure for the account, so the account
-  // menu, the Account modal and the profile show it (provisionally) until the
-  // API scores the game (ProvisionalProgress.ts).
-  // Nothing is asked of the API here: the game is still running, and the
-  // account menu's poll picks it up.
-  private keepPendingXp(provisional: ProvisionalXp): void {
-    const response = provisional.response;
-    if (this.xpPublicId === null || !response.eligible) return;
-    recordPendingXp(this.xpPublicId, {
-      ...this.pendingAbout(provisional.inputs.dailyDay ?? undefined),
-      gameId: response.gameId,
-      xp: response.breakdown.total,
-      firstGame: firstGameXp(response.breakdown),
-      // The account as read at death: the game hadn't ended, so it can't
-      // be in it.
-      notIn: this.provisionalReadLifetime ?? undefined,
-    });
-  }
-
-  // This game's kind and the API's day stamp, for the day's allowances.
-  private pendingAbout(day: string | undefined): {
-    day?: string;
-    kind?: PendingGameKind;
-  } {
-    const kinds: Partial<Record<GameType, PendingGameKind>> = {
-      [GameType.Public]: "public",
-      [GameType.Private]: "private",
-      [GameType.Singleplayer]: "singleplayer",
-    };
-    return { day, kind: kinds[this.game.config().gameConfig().gameType] };
-  }
-
-  // The provisional XP figure for a player who has just died, or null when
-  // there can't be one (see loadProvisionalXp).
-  private async loadProvisionalXp(
-    progress: Progress,
-  ): Promise<ProvisionalXp | null> {
-    const progression = await fetchProgressionConfig();
-    if (progression === false || provisionalXpRules(progression) === null) {
-      return null;
-    }
-    const game = this.game;
-    const myClientID = game.myClientID();
-    if (myClientID === undefined) return null;
-    // A provisional figure starts from where the player is now, and counts
-    // today's allowances as they are now: ask /users/@me afresh (the page's
-    // copy is from when the game started, and a game left earlier may have
-    // been scored since). Past the page's cache, so a failed ask can't cost
-    // the game-end figure its copy; the page's progress stands in for it.
-    const fresh = await fetchUserMeUncached();
-    const confirmed =
-      fresh !== false && fresh.player.progress !== undefined
-        ? fresh.player.progress
-        : progress;
-    this.provisionalReadLifetime = confirmed.lifetimeXp;
-    // Games left earlier and not scored yet stack underneath this one: it
-    // starts from where their provisional XP took the player, and from the
-    // day's allowances they used (ProvisionalProgress.ts). Nothing is asked:
-    // the stored answers decide.
-    const start =
-      this.xpPublicId === null
-        ? confirmed
-        : withPendingXp(this.xpPublicId, confirmed, progression, game.gameID());
-    return loadProvisionalXp({
-      gameId: game.gameID(),
-      myClientID,
-      config: game.config().gameConfig(),
-      progress: start,
-      progression,
-      humanStats: () => game.worker.humanStats(),
-    });
-  }
-
   private _handleExit() {
     this.hide();
     window.location.href = homeHref();
   }
 
-  private _handleRequeue() {
-    this.hide();
-    // Requeue for the same mode; Main owns the mechanism (currently a
-    // reload with the requeue param, which reopens the queue after the
-    // page teardown).
-    const rankedType = this.game.config().gameConfig().rankedType;
-    document.dispatchEvent(
-      new CustomEvent("matchmaking-requeue", {
-        detail: {
-          mode:
-            rankedType === RankedType.TwoVTwo
-              ? ("2v2" as const)
-              : rankedType === RankedType.FreeForAll
-                ? ("ffa" as const)
-                : rankedType === RankedType.ClanWars
-                  ? ("clanwars" as const)
-                  : ("1v1" as const),
-        },
-      }),
-    );
-  }
-
-  init() {
-    if (!this.game.config().isReplay()) loadGameXpPanel();
-  }
+  init() {}
 
   tick() {
     const myPlayer = this.game.myPlayer();
@@ -834,12 +270,10 @@ export class WinModal extends LitElement implements Controller {
       this.hasShownDeathModal = true;
       this._title = translateText("win_modal.died");
       this.eventBus.emit(new PlaySoundEffectEvent("defeat"));
-      void this.updateXp(false);
       this.show();
     }
     const updates = this.game.updatesSinceLastTick();
     const winUpdates = updates?.[GameUpdateType.Win] ?? [];
-    if (winUpdates.length > 0) void this.updateXp(true);
     winUpdates.forEach((wu) => {
       if (wu.winner === undefined) {
         // Match cancelled (e.g. a ranked 2v2 that didn't fill or fully
@@ -855,7 +289,6 @@ export class WinModal extends LitElement implements Controller {
         if (wu.winner[1] === this.game.myPlayer()?.team()) {
           this._title = translateText("win_modal.your_team");
           this.isWin = true;
-          gamePortal.happytime();
         } else {
           this._title = translateText("win_modal.other_team", {
             team: getTranslatedPlayerTeamLabel(wu.winner[1]),
@@ -888,7 +321,6 @@ export class WinModal extends LitElement implements Controller {
         ) {
           this._title = translateText("win_modal.you_won");
           this.isWin = true;
-          gamePortal.happytime();
         } else {
           this._title = translateText("win_modal.other_won", {
             player: winner.displayName(),

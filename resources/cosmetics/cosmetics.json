@@ -1,0 +1,545 @@
+{
+  "patterns": {},
+  "flags": {
+    "american_samoa": {
+      "name": "american_samoa",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/American_Samoa.svg"
+    },
+    "apartheid_south_africa": {
+      "name": "apartheid_south_africa",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Apartheid%20South%20Africa.svg"
+    },
+    "black_flag": {
+      "name": "black_flag",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Black%20Flag.svg"
+    },
+    "drenthe": {
+      "name": "drenthe",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Drenthe.svg"
+    },
+    "essex": {
+      "name": "essex",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Essex.svg"
+    },
+    "flag_of_the_trucial_states_1968_": {
+      "name": "flag_of_the_trucial_states_1968_",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Flag_of_the_Trucial_States_(1968%E2%80%931971).svg"
+    },
+    "franks": {
+      "name": "franks",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Franks.svg"
+    },
+    "friesland": {
+      "name": "friesland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Friesland.svg"
+    },
+    "gelderland": {
+      "name": "gelderland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Gelderland.svg"
+    },
+    "guam": {
+      "name": "guam",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Guam.svg"
+    },
+    "imperial_ethiopia": {
+      "name": "imperial_ethiopia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Imperial%20Ethiopia.svg"
+    },
+    "kent": {
+      "name": "kent",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Kent.svg"
+    },
+    "kingdom_of_iraq": {
+      "name": "kingdom_of_iraq",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Kingdom_of_Iraq.svg"
+    },
+    "kingdom_of_judah": {
+      "name": "kingdom_of_judah",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Kingdom_of_Judah.svg"
+    },
+    "kuomintang_emblem": {
+      "name": "kuomintang_emblem",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Kuomintang_Emblem.svg"
+    },
+    "laigin": {
+      "name": "laigin",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Laigin.svg"
+    },
+    "marinid_dynasty": {
+      "name": "marinid_dynasty",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Marinid%20Dynasty.svg"
+    },
+    "mauritania": {
+      "name": "mauritania",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Mauritania.svg"
+    },
+    "munster": {
+      "name": "munster",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Munster.svg"
+    },
+    "newfoundland": {
+      "name": "newfoundland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Newfoundland.svg"
+    },
+    "north_brabant": {
+      "name": "north_brabant",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/North_Brabant.svg"
+    },
+    "northern_mariana_islands": {
+      "name": "northern_mariana_islands",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Northern_Mariana_Islands.svg"
+    },
+    "ofm": {
+      "name": "ofm",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/OFM.svg"
+    },
+    "poland_lithuania": {
+      "name": "poland_lithuania",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Poland%20Lithuania.svg"
+    },
+    "ru_ad": {
+      "name": "ru_ad",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/RU-AD.svg"
+    },
+    "rhodesia": {
+      "name": "rhodesia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Rhodesia.svg"
+    },
+    "sakhalin": {
+      "name": "sakhalin",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Sakhalin.svg"
+    },
+    "south_vietnam": {
+      "name": "south_vietnam",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/South%20Vietnam.svg"
+    },
+    "ulaid": {
+      "name": "ulaid",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Ulaid.svg"
+    },
+    "united_states_virgin_islands": {
+      "name": "united_states_virgin_islands",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/United_States_Virgin_Islands.svg"
+    },
+    "wassex": {
+      "name": "wassex",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/Wassex.svg"
+    },
+    "ac": {
+      "name": "ac",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ac.svg"
+    },
+    "bai_bur": {
+      "name": "bai_bur",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/bai_bur.svg"
+    },
+    "bai_irk": {
+      "name": "bai_irk",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/bai_irk.svg"
+    },
+    "bulgaria": {
+      "name": "bulgaria",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/bulgaria.svg"
+    },
+    "ca_nb": {
+      "name": "ca_nb",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ca_nb.svg"
+    },
+    "ca_ns": {
+      "name": "ca_ns",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ca_ns.svg"
+    },
+    "ca_pe": {
+      "name": "ca_pe",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ca_pe.svg"
+    },
+    "catalonia": {
+      "name": "catalonia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/catalonia.svg"
+    },
+    "ceres": {
+      "name": "ceres",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ceres.svg"
+    },
+    "denmark": {
+      "name": "denmark",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/denmark.svg"
+    },
+    "eo": {
+      "name": "eo",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/eo.svg"
+    },
+    "eris": {
+      "name": "eris",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/eris.svg"
+    },
+    "eros": {
+      "name": "eros",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/eros.svg"
+    },
+    "estonia": {
+      "name": "estonia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/estonia.svg"
+    },
+    "finland": {
+      "name": "finland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/finland.svg"
+    },
+    "greece": {
+      "name": "greece",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/greece.svg"
+    },
+    "gsw": {
+      "name": "gsw",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/gsw.svg"
+    },
+    "haumea": {
+      "name": "haumea",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/haumea.svg"
+    },
+    "hungary": {
+      "name": "hungary",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/hungary.svg"
+    },
+    "hygiea": {
+      "name": "hygiea",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/hygiea.svg"
+    },
+    "iceland": {
+      "name": "iceland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/iceland.svg"
+    },
+    "iraq": {
+      "name": "iraq",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/iraq.svg"
+    },
+    "ireland": {
+      "name": "ireland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ireland.svg"
+    },
+    "juno": {
+      "name": "juno",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/juno.svg"
+    },
+    "jupiter": {
+      "name": "jupiter",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/jupiter.svg"
+    },
+    "latvia": {
+      "name": "latvia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/latvia.svg"
+    },
+    "lithuania": {
+      "name": "lithuania",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/lithuania.svg"
+    },
+    "luna": {
+      "name": "luna",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/luna.svg"
+    },
+    "makemake": {
+      "name": "makemake",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/makemake.svg"
+    },
+    "mars": {
+      "name": "mars",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/mars.svg"
+    },
+    "mercury": {
+      "name": "mercury",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/mercury.svg"
+    },
+    "neptune": {
+      "name": "neptune",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/neptune.svg"
+    },
+    "netherlands": {
+      "name": "netherlands",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/netherlands.svg"
+    },
+    "norway": {
+      "name": "norway",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/norway.svg"
+    },
+    "orcus": {
+      "name": "orcus",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/orcus.svg"
+    },
+    "pallas": {
+      "name": "pallas",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/pallas.svg"
+    },
+    "pluto": {
+      "name": "pluto",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/pluto.svg"
+    },
+    "poland": {
+      "name": "poland",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/poland.svg"
+    },
+    "portugal": {
+      "name": "portugal",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/portugal.svg"
+    },
+    "quaoar": {
+      "name": "quaoar",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/quaoar.svg"
+    },
+    "salacia": {
+      "name": "salacia",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/salacia.svg"
+    },
+    "santa_cruz": {
+      "name": "santa_cruz",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/santa_cruz.svg"
+    },
+    "saturn": {
+      "name": "saturn",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/saturn.svg"
+    },
+    "sedna": {
+      "name": "sedna",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/sedna.svg"
+    },
+    "sh": {
+      "name": "sh",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/sh.svg"
+    },
+    "sh_yugo": {
+      "name": "sh_yugo",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/sh_yugo.svg"
+    },
+    "sol": {
+      "name": "sol",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/sol.svg"
+    },
+    "spain": {
+      "name": "spain",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/spain.svg"
+    },
+    "sweden": {
+      "name": "sweden",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/sweden.svg"
+    },
+    "ta": {
+      "name": "ta",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/ta.svg"
+    },
+    "terra": {
+      "name": "terra",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/terra.svg"
+    },
+    "toki_pona": {
+      "name": "toki_pona",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/toki_pona.svg"
+    },
+    "uk": {
+      "name": "uk",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/uk.svg"
+    },
+    "uk_us_flag": {
+      "name": "uk_us_flag",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/uk_us_flag.svg"
+    },
+    "um": {
+      "name": "um",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/um.svg"
+    },
+    "uranus": {
+      "name": "uranus",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/uranus.svg"
+    },
+    "venus": {
+      "name": "venus",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/venus.svg"
+    },
+    "vesta": {
+      "name": "vesta",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/vesta.svg"
+    },
+    "zh_hant": {
+      "name": "zh_hant",
+      "product": null,
+      "rarity": "common",
+      "url": "/flags/zh-hant.svg"
+    }
+  }
+}

@@ -1,6 +1,5 @@
 import { ID, isValidGameID } from "@openfront/engine-api/Schemas";
 import { CloseCode, CloseReason } from "@openfront/shared/CloseCodes";
-import { GameEnv } from "@openfront/shared/configuration/Env";
 import { generateID, replacer } from "@openfront/shared/SharedUtil";
 import {
   ClientMessage,
@@ -43,11 +42,10 @@ import { levelBadgeForPlayer } from "./LevelBadge";
 import { payForLobbyQueue, queueListedLobby } from "./LobbyQueuePayment";
 import { logger } from "./Logger";
 import { registerPlayerProfileRoute } from "./PlayerProfileRoute";
-import { resolveVerifiedJoin } from "./Privilege";
+import { createFreePrivilegeChecker, resolveVerifiedJoin } from "./Privilege";
 
 import { MapPlaylist } from "./MapPlaylist";
 import { setNoStoreHeaders } from "./NoStoreHeaders";
-import { PrivilegeRefresher } from "./PrivilegeRefresher";
 import { startRankedCheckinLoops } from "./RankedCheckin";
 import { rejoinOrClose } from "./Rejoin";
 import { ServerEnv } from "./ServerEnv";
@@ -134,9 +132,8 @@ export function registerListingRoute(opts: {
           return res.status(409).json({ error: preError });
         }
 
-        // Dev has no subscription backend; skip the check so the feature is
-        // testable locally (same precedent as Turnstile).
-        if (ServerEnv.env() !== GameEnv.Dev) {
+        // Dev and standalone have no subscription backend; skip the check.
+        if (!ServerEnv.anonymousJoins()) {
           const userMe = await getUserMe(token);
           if (userMe.type === "error") {
             log.warn(
@@ -237,14 +234,9 @@ export async function startWorker() {
     initWorkerMetrics(gm, lobbyService, singleplayerPresence);
   }
 
-  const privilegeRefresher = new PrivilegeRefresher(
-    ServerEnv.jwtIssuer() + "/cosmetics.json",
-    ServerEnv.apiKey(),
-    ServerEnv.jwtIssuer() + "/reserved_clan_tags",
-    log,
-  );
-  // Standalone: no cosmetics API, so the checker stays fail-open (see get()).
-  if (!ServerEnv.standalone()) privilegeRefresher.start();
+  // Every cosmetic in the bundled catalog is free: the checker needs no API
+  // and no purchase flares (see FreePrivilegeChecker).
+  const privilegeChecker = createFreePrivilegeChecker();
 
   // Ahead of everything that can reject a request — the worker-prefix check
   // below and the rate limiter further down — so that a 404 or a 429 still
@@ -432,9 +424,9 @@ export async function startWorker() {
         queueForPublic: () => game.queueForPublic(),
       },
       auth.persistentId,
-      // Dev has no payment backend; skip the charge so the feature is
-      // testable locally (same precedent as the listing subscription check).
-      ServerEnv.env() === GameEnv.Dev
+      // Dev and standalone have no payment backend; skip the charge (same
+      // precedent as the listing subscription check).
+      ServerEnv.anonymousJoins()
         ? async () => ({ type: "success" })
         : () => payForLobbyQueue(token, game.id),
     );
@@ -635,7 +627,7 @@ export async function startWorker() {
         // API. Runs before the rejoin attempt so a pre-start identity
         // change on refresh is screened before it is applied.
         let verifySkipped = false;
-        if (ServerEnv.env() !== GameEnv.Dev) {
+        if (!ServerEnv.anonymousJoins()) {
           const game = gm.game(clientMsg.gameID);
           const stored = game?.storedIdentity(persistentId) ?? null;
           const isReadmit = game?.wasAdmitted(persistentId) ?? false;
@@ -798,9 +790,10 @@ export async function startWorker() {
         // Enforce clan tag ownership: a player can wear a tag only if they're
         // a member; a real clan they're not in (or an unverifiable tag) is
         // dropped to prevent impersonation. Fictional tags pass through.
-        const resolution = privilegeRefresher
-          .get()
-          .resolveClanTag(clanTag, ownedClanTags);
+        const resolution = privilegeChecker.resolveClanTag(
+          clanTag,
+          ownedClanTags,
+        );
         if (resolution.dropped) {
           log.warn("Dropped clan tag: player is not a member", {
             persistentID: persistentId,
@@ -810,9 +803,10 @@ export async function startWorker() {
         }
         const resolvedClanTag = resolution.tag;
 
-        const cosmeticResult = privilegeRefresher
-          .get()
-          .isAllowed(flares ?? [], clientMsg.cosmetics ?? {});
+        const cosmeticResult = privilegeChecker.isAllowed(
+          flares ?? [],
+          clientMsg.cosmetics ?? {},
+        );
 
         if (cosmeticResult.type === "forbidden") {
           log.warn(`Forbidden: ${cosmeticResult.reason}`, {

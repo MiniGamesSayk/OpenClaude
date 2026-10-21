@@ -14,8 +14,6 @@ export type EquippedCosmetic = {
   pattern: PlayerPattern | null;
   /** Skins and crowns only. */
   imageUrl: string | null;
-  /** "unknown" when the item isn't in the catalog, so no store link is offered. */
-  relationship: ResolvedCosmetic["relationship"] | "unknown";
 };
 
 function keyForEquippedPattern(pattern: PlayerPattern): string {
@@ -26,8 +24,7 @@ function keyForEquippedPattern(pattern: PlayerPattern): string {
 
 /**
  * The cosmetics a player has equipped, paired with the viewer's catalog so the
- * UI knows whether the viewer already owns each one. Flags are left out: the
- * panel already shows the flag, and nation flags aren't store items.
+ * UI can draw each one. Flags are left out: the panel already shows the flag.
  */
 export function equippedCosmetics(
   cosmetics: PlayerCosmetics,
@@ -58,7 +55,6 @@ export function equippedCosmetics(
       resolved,
       pattern,
       imageUrl,
-      relationship: resolved?.relationship ?? "unknown",
     });
   };
 
@@ -102,29 +98,4 @@ export function equippedCosmetics(
   }
 
   return equipped;
-}
-
-/**
- * Hash route that opens the store on the item, for `ModalRouter`. Effects only
- * get their tab — the effects grid has no per-item target.
- */
-export function storeRouteFor(equipped: EquippedCosmetic): string | null {
-  if (equipped.relationship !== "purchasable") return null;
-  if (equipped.type === "effect") {
-    return "#modal=store&tab=effects";
-  }
-  return `#modal=store&tab=cosmetics&item=${encodeURIComponent(equipped.key)}`;
-}
-
-/**
- * Whether a catalog key is the item a store deep link asked for. Pattern
- * palette variants collapse into one store tile, so any variant of the
- * requested pattern matches.
- */
-export function matchesStoreItem(key: string, wanted: string): boolean {
-  if (key === wanted) return true;
-  if (!key.startsWith("pattern:") || !wanted.startsWith("pattern:")) {
-    return false;
-  }
-  return key.split(":")[1] === wanted.split(":")[1];
 }

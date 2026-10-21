@@ -216,6 +216,12 @@ export class MasterLobbyService {
   // recentMaps (what the site just played) is not yet fed to the playlist —
   // its no-consecutive-repeat rule stays per server for now.
   private async handleCoordinatorCreate(msg: CoordinatorCreateGame) {
+    if (!ServerEnv.publicLobbies()) {
+      this.log.info(
+        `refusing coordinator createGame (${msg.publicGameType}): PUBLIC_LOBBIES is off`,
+      );
+      return;
+    }
     if (!this.active || !this.started) {
       this.log.info(
         `refusing coordinator createGame (${msg.publicGameType}): ${
@@ -475,6 +481,9 @@ export class MasterLobbyService {
   }
 
   private async maybeScheduleLobby() {
+    // Automatic public lobbies are opt-in (PUBLIC_LOBBIES=1).
+    if (!ServerEnv.publicLobbies()) return;
+
     // Coordinated: the site's queue depth and countdowns are the
     // coordinator's; adding our own here would double-schedule.
     if (this.isCoordinated()) return;

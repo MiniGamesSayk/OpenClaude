@@ -1,4 +1,3 @@
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import {
   Cosmetics,
   Effect,
@@ -8,7 +7,7 @@ import {
   NUKE_EXPLOSION_TYPES,
   NukeExplosionType,
 } from "@openfront/shared/CosmeticSchemas";
-import { html, LitElement, nothing, PropertyValues, TemplateResult } from "lit";
+import { html, LitElement, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import {
   resolveCosmetics,
@@ -33,23 +32,17 @@ export interface EffectSlotSelection {
 
 /**
  * Renders effect cosmetics grouped by effectType, one sub-header per type.
- * Shared by the home selection modal and the Store's Effects tab.
+ * Clicking an effect persists the selection to UserSettings and the Unequip
+ * action clears the active slot.
  *
- * - mode="select": owned effects; clicking persists the selection to
- *   UserSettings and the Unequip action clears the active slot.
- * - mode="purchase": purchasable effects per type with the buy flow.
  * - effectType (optional): render only that one effectType and drop the
  *   sub-header (an outer tab already labels it). Unset = all types stacked.
  * - tabbed: render an internal tab bar (one tab per effectType) and show one
- *   type at a time. Used by the Store, whose own top-level tabs can't nest.
+ *   type at a time.
  */
 @customElement("effects-grid")
 export class EffectsGrid extends LitElement {
   @property({ attribute: false }) cosmetics: Cosmetics | null = null;
-  @property({ attribute: false }) userMeResponse: UserMeResponse | false =
-    false;
-  @property({ type: String }) mode: "select" | "purchase" = "select";
-  @property({ attribute: false }) affiliateCode: string | null = null;
   @property({ type: String }) search = "";
   // When set, render only this effectType and drop the sub-header.
   @property({ type: String }) effectType: EffectType | null = null;
@@ -57,28 +50,15 @@ export class EffectsGrid extends LitElement {
   @property({ type: Boolean }) tabbed = false;
   @property({ attribute: false })
   onActiveSlotChange?: (selection: EffectSlotSelection) => void;
-  @property({ attribute: false })
-  onPurchaseFocus?: (resolved: ResolvedCosmetic) => void;
-  @property({ attribute: false })
-  onVisiblePurchaseItemsChange?: (items: readonly ResolvedCosmetic[]) => void;
-  @property({ attribute: false })
-  renderPurchaseAction?: (resolved: ResolvedCosmetic) => TemplateResult;
-  @property({ type: String }) focusedKey: string | null = null;
   @state() private activeType: EffectType = EFFECT_TYPES[0];
   // Active nuke-explosion sub-tab (atom / hydro / mirv); only shown for the
   // nukeExplosion effectType, which groups its effects by nukeType.
   @state() private activeNukeType: NukeExplosionType = NUKE_EXPLOSION_TYPES[0];
 
   private userSettings = new UserSettings();
-  private renderedItems: ResolvedCosmetic[] = [];
   private readonly pages = new ProgressiveList(this);
   private resolvedCache:
-    | {
-        cosmetics: Cosmetics | null;
-        userMeResponse: UserMeResponse | false;
-        affiliateCode: string | null;
-        items: ResolvedCosmetic[];
-      }
+    | { cosmetics: Cosmetics | null; items: ResolvedCosmetic[] }
     | undefined;
   private _onChange = () => this.requestUpdate();
 
@@ -137,24 +117,11 @@ export class EffectsGrid extends LitElement {
 
   private resolvedItems(): ResolvedCosmetic[] {
     const cache = this.resolvedCache;
-    if (
-      cache?.cosmetics === this.cosmetics &&
-      cache.userMeResponse === this.userMeResponse &&
-      cache.affiliateCode === this.affiliateCode
-    ) {
+    if (cache?.cosmetics === this.cosmetics) {
       return cache.items;
     }
-    const items = resolveCosmetics(
-      this.cosmetics,
-      this.userMeResponse,
-      this.affiliateCode,
-    );
-    this.resolvedCache = {
-      cosmetics: this.cosmetics,
-      userMeResponse: this.userMeResponse,
-      affiliateCode: this.affiliateCode,
-      items,
-    };
+    const items = resolveCosmetics(this.cosmetics);
+    this.resolvedCache = { cosmetics: this.cosmetics, items };
     return items;
   }
 
@@ -180,16 +147,12 @@ export class EffectsGrid extends LitElement {
 
   private selectEffectType(type: EffectType) {
     this.activeType = type;
-    const all = this.resolvedItems();
-    this.emitActiveSlot(all);
-    this.emitVisiblePurchaseItems(all);
+    this.emitActiveSlot();
   }
 
   private selectNukeType(type: NukeExplosionType) {
     this.activeNukeType = type;
-    const all = this.resolvedItems();
-    this.emitActiveSlot(all);
-    this.emitVisiblePurchaseItems(all);
+    this.emitActiveSlot();
   }
 
   // The selection slot for a tile: for nuke explosions the effect's own
@@ -214,64 +177,16 @@ export class EffectsGrid extends LitElement {
     all: ResolvedCosmetic[],
     effectType: EffectType,
   ): ResolvedCosmetic[] {
-    const ofType = all.filter(
+    return all.filter(
       (r) =>
         r.type === "effect" &&
         r.cosmetic !== null &&
         r.effectType === effectType &&
         this.matchesSearch(r),
     );
-    if (this.mode === "purchase") {
-      return ofType.filter((r) => r.relationship === "purchasable");
-    }
-    return ofType.filter((r) => r.relationship === "owned");
-  }
-
-  private visiblePurchaseItems(all: ResolvedCosmetic[]): ResolvedCosmetic[] {
-    const activeType = this.tabbed ? this.activeType : this.effectType;
-    const types: readonly EffectType[] = activeType
-      ? [activeType]
-      : EFFECT_TYPES;
-    return types.flatMap((type) => {
-      const items = this.itemsForType(all, type);
-      return type === "nukeExplosion"
-        ? items.filter((item) => this.nukeTypeOf(item) === this.activeNukeType)
-        : items;
-    });
-  }
-
-  private emitVisiblePurchaseItems(all?: ResolvedCosmetic[]): void {
-    if (this.mode !== "purchase") return;
-    this.onVisiblePurchaseItemsChange?.(
-      this.visiblePurchaseItems(all ?? this.resolvedItems()),
-    );
-  }
-
-  protected updated(changed: PropertyValues<this>): void {
-    if (
-      changed.has("cosmetics") ||
-      changed.has("userMeResponse") ||
-      changed.has("affiliateCode") ||
-      changed.has("mode") ||
-      changed.has("search") ||
-      changed.has("effectType") ||
-      changed.has("tabbed")
-    ) {
-      this.emitVisiblePurchaseItems(this.renderedItems);
-    }
   }
 
   private renderTile(slot: string, r: ResolvedCosmetic): TemplateResult {
-    if (this.mode === "purchase") {
-      return html`<cosmetic-card
-        data-store-product
-        class="block h-full min-w-0"
-        .resolved=${r}
-        state=${r.key === this.focusedKey ? "focused" : "idle"}
-        .onActivate=${() => this.onPurchaseFocus?.(r)}
-        .actionContent=${this.renderPurchaseAction?.(r) ?? nothing}
-      ></cosmetic-card>`;
-    }
     const name = (r.cosmetic as Effect | null)?.name ?? null;
     const selected = this.userSettings.getSelectedEffectName(slot);
     const isSelected =
@@ -334,7 +249,7 @@ export class EffectsGrid extends LitElement {
   }
 
   private renderUnequip(): TemplateResult | typeof nothing {
-    if (this.mode !== "select" || (!this.tabbed && this.effectType === null)) {
+    if (!this.tabbed && this.effectType === null) {
       return nothing;
     }
     const slot = this.activeSlot();
@@ -354,7 +269,6 @@ export class EffectsGrid extends LitElement {
 
   render() {
     const all = this.resolvedItems();
-    this.renderedItems = all;
     // The active single type: the tab's selection (tabbed) or the effectType
     // prop; null = all types stacked with sub-headers.
     const activeType = this.tabbed ? this.activeType : this.effectType;
@@ -381,30 +295,27 @@ export class EffectsGrid extends LitElement {
     if (sections.length === 0) {
       // A single-type view names the type it is empty of ("…any Boat Trail
       // effects yet"), below this grid's own tab bar and Unequip control.
-      panel =
-        activeType && this.mode === "select"
-          ? html`<p
-              data-effects-empty=${activeType}
-              class="px-4 pt-4 pb-8 text-center text-sm font-medium text-white/60"
-            >
-              ${translateText("inventory.no_owned_effects_of_type", {
-                type: translateText(`effects.type.${activeType}`),
-              })}
-            </p>`
-          : activeType
-            ? html`<div class="p-4"></div>`
-            : html`<div
-                class="text-white/40 text-sm font-bold uppercase tracking-wider text-center py-8"
-              >
-                ${translateText("store.no_effects")}
-              </div>`;
+      panel = activeType
+        ? html`<p
+            data-effects-empty=${activeType}
+            class="px-4 pt-4 pb-8 text-center text-sm font-medium text-white/60"
+          >
+            ${translateText("inventory.no_effects_of_type", {
+              type: translateText(`effects.type.${activeType}`),
+            })}
+          </p>`
+        : html`<div
+            class="text-white/40 text-sm font-bold uppercase tracking-wider text-center py-8"
+          >
+            ${translateText("inventory.no_effects")}
+          </div>`;
     } else {
       panel = html`
         <div class="flex flex-col gap-4 p-4">
           ${sections.map((s) => {
             const page = this.pages.page(
               `effects-${s.type}`,
-              `${this.mode}:${this.activeNukeType}:${this.search}`,
+              `${this.activeNukeType}:${this.search}`,
               s.items,
             );
             return html`

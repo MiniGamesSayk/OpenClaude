@@ -284,6 +284,7 @@ describe("WorkerLobbyService queued lobbies", () => {
 describe("MasterLobbyService paid queue order", () => {
   function createService() {
     vi.stubEnv("DOMAIN", "localhost");
+    vi.stubEnv("PUBLIC_LOBBIES", "1");
     vi.spyOn(ServerEnv, "numWorkers").mockReturnValue(1);
     vi.spyOn(ServerEnv, "workerIndex").mockReturnValue(1);
     vi.spyOn(ServerEnv, "gameCreationRate").mockReturnValue(120_000);

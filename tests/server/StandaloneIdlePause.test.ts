@@ -57,6 +57,7 @@ describe("MasterLobbyService idle pause", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubEnv("DOMAIN", "localhost");
+    vi.stubEnv("PUBLIC_LOBBIES", "1");
     vi.stubEnv("IDLE_PAUSE_SEC", "60");
     vi.spyOn(ServerEnv, "numWorkers").mockReturnValue(1);
     vi.spyOn(ServerEnv, "workerIndex").mockReturnValue(0);
@@ -111,8 +112,15 @@ describe("MasterLobbyService idle pause", () => {
   it("never pauses without IDLE_PAUSE_SEC", async () => {
     vi.unstubAllEnvs();
     vi.stubEnv("DOMAIN", "localhost");
+    vi.stubEnv("PUBLIC_LOBBIES", "1");
     vi.advanceTimersByTime(24 * 3600 * 1000);
     await schedule();
     expect(createGameCalls()).toBeGreaterThan(0);
+  });
+
+  it("creates no public lobby unless PUBLIC_LOBBIES is set", async () => {
+    vi.stubEnv("PUBLIC_LOBBIES", "");
+    await schedule();
+    expect(createGameCalls()).toBe(0);
   });
 });

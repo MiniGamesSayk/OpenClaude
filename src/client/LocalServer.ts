@@ -5,24 +5,14 @@ import {
   Turn,
 } from "@openfront/engine-api/Schemas";
 import { EventBus } from "@openfront/shared/EventBus";
-import {
-  createPartialGameRecord,
-  decompressGameRecord,
-  replacer,
-} from "@openfront/shared/SharedUtil";
+import { decompressGameRecord } from "@openfront/shared/SharedUtil";
 import {
   ClientMessage,
   ClientSendWinnerMessage,
-  PartialGameRecord,
-  PartialGameRecordSchema,
-  PlayerRecord,
   ServerMessage,
   ServerStartGameMessage,
 } from "@openfront/shared/WireSchemas";
 import { ClientEnv } from "src/client/ClientEnv";
-import { z } from "zod";
-import { getApiBase } from "./Api";
-import { getAuthHeader, getPersistentID } from "./Auth";
 import { LobbyConfig } from "./ClientGameRunner";
 import {
   GameSpeedDownIntentEvent,
@@ -61,10 +51,6 @@ export class LocalServer {
   private clientID: ClientID | undefined;
   private winner: ClientSendWinnerMessage | null = null;
   private allPlayersStats: AllPlayersStats = {};
-  // Set only once an upload got a 2xx, so endGame() retries failed or
-  // skipped win-time uploads during teardown.
-  private archived = false;
-  private archiveInFlight = false;
 
   private turnsExecuted = 0;
   private turnStartTime = 0;
@@ -245,12 +231,6 @@ export class LocalServer {
     if (clientMsg.type === "winner") {
       this.winner = clientMsg;
       this.allPlayersStats = clientMsg.allPlayersStats;
-      if (!this.isReplay) {
-        // Archive as soon as the game is decided: endGame() only runs during
-        // page teardown, where the auth refresh and upload race document
-        // destruction and can silently lose the record (#4931).
-        this.archiveGameRecord(false);
-      }
     }
   }
 
@@ -289,128 +269,5 @@ export class LocalServer {
     clearInterval(this.turnCheckInterval);
     this.stopHeartbeat?.();
     this.stopHeartbeat = null;
-    if (this.isReplay) {
-      return;
-    }
-    // Fallback for games that end without a winner (e.g. quitting early);
-    // decided games were already archived at win time.
-    this.archiveGameRecord(true);
   }
-
-  private archiveGameRecord(unloading: boolean) {
-    if (this.archived || this.archiveInFlight) {
-      return;
-    }
-    const players: PlayerRecord[] = [
-      {
-        persistentID: getPersistentID(),
-        username: this.lobbyConfig.playerName,
-        clanTag: this.lobbyConfig.playerClanTag ?? null,
-        clientID: this.clientID!,
-        stats: this.allPlayersStats[this.clientID!],
-        cosmetics: this.lobbyConfig.gameStartInfo?.players[0].cosmetics,
-      },
-    ];
-    if (this.lobbyConfig.gameStartInfo === undefined) {
-      throw new Error("missing gameStartInfo");
-    }
-    const record = createPartialGameRecord(
-      this.lobbyConfig.gameStartInfo.gameID,
-      this.lobbyConfig.gameStartInfo.config,
-      players,
-      this.turns,
-      this.startedAt,
-      Date.now(),
-      this.winner?.winner,
-    );
-
-    const result = PartialGameRecordSchema.safeParse(record);
-    if (!result.success) {
-      const error = z.prettifyError(result.error);
-      console.error("Error parsing game record", error);
-      return;
-    }
-
-    this.archiveGame(result.data, unloading);
-  }
-
-  private async archiveGame(
-    record: PartialGameRecord,
-    unloading: boolean,
-  ): Promise<void> {
-    this.archiveInFlight = true;
-    try {
-      const authHeader = await getAuthHeader();
-      if (authHeader === "") {
-        // The archive API requires a session. Guests have one too, so this
-        // only trips when none could be established (e.g. API unreachable).
-        return;
-      }
-      // Replays refuse to load unless the archived commit matches the client
-      // build, and the API worker can't stamp it (it has a different build).
-      const jsonString = JSON.stringify(
-        { ...record, gitCommit: ClientEnv.gitCommit() },
-        replacer,
-      );
-      const compressedData = await compress(jsonString);
-      const response = await fetch(
-        `${getApiBase()}/archive_singleplayer_game`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Content-Encoding": "gzip",
-            Authorization: authHeader,
-          },
-          body: compressedData,
-          // keepalive lets the request outlive page teardown but caps the body
-          // at 64 KiB, so only set it when the page is actually unloading.
-          keepalive: unloading,
-        },
-      );
-      if (response.ok) {
-        this.archived = true;
-      } else {
-        console.error(
-          `Failed to archive singleplayer game: ${response.status}`,
-        );
-      }
-    } catch (error) {
-      console.warn("Failed to archive singleplayer game:", error);
-    } finally {
-      this.archiveInFlight = false;
-    }
-  }
-}
-
-async function compress(data: string): Promise<ArrayBuffer> {
-  const stream = new CompressionStream("gzip");
-  const writer = stream.writable.getWriter();
-  const reader = stream.readable.getReader();
-
-  // Write the data to the compression stream
-  writer.write(new TextEncoder().encode(data));
-  writer.close();
-
-  // Read the compressed data
-  const chunks: Uint8Array[] = [];
-  let done = false;
-  while (!done) {
-    const { value, done: readerDone } = await reader.read();
-    done = readerDone;
-    if (value) {
-      chunks.push(value);
-    }
-  }
-
-  // Combine all chunks into a single Uint8Array
-  const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-  const compressedData = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    compressedData.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return compressedData.buffer;
 }

@@ -1,8 +1,10 @@
+import bundledCosmetics from "resources/cosmetics/cosmetics.json";
 import countries from "resources/countries.json";
 
 import { isTemporaryUsername } from "@openfront/shared/ApiSchemas";
 import {
   Cosmetics,
+  CosmeticsSchema,
   findEffectForSlot,
 } from "@openfront/shared/CosmeticSchemas";
 import { decodePatternData } from "@openfront/shared/PatternDecoder";
@@ -15,6 +17,7 @@ import {
   PlayerPattern,
   PlayerSkin,
 } from "@openfront/shared/WireSchemas";
+import { base64url } from "jose";
 
 const countryCodes = countries.filter((c) => !c.restricted).map((c) => c.code);
 
@@ -249,33 +252,61 @@ export class PrivilegeCheckerImpl implements PrivilegeChecker {
     const allowedColors = flares
       .filter((flare) => flare.startsWith("color:"))
       .map((flare) => flare.split(":")[1]);
-    if (!allowedColors.includes(color)) {
+    if (!allowedColors.includes("*") && !allowedColors.includes(color)) {
       throw new Error(`Color ${color} not allowed`);
     }
     return { color };
   }
 }
 
-export class FailOpenPrivilegeChecker implements PrivilegeChecker {
-  isAllowed(flares: string[], refs: PlayerCosmeticRefs): CosmeticResult {
-    // Catalog cosmetics can't be resolved without the cosmetics data, but the
-    // verified intent isn't a catalog item — pass it through; the Worker's
-    // resolveVerifiedJoin decides it against the account at join.
-    return {
-      type: "allowed",
-      cosmetics: refs.verified === true ? { verified: true } : {},
-    };
+/**
+ * Every cosmetic is free: a join may wear anything the catalog lists, with no
+ * purchase or entitlement behind it. These are the wildcard flares a paying
+ * account would hold, granted to everyone.
+ */
+export const FREE_FLARES: readonly string[] = [
+  "pattern:*",
+  "flag:*",
+  "skin:*",
+  "crown:*",
+  "effect:*",
+  "color:*",
+];
+
+/**
+ * The checker used by the game server: validates cosmetic references against
+ * the bundled catalog (resources/cosmetics/cosmetics.json) and ignores the
+ * flares the caller passes, treating every player as entitled to everything
+ * in it. A reference to something the catalog does not list is still refused.
+ */
+export class FreePrivilegeChecker implements PrivilegeChecker {
+  private readonly inner: PrivilegeCheckerImpl;
+
+  constructor(
+    cosmetics: Cosmetics,
+    b64urlDecode: (base64: string) => Uint8Array,
+  ) {
+    this.inner = new PrivilegeCheckerImpl(cosmetics, b64urlDecode);
   }
 
-  // No reserved-tag list while cosmetics infra is unavailable (e.g. during
-  // development), so ownership can't be verified. Fail open and keep the tag
-  // rather than blocking everyone whenever the API service is down.
+  isAllowed(_flares: string[], refs: PlayerCosmeticRefs): CosmeticResult {
+    return this.inner.isAllowed([...FREE_FLARES], refs);
+  }
+
   resolveClanTag(
     censoredTag: string | null,
     ownedClanTags: string[],
   ): ClanTagResolution {
-    return { tag: censoredTag, dropped: false };
+    return this.inner.resolveClanTag(censoredTag, ownedClanTags);
   }
+}
+
+/** The free checker over the catalog bundled with the game. */
+export function createFreePrivilegeChecker(): PrivilegeChecker {
+  return new FreePrivilegeChecker(
+    CosmeticsSchema.parse(bundledCosmetics),
+    base64url.decode,
+  );
 }
 
 /**

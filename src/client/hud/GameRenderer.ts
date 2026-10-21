@@ -53,7 +53,6 @@ export function createRenderer(
   inputEl: HTMLElement,
   game: GameView,
   eventBus: EventBus,
-  playerRole: string | null,
   view: MapRenderer,
   mapLayerController?: MapLayerController,
 ): GameRenderer {
@@ -242,8 +241,6 @@ export function createRenderer(
   playerPanel.initEventBus(eventBus);
   playerPanel.emojiTable = emojiTable;
   playerPanel.uiState = uiState;
-
-  playerPanel.setRole(playerRole);
 
   const chatModal = document.querySelector("chat-modal") as ChatModal;
   if (!(chatModal instanceof ChatModal)) {

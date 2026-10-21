@@ -3,19 +3,13 @@ import { customElement, property } from "lit/decorators.js";
 import { ResolvedCosmetic } from "../Cosmetics";
 import { translateText } from "../Utils";
 
-/** Skins, patterns and effects can be rendered in-game; flags, crowns, subscriptions and packs can't. */
+/** Skins, patterns and effects can be rendered in-game; flags and crowns can't. */
 export function isPreviewableCosmetic(
   resolved: ResolvedCosmetic | null | undefined,
 ): boolean {
   if (!resolved || resolved.cosmetic === null) return false;
   const type = resolved.type;
-  return (
-    type !== "flag" &&
-    type !== "crown" &&
-    type !== "subscription" &&
-    type !== "pack" &&
-    type !== "cosmeticPack"
-  );
+  return type !== "flag" && type !== "crown";
 }
 
 @customElement("cosmetic-preview-bubble")

@@ -45,10 +45,8 @@ import {
   TickMetricsEvent,
   ToggleRenderDebugGuiEvent,
 } from "./InputHandler";
-import { rememberLobbyRoster } from "./LobbyRosterLevels";
 import { pagePin } from "./PagePin";
 import { groupTokenOf, loggableStartMessage } from "./PresenceGroup";
-import { versionedPathForMismatchedGame } from "./ServerList";
 import { reportGameError } from "./Telemetry";
 import {
   loadCachedTerrainMap,
@@ -102,12 +100,7 @@ export interface LobbyConfig {
   cosmetics: PlayerCosmeticRefs;
   playerName: string;
   playerClanTag: string | null;
-  // In-flight clan-tag ownership check; resolves to the tag to submit (null if
-  // it failed). Runs parallel to the WS handshake — only the join waits on it.
-  clanTagCheck?: Promise<string | null>;
-  playerRole: string | null;
   gameID: GameID;
-  turnstileToken: string | null;
   // GameStartInfo only exists when playing a singleplayer game.
   gameStartInfo?: WireGameStartInfo;
   // GameRecord exists when replaying an archived game.
@@ -147,11 +140,7 @@ export function joinLobby(
 
   let currentGameRunner: ClientGameRunner | null = null;
 
-  const onconnect = async () => {
-    // Drop the tag if the ownership check failed; the server re-checks anyway.
-    if (lobbyConfig.clanTagCheck !== undefined) {
-      lobbyConfig.playerClanTag = await lobbyConfig.clanTagCheck;
-    }
+  const onconnect = () => {
     // Always send join - server will detect reconnection via persistentID
     console.log(`Joining game lobby ${lobbyConfig.gameID}`);
     transport.joinGame();
@@ -222,12 +211,6 @@ export function joinLobby(
       // Server tells us our assigned clientID
       clientID = message.myClientID;
       eventBus.emit(new LobbyInfoEvent(message.lobby, message.myClientID));
-      // Kept past game start for the in-game level badges.
-      rememberLobbyRoster(
-        message.lobby.gameID,
-        message.lobby.clients,
-        message.myClientID,
-      );
       // Preload the map while still in the lobby so game start can reuse the
       // cached result instead of blocking on the download in the short
       // prestart->start window. The preload is debounced: it only fires once
@@ -374,24 +357,12 @@ export function joinLobby(
         // desktop the shell updates its local overlay itself, so just say
         // what's happening and let its update bar take it from there.
         //
-        // On the web, in order: this host's own `/v/<commit>/` page, which
-        // keeps the loaded document and the Turnstile token; else the
-        // game's host, whose shell serves the matching bundle (and map);
-        // else this tab is simply stale (left open across a deploy), so
-        // reload. See docs/MultiServer.md (OPE-471).
+        // On the web this tab is stale (left open across a deploy), so
+        // reload.
         if (isDesktopShell()) {
           void showInGameAlert(translateText("update_available.desktop"));
         } else {
-          const versioned = versionedPathForMismatchedGame(
-            lobbyConfig.gameID,
-            message.gitCommit,
-          );
-          const r = ClientEnv.resolveGame(lobbyConfig.gameID);
-          if (versioned !== null) {
-            window.location.href = versioned;
-          } else if (r.kind === "cross") {
-            window.location.href = `https://${r.host}/game/${lobbyConfig.gameID}${window.location.search}`;
-          } else if (pagePin() !== null) {
+          if (pagePin() !== null) {
             // A pinned `/v/<commit>/` page must not reload. The pin comes
             // from PagePin (captured at boot), not from the live pathname:
             // updateJoinUrlForShare has already rewritten the address bar to
@@ -848,7 +819,6 @@ async function createClientGame(
       inputOverlay,
       gameView,
       eventBus,
-      lobbyConfig.playerRole,
       view,
       mapLayerController,
     );

@@ -739,7 +739,7 @@ export class Transport {
       username: this.lobbyConfig.playerName,
       clanTag: this.lobbyConfig.playerClanTag ?? null,
       cosmetics: this.lobbyConfig.cosmetics,
-      turnstileToken: this.lobbyConfig.turnstileToken,
+      turnstileToken: null,
       token,
       spectator: this.lobbyConfig.spectator,
       gitCommit: ClientEnv.gitCommit(),

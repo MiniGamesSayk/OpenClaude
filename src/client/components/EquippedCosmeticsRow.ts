@@ -1,4 +1,3 @@
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import {
   Cosmetics,
   Effect,
@@ -7,17 +6,12 @@ import {
 import { PlayerCosmetics } from "@openfront/shared/WireSchemas";
 import { html, LitElement, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { getUserMe } from "../Api";
 import {
   fetchCosmetics,
   resolveCosmetics,
   translateCosmetic,
 } from "../Cosmetics";
-import {
-  EquippedCosmetic,
-  equippedCosmetics,
-  storeRouteFor,
-} from "../EquippedCosmetics";
+import { EquippedCosmetic, equippedCosmetics } from "../EquippedCosmetics";
 import { translateText } from "../Utils";
 import "./EffectPreview";
 import { renderPatternPreview } from "./PatternPreview";
@@ -32,8 +26,6 @@ const rarityRing: Record<string, string> = {
 
 /**
  * The cosmetics a player has equipped, as a row of small tiles under their name.
- * Tiles the viewer doesn't own link to that item in the store, opened in a new
- * tab so the running game is left alone.
  */
 @customElement("equipped-cosmetics-row")
 export class EquippedCosmeticsRow extends LitElement {
@@ -41,7 +33,6 @@ export class EquippedCosmeticsRow extends LitElement {
   cosmetics: PlayerCosmetics = {};
 
   @state() private catalog: Cosmetics | null = null;
-  @state() private userMe: UserMeResponse | false = false;
 
   createRenderRoot() {
     return this;
@@ -59,22 +50,7 @@ export class EquippedCosmeticsRow extends LitElement {
   }
 
   private async load() {
-    const [catalog, userMe] = await Promise.all([
-      fetchCosmetics(),
-      getUserMe(),
-    ]);
-    this.catalog = catalog;
-    this.userMe = userMe;
-  }
-
-  private openStore(equipped: EquippedCosmetic) {
-    const route = storeRouteFor(equipped);
-    if (route === null) return;
-    window.open(
-      new URL(route, `${window.location.origin}/`).toString(),
-      "_blank",
-      "noopener",
-    );
+    this.catalog = await fetchCosmetics();
   }
 
   private displayName(equipped: EquippedCosmetic): string {
@@ -121,42 +97,24 @@ export class EquippedCosmeticsRow extends LitElement {
 
   private renderTile(equipped: EquippedCosmetic): TemplateResult {
     const name = this.displayName(equipped);
-    const buyable = storeRouteFor(equipped) !== null;
     const rarity = equipped.resolved?.cosmetic?.rarity ?? "";
     const ring = rarityRing[rarity] ?? "ring-white/15";
-    const label = buyable
-      ? translateText("player_panel.cosmetic_get_label", { name })
-      : name;
 
     return html`
-      <button
-        type="button"
-        class=${`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/5 p-1 ring-1 ${ring}
-          ${buyable ? "cursor-pointer transition hover:bg-white/10 active:scale-95" : "cursor-default"}`}
-        title=${label}
-        aria-label=${label}
-        ?disabled=${!buyable}
-        @click=${(e: Event) => {
-          e.stopPropagation();
-          this.openStore(equipped);
-        }}
+      <div
+        class=${`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/5 p-1 ring-1 ${ring}`}
+        title=${name}
+        aria-label=${name}
       >
         ${this.renderPreview(equipped)}
-        ${buyable
-          ? html`<span
-              class="absolute bottom-0 right-0 rounded-tl bg-malibu-blue px-1 text-[10px] font-black leading-tight text-white"
-              aria-hidden="true"
-              >+</span
-            >`
-          : nothing}
-      </button>
+      </div>
     `;
   }
 
   render() {
     const equipped = equippedCosmetics(
       this.cosmetics,
-      resolveCosmetics(this.catalog, this.userMe, null),
+      resolveCosmetics(this.catalog),
     );
     if (equipped.length === 0) return nothing;
 

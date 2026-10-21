@@ -86,7 +86,7 @@ describe("createRenderer", () => {
     const view = {} as MapRenderer;
     const inputEl = document.createElement("div");
 
-    const renderer = createRenderer(inputEl, game, eventBus, null, view);
+    const renderer = createRenderer(inputEl, game, eventBus, view);
 
     expect(renderer).toBeInstanceOf(GameRenderer);
     expect(renderer.transformHandler).toBeDefined();

@@ -10,7 +10,6 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import { html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { isDesktopShell } from "../DesktopShell";
-import { gamePortal } from "../GamePortal";
 import { homeHref, translateText } from "../Utils";
 import { TICKS_PER_SECOND } from "./ReplayPlayback";
 
@@ -87,9 +86,7 @@ export class ReplayControls extends LitElement {
    * its own window, so we hide ours there (same as in game).
    */
   private readonly showFullscreen =
-    document.fullscreenEnabled &&
-    !gamePortal.isOnGamePortal() &&
-    !isDesktopShell();
+    document.fullscreenEnabled && !isDesktopShell();
   private readonly abort = new AbortController();
 
   createRenderRoot() {

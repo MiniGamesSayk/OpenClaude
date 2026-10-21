@@ -25,6 +25,7 @@ describe("MasterLobbyService.liveGames", () => {
 
   beforeEach(() => {
     vi.stubEnv("DOMAIN", "localhost");
+    vi.stubEnv("PUBLIC_LOBBIES", "1");
     vi.spyOn(ServerEnv, "numWorkers").mockReturnValue(2);
     const playlist = { gameConfig: vi.fn(async () => ({})) };
     const log = { info: vi.fn(), error: vi.fn() } as any;

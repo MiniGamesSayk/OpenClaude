@@ -19,26 +19,13 @@ export class CosmeticInfo extends LitElement {
   @property({ type: Boolean }) aiDisclosed?: boolean;
   @property({ type: String }) rarity?: string;
   @property({ type: String }) colorPalette?: string;
-  @property({ type: Boolean }) showAdFree = false;
-  @property({ type: Number }) usdValue?: number;
-  @property({ type: Array }) perks: Array<{ label: string; info: string }> = [];
-  /** Display names of a pack's contents, listed under "Includes:". */
-  @property({ type: Array }) items: string[] = [];
 
   createRenderRoot() {
     return this;
   }
 
   render() {
-    if (
-      !this.artist &&
-      !this.rarity &&
-      !this.colorPalette &&
-      !this.showAdFree &&
-      this.usdValue === undefined &&
-      this.perks.length === 0 &&
-      this.items.length === 0
-    ) {
+    if (!this.artist && !this.rarity && !this.colorPalette) {
       return nothing;
     }
 
@@ -66,33 +53,6 @@ export class CosmeticInfo extends LitElement {
         ${this.rarity
           ? html`<div class="font-bold uppercase tracking-wider ${rarityColor}">
               ${translateText(`cosmetics.${this.rarity}`)}
-            </div>`
-          : nothing}
-        ${this.showAdFree
-          ? html`<div class="font-bold text-green-400">
-              ${translateText("cosmetics.adfree")}
-            </div>`
-          : nothing}
-        ${this.usdValue !== undefined
-          ? html`<div>
-              ${translateText("cosmetics.usd_value", {
-                usd: `$${this.usdValue.toFixed(2)}`,
-              })}
-            </div>`
-          : nothing}
-        ${this.perks.map(
-          (perk) =>
-            html`<div class="max-w-56">
-              <span class="font-bold text-purple-300">${perk.label}:</span>
-              <span class="text-white/80">${perk.info}</span>
-            </div>`,
-        )}
-        ${this.items.length > 0
-          ? html`<div data-cosmetic-info-items class="max-w-56">
-              <span class="font-bold text-purple-300"
-                >${translateText("cosmetics.pack_includes")}</span
-              >
-              <span class="text-white/80">${this.items.join(", ")}</span>
             </div>`
           : nothing}
         ${this.colorPalette

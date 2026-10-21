@@ -3,7 +3,6 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import { EventBus } from "@openfront/shared/EventBus";
 import { html, LitElement } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
-import { gamePortal } from "src/client/GamePortal";
 import { PauseGameIntentEvent } from "src/client/Transport";
 import { Controller } from "../../Controller";
 import {
@@ -126,14 +125,6 @@ export class SettingsModal extends LitElement implements Controller {
   }
 
   private pauseGame(pause: boolean) {
-    // Portals: report gameplay as stopped whenever the settings menu is open,
-    // and resumed when it closes — unless the game was already paused when opened.
-    if (pause) {
-      gamePortal.gameplayStop();
-    } else if (!this.wasPausedWhenOpened) {
-      gamePortal.gameplayStart();
-    }
-
     // Only pause the simulation itself when we own the pause (singleplayer or
     // lobby creator).
     if (this.shouldPause && !this.wasPausedWhenOpened) {

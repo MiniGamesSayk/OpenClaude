@@ -13,7 +13,6 @@ vi.mock("../../src/client/Cosmetics", async (importOriginal) => ({
   prewarmCosmetics: cosmeticsMocks.prewarmCosmetics,
 }));
 
-import { gamePortal } from "../../src/client/GamePortal";
 import {
   SinglePlayerModal,
   START_PREPARE_DEADLINE_MS,

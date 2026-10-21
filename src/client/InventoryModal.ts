@@ -1,4 +1,3 @@
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import { assetUrl } from "@openfront/shared/AssetUrls";
 import {
   Cosmetics,
@@ -12,8 +11,6 @@ import type { TemplateResult } from "lit";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import Countries from "resources/countries.json" with { type: "json" };
-import { getUserMe } from "./Api";
-import { userAuth } from "./Auth";
 import "./components/baseComponents/Button";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticCard";
@@ -31,7 +28,6 @@ import type {
 import "./components/InventoryLoadoutMenu";
 import { ProgressiveList } from "./components/ProgressiveList";
 import { modalHeader } from "./components/ui/ModalHeader";
-import { signedOutNotice } from "./components/ui/SignedOutNotice";
 import {
   fetchCosmetics,
   groupCosmeticVariants,
@@ -50,8 +46,6 @@ import {
 } from "./UserSettings";
 import { translateText } from "./Utils";
 
-type OwnershipState = "loading" | "guest" | "loaded" | "error";
-
 function countryFlag(name: string, code: string): Flag {
   return {
     name,
@@ -63,7 +57,7 @@ function countryFlag(name: string, code: string): Flag {
 }
 
 /**
- * The player's owned cosmetics, grouped into equip categories.
+ * Every cosmetic, grouped into equip categories. All of it is free to wear.
  */
 @customElement("inventory-modal")
 export class InventoryModal extends BaseModal {
@@ -72,21 +66,14 @@ export class InventoryModal extends BaseModal {
   @state() private search = "";
   @state() private isLoading = false;
   @state() private loadFailed = false;
-  @state() private ownershipState: OwnershipState = "loading";
   @state() private previewingCosmetic: ResolvedCosmetic | null = null;
 
   private cosmetics: Cosmetics | null = null;
   private userSettings: UserSettings = new UserSettings();
-  private userMeResponse: UserMeResponse | false = false;
   private catalogLoad: Promise<Cosmetics | null> | null = null;
   private inventoryLoadId = 0;
-  private ownershipLoadId = 0;
   private resolvedCache:
-    | {
-        cosmetics: Cosmetics | null;
-        userMeResponse: UserMeResponse | false;
-        items: ResolvedCosmetic[];
-      }
+    | { cosmetics: Cosmetics | null; items: ResolvedCosmetic[] }
     | undefined;
   private readonly countryFlagTiles = Countries.filter(
     (country) => country.code !== "xx" && country.restricted !== true,
@@ -94,7 +81,6 @@ export class InventoryModal extends BaseModal {
     type: "flag",
     cosmetic: countryFlag(country.name, country.code),
     colorPalette: null,
-    relationship: "owned",
     key: `country:${country.code}`,
   }));
   protected modalConfig() {
@@ -113,10 +99,6 @@ export class InventoryModal extends BaseModal {
 
   private _onCosmeticSelected = () => this.updateFromSettings();
 
-  private _onUserMe = (event: Event) => {
-    void this.onUserMe((event as CustomEvent<UserMeResponse | false>).detail);
-  };
-
   private onOpenCosmeticPreview = (event: Event) => {
     const customEvent = event as CustomEvent<ResolvedCosmetic>;
     this.previewingCosmetic = customEvent.detail;
@@ -124,7 +106,6 @@ export class InventoryModal extends BaseModal {
 
   connectedCallback() {
     super.connectedCallback();
-    document.addEventListener("userMeResponse", this._onUserMe);
     this.addEventListener("open-cosmetic-preview", this.onOpenCosmeticPreview);
     window.addEventListener(
       `${USER_SETTINGS_CHANGED_EVENT}:${PATTERN_KEY}`,
@@ -150,7 +131,6 @@ export class InventoryModal extends BaseModal {
       this.onOpenCosmeticPreview,
     );
     super.disconnectedCallback();
-    document.removeEventListener("userMeResponse", this._onUserMe);
     window.removeEventListener(
       `${USER_SETTINGS_CHANGED_EVENT}:${PATTERN_KEY}`,
       this._onCosmeticSelected,
@@ -173,42 +153,6 @@ export class InventoryModal extends BaseModal {
     this.requestUpdate();
   }
 
-  private async loadOwnership(
-    userMeResponse?: UserMeResponse | false,
-  ): Promise<void> {
-    const loadId = ++this.ownershipLoadId;
-    if (userMeResponse !== undefined && userMeResponse !== false) {
-      this.userMeResponse = userMeResponse;
-      this.ownershipState = "loaded";
-      return;
-    }
-
-    try {
-      const auth = await userAuth();
-      if (loadId !== this.ownershipLoadId) return;
-      if (auth === false) {
-        this.userMeResponse = false;
-        this.ownershipState = "guest";
-        return;
-      }
-
-      const response = userMeResponse === false ? false : await getUserMe();
-      if (loadId !== this.ownershipLoadId) return;
-      if (response === false) {
-        this.userMeResponse = false;
-        this.ownershipState = "error";
-        return;
-      }
-
-      this.userMeResponse = response;
-      this.ownershipState = "loaded";
-    } catch {
-      if (loadId !== this.ownershipLoadId) return;
-      this.userMeResponse = false;
-      this.ownershipState = "error";
-    }
-  }
-
   private loadCatalog(): Promise<Cosmetics | null> {
     if (this.catalogLoad !== null) return this.catalogLoad;
     const request = fetchCosmetics();
@@ -219,18 +163,12 @@ export class InventoryModal extends BaseModal {
     return guarded;
   }
 
-  private async loadInventory(
-    userMeResponse?: UserMeResponse | false,
-  ): Promise<void> {
+  private async loadInventory(): Promise<void> {
     const loadId = ++this.inventoryLoadId;
     this.isLoading = true;
     this.loadFailed = false;
-    this.ownershipState = "loading";
     try {
-      const [cosmetics] = await Promise.all([
-        this.loadCatalog(),
-        this.loadOwnership(userMeResponse),
-      ]);
+      const cosmetics = await this.loadCatalog();
       if (loadId !== this.inventoryLoadId) return;
       this.cosmetics = cosmetics;
       this.loadFailed = cosmetics === null;
@@ -238,17 +176,12 @@ export class InventoryModal extends BaseModal {
       if (loadId !== this.inventoryLoadId) return;
       this.cosmetics = null;
       this.loadFailed = true;
-      if (this.ownershipState === "loading") this.ownershipState = "error";
     } finally {
       if (loadId === this.inventoryLoadId) {
         this.isLoading = false;
         this.updateFromSettings();
       }
     }
-  }
-
-  async onUserMe(userMeResponse: UserMeResponse | false) {
-    await this.loadInventory(userMeResponse);
   }
 
   private includedInSearch(name: string): boolean {
@@ -260,30 +193,18 @@ export class InventoryModal extends BaseModal {
     this.search = (event.target as HTMLInputElement).value;
   }
 
-  private hasOwnedCatalogItem(
-    types: readonly ResolvedCosmetic["type"][],
-  ): boolean {
+  private hasCatalogItem(types: readonly ResolvedCosmetic["type"][]): boolean {
     return this.resolvedItems().some(
-      (resolved) =>
-        types.includes(resolved.type) &&
-        resolved.cosmetic !== null &&
-        resolved.relationship === "owned",
+      (resolved) => types.includes(resolved.type) && resolved.cosmetic !== null,
     );
   }
 
   private resolvedItems(): ResolvedCosmetic[] {
-    if (
-      this.resolvedCache?.cosmetics === this.cosmetics &&
-      this.resolvedCache.userMeResponse === this.userMeResponse
-    ) {
+    if (this.resolvedCache?.cosmetics === this.cosmetics) {
       return this.resolvedCache.items;
     }
-    const items = resolveCosmetics(this.cosmetics, this.userMeResponse, null);
-    this.resolvedCache = {
-      cosmetics: this.cosmetics,
-      userMeResponse: this.userMeResponse,
-      items,
-    };
+    const items = resolveCosmetics(this.cosmetics);
+    this.resolvedCache = { cosmetics: this.cosmetics, items };
     return items;
   }
 
@@ -463,7 +384,7 @@ export class InventoryModal extends BaseModal {
       data-inventory-empty=${category}
       class="px-4 pt-4 text-center text-sm font-medium text-white/60"
     >
-      ${translateText(`inventory.no_owned_${category}`)}
+      ${translateText(`inventory.no_${category}`)}
     </p>`;
   }
 
@@ -472,7 +393,6 @@ export class InventoryModal extends BaseModal {
     const items = this.resolvedItems().filter(
       (r) =>
         (r.type === "pattern" || r.type === "skin") &&
-        r.relationship === "owned" &&
         r.cosmetic !== null &&
         this.includedInSearch(r.cosmetic.name),
     );
@@ -484,7 +404,7 @@ export class InventoryModal extends BaseModal {
     );
     const equippedKey = this.equippedSkin()?.key;
     return html`
-      ${this.hasOwnedCatalogItem(["pattern", "skin"])
+      ${this.hasCatalogItem(["pattern", "skin"])
         ? null
         : this.renderEmptyState("skins")}
       <div
@@ -512,12 +432,11 @@ export class InventoryModal extends BaseModal {
     `;
   }
 
-  /** Owned crowns; selecting persists to UserSettings. */
+  /** Crowns; selecting persists to UserSettings. */
   private renderCrownGrid(): TemplateResult {
     const items = this.resolvedItems().filter(
       (r) =>
         r.type === "crown" &&
-        r.relationship === "owned" &&
         r.cosmetic !== null &&
         this.includedInSearch(r.cosmetic.name),
     );
@@ -525,9 +444,7 @@ export class InventoryModal extends BaseModal {
     const page = this.pages.page("inventory-crowns", this.search, items);
     const equippedKey = this.equippedCrown()?.key;
     return html`
-      ${this.hasOwnedCatalogItem(["crown"])
-        ? null
-        : this.renderEmptyState("crowns")}
+      ${this.hasCatalogItem(["crown"]) ? null : this.renderEmptyState("crowns")}
       <div
         data-inventory-grid="crowns"
         class="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
@@ -551,7 +468,6 @@ export class InventoryModal extends BaseModal {
     const cosmeticFlags = this.resolvedItems().filter(
       (r) =>
         r.type === "flag" &&
-        r.relationship === "owned" &&
         r.cosmetic !== null &&
         this.includedInSearch(r.cosmetic.name),
     );
@@ -616,7 +532,6 @@ export class InventoryModal extends BaseModal {
   }
 
   protected renderHeaderSlot() {
-    const isLoggedIn = this.userMeResponse !== false;
     return html`
       <div
         class="relative flex flex-col border-b border-white/10 pb-4 shrink-0"
@@ -625,23 +540,6 @@ export class InventoryModal extends BaseModal {
           title: translateText("inventory.title"),
           onBack: () => this.close(),
           ariaLabel: translateText("common.back"),
-          rightContent: html`<o-button
-            data-inventory-header-action
-            class="no-game-portal"
-            variant=${isLoggedIn ? "primary" : "danger"}
-            size="sm"
-            .translationKey=${isLoggedIn
-              ? "main.store"
-              : "common.not_logged_in"}
-            @click=${() => {
-              if (isLoggedIn) {
-                this.close();
-                window.location.hash = "modal=store&tab=cosmetics";
-              } else {
-                window.showPage?.("page-account");
-              }
-            }}
-          ></o-button>`,
         })}
 
         <div class="md:flex items-center gap-2 justify-center mt-4">
@@ -672,7 +570,7 @@ export class InventoryModal extends BaseModal {
     // BaseModal renders the body even while closed, and this one is always
     // mounted: skip building a grid no one can see from the main menu.
     if (!this.isModalOpen) return html``;
-    if (this.isLoading || this.ownershipState === "loading") {
+    if (this.isLoading) {
       return html`<div data-inventory-state="loading" aria-busy="true">
         <span class="sr-only">${translateText("inventory.loading")}</span>
         <div
@@ -693,7 +591,7 @@ export class InventoryModal extends BaseModal {
         </div>
       </div>`;
     }
-    if (this.loadFailed || this.ownershipState === "error") {
+    if (this.loadFailed) {
       return html`<div
         data-inventory-state="error"
         class="flex flex-col items-center gap-4 p-8 text-center text-red-300"
@@ -724,10 +622,8 @@ export class InventoryModal extends BaseModal {
       // so there is nothing to say above it here.
       grid = html`<div data-inventory-grid="effects" class="min-w-0">
         <effects-grid
-          mode="select"
           tabbed
           .cosmetics=${this.cosmetics}
-          .userMeResponse=${this.userMeResponse}
           .search=${this.search}
         ></effects-grid>
       </div>`;
@@ -736,14 +632,6 @@ export class InventoryModal extends BaseModal {
     }
     const category = tab as InventoryCategory;
     return html`
-      ${this.ownershipState === "guest"
-        ? html`<div data-inventory-sign-in>
-            ${signedOutNotice(
-              () => window.showPage?.("page-account"),
-              translateText("inventory.sign_in_for_cosmetics"),
-            )}
-          </div>`
-        : nothing}
       ${this.renderLoadoutMenu()}
       <inventory-loadout-bar
         .entries=${this.loadoutEntries()}
@@ -766,10 +654,7 @@ export class InventoryModal extends BaseModal {
   }
 
   protected async onOpen(): Promise<void> {
-    if (
-      this.ownershipState === "loading" ||
-      (this.cosmetics === null && !this.loadFailed)
-    ) {
+    if (this.cosmetics === null && !this.loadFailed) {
       await this.loadInventory();
       return;
     }

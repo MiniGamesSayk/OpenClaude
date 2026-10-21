@@ -1,4 +1,3 @@
-import { CosmeticPack, Pack } from "@openfront/shared/CosmeticSchemas";
 import { ResolvedCosmetic, translateCosmetic } from "../Cosmetics";
 import { translateText } from "../Utils";
 
@@ -15,15 +14,6 @@ export function cosmeticDisplayName(resolved: ResolvedCosmetic): string {
   }
   if (resolved.type === "pattern" || resolved.type === "skin") {
     return translateCosmetic("territory_patterns.pattern", cosmetic.name);
-  }
-  if (resolved.type === "pack" || resolved.type === "cosmeticPack") {
-    const name = (cosmetic as Pack | CosmeticPack).displayName ?? "";
-    return name.replace(/(^|[\s-])\p{L}/gu, (match) =>
-      match.toLocaleUpperCase(),
-    );
-  }
-  if (resolved.type === "subscription") {
-    return translateCosmetic("subscriptions", cosmetic.name);
   }
   if (resolved.type === "effect") {
     return translateCosmetic("effects", cosmetic.name);

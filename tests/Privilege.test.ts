@@ -1,5 +1,7 @@
 import {
-  FailOpenPrivilegeChecker,
+  createFreePrivilegeChecker,
+  FREE_FLARES,
+  FreePrivilegeChecker,
   PrivilegeCheckerImpl,
   resolveVerifiedJoin,
 } from "../src/server/Privilege";
@@ -750,26 +752,75 @@ describe("PrivilegeCheckerImpl#resolveClanTag", () => {
   });
 });
 
-describe("FailOpenPrivilegeChecker#resolveClanTag", () => {
-  const checker = new FailOpenPrivilegeChecker();
+describe("FreePrivilegeChecker", () => {
+  const free = new FreePrivilegeChecker(
+    {
+      patterns: {},
+      colorPalettes: {},
+      flags: {
+        gold: {
+          name: "gold",
+          product: null,
+          rarity: "common",
+          url: "/flags/gold.svg",
+        },
+      },
+      skins: {
+        camo: {
+          name: "camo",
+          product: null,
+          rarity: "common",
+          url: "/skins/camo.png",
+        },
+      },
+    },
+    mockDecoder,
+  );
 
-  it("passes a null tag through unchanged", () => {
-    const result = checker.resolveClanTag(null, []);
-    expect(result).toEqual({ tag: null, dropped: false });
+  it("lets anyone wear a catalog cosmetic without any flare", () => {
+    const result = free.isAllowed([], { flag: "flag:gold", skinName: "camo" });
+    expect(result.type).toBe("allowed");
   });
 
-  it("keeps a member's tag (known from owned tags, no lookup needed)", () => {
-    const result = checker.resolveClanTag("ABC", ["abc"]);
-    expect(result).toEqual({ tag: "ABC", dropped: false });
+  it("lets anyone wear any colour", () => {
+    expect(free.isAllowed([], { color: "#123456" }).type).toBe("allowed");
   });
 
-  it("keeps a non-member's tag fail-open (no reserved set while infra is down)", () => {
-    const result = checker.resolveClanTag("ABC", ["other"]);
-    expect(result).toEqual({ tag: "ABC", dropped: false });
+  it("still refuses a cosmetic that is not in the catalog", () => {
+    expect(free.isAllowed([], { flag: "flag:missing" }).type).toBe("forbidden");
+    expect(free.isAllowed([], { skinName: "missing" }).type).toBe("forbidden");
   });
 
-  it("keeps an anonymous user's tag fail-open", () => {
-    const result = checker.resolveClanTag("ABC", []);
-    expect(result).toEqual({ tag: "ABC", dropped: false });
+  it("keeps country flags free", () => {
+    expect(free.isAllowed([], { flag: "country:fr" }).type).toBe("allowed");
+  });
+
+  it("grants a wildcard for every cosmetic category", () => {
+    expect(FREE_FLARES).toEqual(
+      expect.arrayContaining([
+        "pattern:*",
+        "flag:*",
+        "skin:*",
+        "crown:*",
+        "effect:*",
+        "color:*",
+      ]),
+    );
+  });
+});
+
+describe("createFreePrivilegeChecker (bundled catalog)", () => {
+  const bundled = createFreePrivilegeChecker();
+
+  it("accepts every flag the bundled catalog lists", async () => {
+    const { default: catalog } =
+      await import("../resources/cosmetics/cosmetics.json");
+    const names = Object.keys(catalog.flags);
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(bundled.isAllowed([], { flag: `flag:${name}` }).type).toBe(
+        "allowed",
+      );
+    }
   });
 });
