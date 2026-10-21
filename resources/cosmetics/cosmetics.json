@@ -1,5 +1,456 @@
 {
-  "patterns": {},
+  "patterns": {
+    "stripes": {
+      "name": "stripes",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AAEYPwA",
+      "colorPalettes": [
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        },
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        },
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        },
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        }
+      ]
+    },
+    "pinstripes": {
+      "name": "pinstripes",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AEAAAwwA",
+      "colorPalettes": [
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        },
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        },
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        },
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        }
+      ]
+    },
+    "diagonal": {
+      "name": "diagonal",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AHA4PwAfgA_AB-AD8AH4APwAfgA_gB_AD-AH8AP4AfwAfgA",
+      "colorPalettes": [
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        },
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        },
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        },
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        }
+      ]
+    },
+    "checkerboard": {
+      "name": "checkerboard",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AAMABg",
+      "colorPalettes": [
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        },
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        },
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        },
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        }
+      ]
+    },
+    "polka_dots": {
+      "name": "polka_dots",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "pattern": "AHA4AAA8AH4AfgB-AH4APAAAAAAAADwAfgB-AH4AfgA8AAA",
+      "colorPalettes": [
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        },
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        },
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        },
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        }
+      ]
+    },
+    "waves": {
+      "name": "waves",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "pattern": "APAoAAAAAAAAwAMAAPgfAAD-fwAAf_4DwA_wD_ADwH_-AAD-fwAA-B8AAMADAAAAAAAA",
+      "colorPalettes": [
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        },
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        },
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        },
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        }
+      ]
+    },
+    "chevrons": {
+      "name": "chevrons",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "pattern": "AHA48B_gD8AHgAMAAQAAAAAAAAEAA4AHwA_gH_A--Hx8-D4",
+      "colorPalettes": [
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        },
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        },
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        },
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        }
+      ]
+    },
+    "bricks": {
+      "name": "bricks",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AHEY__8BAAEAAQD__wABAAEAAQ",
+      "colorPalettes": [
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        },
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        },
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        },
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        }
+      ]
+    },
+    "honeycomb": {
+      "name": "honeycomb",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "pattern": "AGBYwAAwAAwAA_ADzuHAHeABIAAAAAAAAAAAAAAEgAe4A4dzwA_AADAADAAD",
+      "colorPalettes": [
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        },
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        },
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        },
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        }
+      ]
+    },
+    "camouflage": {
+      "name": "camouflage",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "pattern": "APF4Awc8-AMCPPgDAjj4AQAw_gAAwP8AOMAPHHjABz54wAc-eMADP3jAAz94wAM_OMCDPxDAgT8AwME_AADwPwAA_h8AAP4gAAf-YIAHfuCAB37wgAc_8MAHP_DBAz_wgQMf-AEAHvwDAAD_AwCA_wcw4I8HOOCHBzjwBwc48AcHPPA",
+      "colorPalettes": [
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        },
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        },
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        },
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        }
+      ]
+    },
+    "crosses": {
+      "name": "crosses",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AFAoAAAA4AAO4MB__Md_4AAO4AAA",
+      "colorPalettes": [
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        },
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        },
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        },
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        }
+      ]
+    },
+    "starry": {
+      "name": "starry",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "pattern": "APB4AAAAAAAAAACAAQAAgAEAAIABAADAAwAA_n8AAPw_AADwDwAA4AcAAOAHAADwDwAAcA4AABAIAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAAgAEAAIABAADAAwAA_n8AAPw_AADwDwAA4AcAAOAHAADwDwAAcA4AABAIAAAAAAAAAAA",
+      "colorPalettes": [
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        },
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        },
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        },
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        }
+      ]
+    },
+    "diamonds": {
+      "name": "diamonds",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "pattern": "AHA4AAAAAIABwAPgB_AP-B_8P_w_-B_wD-AHwAOAAQAAAAA",
+      "colorPalettes": [
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        },
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        },
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        },
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        }
+      ]
+    },
+    "fish_scales": {
+      "name": "fish_scales",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "pattern": "AHA4gAGAAYABwANgBjAMGBgP8AGAAYABgAPABmAMMBgY8A8",
+      "colorPalettes": [
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        },
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        },
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        },
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        }
+      ]
+    },
+    "tartan": {
+      "name": "tartan",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "pattern": "ALBY4N__4N__4N__4N__4N__HyAAHyAAHyAAHyAAHyAAHyAAHyAAHyAA4N__HyAAHyAAHyAAHyAAHyAAHyAAHyAAHyAAHyAAHyAA",
+      "colorPalettes": [
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        },
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        },
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        },
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        }
+      ]
+    },
+    "grid": {
+      "name": "grid",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "pattern": "AFAo_x8AARAAARAAARAAARAAARAA",
+      "colorPalettes": [
+        {
+          "name": "royal_gold",
+          "isArchived": false
+        },
+        {
+          "name": "midnight_neon",
+          "isArchived": false
+        },
+        {
+          "name": "volcanic_ash",
+          "isArchived": false
+        },
+        {
+          "name": "crimson_ivory",
+          "isArchived": false
+        }
+      ]
+    },
+    "labyrinth": {
+      "name": "labyrinth",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "pattern": "APF4A8ADAwfgBwcOcA4OHDgcHDgcODhwDnBw4Afg4MADwMDAA8AD4AfgB3AOcA44HDgcHDgcOA5wDnAH4AfgA8ADwAPAAwMH4AcHDnAODhw4HBw4HDg4cA5wcOAH4ODAA8DAwMADwODgB-BwcA5wODgcOBwcOBwODnAOBwfgBwMDwAM",
+      "colorPalettes": [
+        {
+          "name": "cherry_blossom",
+          "isArchived": false
+        },
+        {
+          "name": "lavender_sky",
+          "isArchived": false
+        },
+        {
+          "name": "forest_moss",
+          "isArchived": false
+        },
+        {
+          "name": "arctic_frost",
+          "isArchived": false
+        }
+      ]
+    },
+    "ripples": {
+      "name": "ripples",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "legendary",
+      "pattern": "AJBI____D_8_wP8A8IcffvzjY2A8A8wxxhjzjDHPGGOMM8A8BsbHP3744Q8A_wP8__D___8",
+      "colorPalettes": [
+        {
+          "name": "ocean_foam",
+          "isArchived": false
+        },
+        {
+          "name": "sunset_coral",
+          "isArchived": false
+        },
+        {
+          "name": "desert_sand",
+          "isArchived": false
+        },
+        {
+          "name": "mint_cocoa",
+          "isArchived": false
+        }
+      ]
+    }
+  },
   "flags": {
     "american_samoa": {
       "name": "american_samoa",
@@ -540,6 +991,730 @@
       "product": null,
       "rarity": "common",
       "url": "/flags/zh-hant.svg"
+    }
+  },
+  "colorPalettes": {
+    "crimson_ivory": {
+      "name": "crimson_ivory",
+      "primaryColor": "#b3122e",
+      "secondaryColor": "#f4ead5"
+    },
+    "ocean_foam": {
+      "name": "ocean_foam",
+      "primaryColor": "#0e4d92",
+      "secondaryColor": "#9fd8ef"
+    },
+    "forest_moss": {
+      "name": "forest_moss",
+      "primaryColor": "#1f5130",
+      "secondaryColor": "#a3c45a"
+    },
+    "royal_gold": {
+      "name": "royal_gold",
+      "primaryColor": "#3c1a6e",
+      "secondaryColor": "#e8b931"
+    },
+    "sunset_coral": {
+      "name": "sunset_coral",
+      "primaryColor": "#ff6b4a",
+      "secondaryColor": "#ffd166"
+    },
+    "arctic_frost": {
+      "name": "arctic_frost",
+      "primaryColor": "#d9eefc",
+      "secondaryColor": "#4a90d9"
+    },
+    "midnight_neon": {
+      "name": "midnight_neon",
+      "primaryColor": "#16163a",
+      "secondaryColor": "#00e5ff"
+    },
+    "desert_sand": {
+      "name": "desert_sand",
+      "primaryColor": "#c2964b",
+      "secondaryColor": "#f3e3c3"
+    },
+    "cherry_blossom": {
+      "name": "cherry_blossom",
+      "primaryColor": "#f7c6d9",
+      "secondaryColor": "#c2185b"
+    },
+    "volcanic_ash": {
+      "name": "volcanic_ash",
+      "primaryColor": "#2e2e2e",
+      "secondaryColor": "#ff5722"
+    },
+    "mint_cocoa": {
+      "name": "mint_cocoa",
+      "primaryColor": "#4e342e",
+      "secondaryColor": "#98f5c8"
+    },
+    "lavender_sky": {
+      "name": "lavender_sky",
+      "primaryColor": "#7e57c2",
+      "secondaryColor": "#e1d5ff"
+    }
+  },
+  "crowns": {
+    "golden_crown": {
+      "name": "golden_crown",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "common",
+      "url": "/cosmetics/crowns/golden_crown.svg"
+    },
+    "silver_laurel": {
+      "name": "silver_laurel",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "url": "/cosmetics/crowns/silver_laurel.svg"
+    },
+    "ruby_tiara": {
+      "name": "ruby_tiara",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/crowns/ruby_tiara.svg"
+    },
+    "frost_crown": {
+      "name": "frost_crown",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/crowns/frost_crown.svg"
+    },
+    "ember_crown": {
+      "name": "ember_crown",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "legendary",
+      "url": "/cosmetics/crowns/ember_crown.svg"
+    },
+    "star_circlet": {
+      "name": "star_circlet",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/crowns/star_circlet.svg"
+    }
+  },
+  "skins": {
+    "aurora": {
+      "name": "aurora",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/skins/aurora.svg"
+    },
+    "sunburst": {
+      "name": "sunburst",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "url": "/cosmetics/skins/sunburst.svg"
+    },
+    "crystal_facets": {
+      "name": "crystal_facets",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/skins/crystal_facets.svg"
+    },
+    "topography": {
+      "name": "topography",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/skins/topography.svg"
+    },
+    "nebula": {
+      "name": "nebula",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "legendary",
+      "url": "/cosmetics/skins/nebula.svg"
+    },
+    "marble": {
+      "name": "marble",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/skins/marble.svg"
+    },
+    "magma": {
+      "name": "magma",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "legendary",
+      "url": "/cosmetics/skins/magma.svg"
+    },
+    "tidal_waves": {
+      "name": "tidal_waves",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "url": "/cosmetics/skins/tidal_waves.svg"
+    },
+    "circuit_board": {
+      "name": "circuit_board",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/skins/circuit_board.svg"
+    },
+    "mosaic": {
+      "name": "mosaic",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/skins/mosaic.svg"
+    }
+  },
+  "effects": {
+    "transportShipTrail": {
+      "sea_foam": {
+        "name": "sea_foam",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "common",
+        "effectType": "transportShipTrail",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#e0f7ff",
+            "#7fd6ff",
+            "#2a8cff"
+          ],
+          "colorSize": 4,
+          "movementSpeed": 8
+        }
+      },
+      "sunset_wake": {
+        "name": "sunset_wake",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "transportShipTrail",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#ff5e62",
+            "#ff9966",
+            "#ffd86f"
+          ],
+          "colorSize": 5,
+          "movementSpeed": 10
+        }
+      },
+      "neon_pulse": {
+        "name": "neon_pulse",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "transportShipTrail",
+        "attributes": {
+          "type": "transition",
+          "colors": [
+            "#ff2bd6",
+            "#00e5ff",
+            "#a6ff00"
+          ],
+          "frequency": 1.5
+        }
+      },
+      "prism_wake": {
+        "name": "prism_wake",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "transportShipTrail",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#ff3b30",
+            "#ff9500",
+            "#ffcc00",
+            "#34c759",
+            "#00c7be",
+            "#007aff",
+            "#af52de"
+          ],
+          "colorSize": 3,
+          "movementSpeed": 14
+        }
+      }
+    },
+    "nukeTrail": {
+      "toxic_glow": {
+        "name": "toxic_glow",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "nukeTrail",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#d9f99d",
+            "#84cc16",
+            "#365314"
+          ],
+          "colorSize": 4,
+          "movementSpeed": 12
+        }
+      },
+      "warning_lights": {
+        "name": "warning_lights",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "nukeTrail",
+        "attributes": {
+          "type": "transition",
+          "colors": [
+            "#ef4444",
+            "#facc15"
+          ],
+          "frequency": 3
+        }
+      },
+      "double_helix": {
+        "name": "double_helix",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "nukeTrail",
+        "attributes": {
+          "type": "spiral",
+          "colors": [
+            "#38bdf8",
+            "#f472b6"
+          ],
+          "radius": 6,
+          "strands": 2,
+          "rotationSpeed": 5
+        }
+      },
+      "vortex": {
+        "name": "vortex",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "legendary",
+        "effectType": "nukeTrail",
+        "attributes": {
+          "type": "spiral",
+          "colors": [
+            "#a855f7",
+            "#22d3ee",
+            "#ffffff"
+          ],
+          "radius": 8,
+          "strands": 4,
+          "rotationSpeed": 7
+        }
+      }
+    },
+    "nukeExplosion": {
+      "solar_flare": {
+        "name": "solar_flare",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "shockwave",
+          "nukeType": "atom",
+          "colors": [
+            "#fff7d6",
+            "#fbbf24",
+            "#f97316",
+            "#b91c1c"
+          ],
+          "size": 200,
+          "speed": 140,
+          "thickness": 5,
+          "transitionSpeed": 2
+        }
+      },
+      "starburst": {
+        "name": "starburst",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "sparkles",
+          "nukeType": "atom",
+          "colors": [
+            "#ffffff",
+            "#fde68a",
+            "#93c5fd"
+          ],
+          "size": 190,
+          "speed": 120,
+          "thickness": 3,
+          "transitionSpeed": 3,
+          "density": 300
+        }
+      },
+      "cinder_bloom": {
+        "name": "cinder_bloom",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "embers",
+          "nukeType": "atom",
+          "colors": [
+            "#fef3c7",
+            "#fb923c",
+            "#dc2626",
+            "#451a03"
+          ],
+          "size": 180,
+          "speed": 110,
+          "thickness": 3,
+          "transitionSpeed": 1.5,
+          "density": 260
+        }
+      },
+      "tidal_ring": {
+        "name": "tidal_ring",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "shockwave",
+          "nukeType": "hydro",
+          "colors": [
+            "#ecfeff",
+            "#67e8f9",
+            "#0891b2",
+            "#1e3a8a"
+          ],
+          "size": 420,
+          "speed": 220,
+          "thickness": 8,
+          "transitionSpeed": 1.5
+        }
+      },
+      "glitter_storm": {
+        "name": "glitter_storm",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "legendary",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "sparkles",
+          "nukeType": "hydro",
+          "colors": [
+            "#f0abfc",
+            "#a78bfa",
+            "#67e8f9",
+            "#ffffff"
+          ],
+          "size": 400,
+          "speed": 200,
+          "thickness": 4,
+          "transitionSpeed": 4,
+          "density": 450
+        }
+      },
+      "magma_rain": {
+        "name": "magma_rain",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "embers",
+          "nukeType": "hydro",
+          "colors": [
+            "#fde047",
+            "#f97316",
+            "#b91c1c",
+            "#292524"
+          ],
+          "size": 380,
+          "speed": 180,
+          "thickness": 4,
+          "transitionSpeed": 2,
+          "density": 400
+        }
+      },
+      "split_halo": {
+        "name": "split_halo",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "shockwave",
+          "nukeType": "mirvWarhead",
+          "colors": [
+            "#ffffff",
+            "#a5b4fc",
+            "#6366f1"
+          ],
+          "size": 70,
+          "speed": 90,
+          "thickness": 3,
+          "transitionSpeed": 3
+        }
+      },
+      "confetti_pop": {
+        "name": "confetti_pop",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "sparkles",
+          "nukeType": "mirvWarhead",
+          "colors": [
+            "#f43f5e",
+            "#facc15",
+            "#22c55e",
+            "#3b82f6"
+          ],
+          "size": 70,
+          "speed": 80,
+          "thickness": 2.5,
+          "transitionSpeed": 5,
+          "density": 120
+        }
+      },
+      "spark_shower": {
+        "name": "spark_shower",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "common",
+        "effectType": "nukeExplosion",
+        "attributes": {
+          "type": "embers",
+          "nukeType": "mirvWarhead",
+          "colors": [
+            "#fff7ed",
+            "#fdba74",
+            "#ea580c"
+          ],
+          "size": 60,
+          "speed": 70,
+          "thickness": 2,
+          "transitionSpeed": 2,
+          "density": 110
+        }
+      }
+    },
+    "structures": {
+      "gilded": {
+        "name": "gilded",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "structures",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#fff1a8",
+            "#f5b700",
+            "#a86b00"
+          ],
+          "colorSize": 4,
+          "movementSpeed": 6
+        }
+      },
+      "chameleon": {
+        "name": "chameleon",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "structures",
+        "attributes": {
+          "type": "transition",
+          "colors": [
+            "#22c55e",
+            "#06b6d4",
+            "#a855f7",
+            "#f43f5e"
+          ],
+          "frequency": 0.8
+        }
+      },
+      "frostbite": {
+        "name": "frostbite",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "structures",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#f0f9ff",
+            "#7dd3fc",
+            "#0284c7"
+          ],
+          "colorSize": 3,
+          "movementSpeed": 4
+        }
+      }
+    },
+    "warship": {
+      "steel_tide": {
+        "name": "steel_tide",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "warship",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#e2e8f0",
+            "#64748b",
+            "#1e293b"
+          ],
+          "colorSize": 4,
+          "movementSpeed": 8
+        }
+      },
+      "phantom": {
+        "name": "phantom",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "warship",
+        "attributes": {
+          "type": "transition",
+          "colors": [
+            "#a78bfa",
+            "#1e1b4b"
+          ],
+          "frequency": 1
+        }
+      },
+      "crimson_fleet": {
+        "name": "crimson_fleet",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "warship",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#fecaca",
+            "#dc2626",
+            "#450a0a"
+          ],
+          "colorSize": 3,
+          "movementSpeed": 10
+        }
+      }
+    },
+    "train": {
+      "golden_express": {
+        "name": "golden_express",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "train",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#fde68a",
+            "#d97706",
+            "#78350f"
+          ],
+          "colorSize": 4,
+          "movementSpeed": 10
+        }
+      },
+      "neon_line": {
+        "name": "neon_line",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "train",
+        "attributes": {
+          "type": "transition",
+          "colors": [
+            "#f0abfc",
+            "#22d3ee",
+            "#a3e635"
+          ],
+          "frequency": 2
+        }
+      },
+      "midnight_run": {
+        "name": "midnight_run",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "train",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#312e81",
+            "#6366f1",
+            "#c7d2fe"
+          ],
+          "colorSize": 5,
+          "movementSpeed": 8
+        }
+      }
+    },
+    "railroad": {
+      "copper_rails": {
+        "name": "copper_rails",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "uncommon",
+        "effectType": "railroad",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#fdba74",
+            "#c2410c",
+            "#7c2d12"
+          ],
+          "colorSize": 6,
+          "movementSpeed": 0
+        }
+      },
+      "glow_track": {
+        "name": "glow_track",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "rare",
+        "effectType": "railroad",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#34d399",
+            "#22d3ee",
+            "#818cf8"
+          ],
+          "colorSize": 5,
+          "movementSpeed": 6
+        }
+      },
+      "candy_stripe": {
+        "name": "candy_stripe",
+        "product": null,
+        "artist": "OpenClaude",
+        "rarity": "epic",
+        "effectType": "railroad",
+        "attributes": {
+          "type": "gradient",
+          "colors": [
+            "#ffffff",
+            "#ef4444"
+          ],
+          "colorSize": 2,
+          "movementSpeed": 3
+        }
+      }
     }
   }
 }
