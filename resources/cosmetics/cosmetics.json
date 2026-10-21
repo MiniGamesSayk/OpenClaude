@@ -1100,54 +1100,26 @@
     }
   },
   "skins": {
-    "aurora": {
-      "name": "aurora",
-      "product": null,
-      "artist": "OpenClaude",
-      "rarity": "epic",
-      "url": "/cosmetics/skins/aurora.svg"
-    },
-    "sunburst": {
-      "name": "sunburst",
-      "product": null,
-      "artist": "OpenClaude",
-      "rarity": "uncommon",
-      "url": "/cosmetics/skins/sunburst.svg"
-    },
-    "crystal_facets": {
-      "name": "crystal_facets",
+    "beehive": {
+      "name": "beehive",
       "product": null,
       "artist": "OpenClaude",
       "rarity": "rare",
-      "url": "/cosmetics/skins/crystal_facets.svg"
+      "url": "/cosmetics/skins/beehive.svg"
     },
-    "topography": {
-      "name": "topography",
-      "product": null,
-      "artist": "OpenClaude",
-      "rarity": "rare",
-      "url": "/cosmetics/skins/topography.svg"
-    },
-    "nebula": {
-      "name": "nebula",
-      "product": null,
-      "artist": "OpenClaude",
-      "rarity": "legendary",
-      "url": "/cosmetics/skins/nebula.svg"
-    },
-    "marble": {
-      "name": "marble",
+    "dragon_scales": {
+      "name": "dragon_scales",
       "product": null,
       "artist": "OpenClaude",
       "rarity": "epic",
-      "url": "/cosmetics/skins/marble.svg"
+      "url": "/cosmetics/skins/dragon_scales.svg"
     },
-    "magma": {
-      "name": "magma",
+    "art_deco": {
+      "name": "art_deco",
       "product": null,
       "artist": "OpenClaude",
       "rarity": "legendary",
-      "url": "/cosmetics/skins/magma.svg"
+      "url": "/cosmetics/skins/art_deco.svg"
     },
     "tidal_waves": {
       "name": "tidal_waves",
@@ -1156,6 +1128,20 @@
       "rarity": "uncommon",
       "url": "/cosmetics/skins/tidal_waves.svg"
     },
+    "carbon_fiber": {
+      "name": "carbon_fiber",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "epic",
+      "url": "/cosmetics/skins/carbon_fiber.svg"
+    },
+    "herringbone": {
+      "name": "herringbone",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "uncommon",
+      "url": "/cosmetics/skins/herringbone.svg"
+    },
     "circuit_board": {
       "name": "circuit_board",
       "product": null,
@@ -1163,12 +1149,26 @@
       "rarity": "epic",
       "url": "/cosmetics/skins/circuit_board.svg"
     },
-    "mosaic": {
-      "name": "mosaic",
+    "topography": {
+      "name": "topography",
       "product": null,
       "artist": "OpenClaude",
       "rarity": "rare",
-      "url": "/cosmetics/skins/mosaic.svg"
+      "url": "/cosmetics/skins/topography.svg"
+    },
+    "woodland_camo": {
+      "name": "woodland_camo",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/skins/woodland_camo.svg"
+    },
+    "royal_tartan": {
+      "name": "royal_tartan",
+      "product": null,
+      "artist": "OpenClaude",
+      "rarity": "rare",
+      "url": "/cosmetics/skins/royal_tartan.svg"
     }
   },
   "effects": {
@@ -1181,11 +1181,7 @@
         "effectType": "transportShipTrail",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#e0f7ff",
-            "#7fd6ff",
-            "#2a8cff"
-          ],
+          "colors": ["#e0f7ff", "#7fd6ff", "#2a8cff"],
           "colorSize": 4,
           "movementSpeed": 8
         }
@@ -1198,11 +1194,7 @@
         "effectType": "transportShipTrail",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#ff5e62",
-            "#ff9966",
-            "#ffd86f"
-          ],
+          "colors": ["#ff5e62", "#ff9966", "#ffd86f"],
           "colorSize": 5,
           "movementSpeed": 10
         }
@@ -1215,11 +1207,7 @@
         "effectType": "transportShipTrail",
         "attributes": {
           "type": "transition",
-          "colors": [
-            "#ff2bd6",
-            "#00e5ff",
-            "#a6ff00"
-          ],
+          "colors": ["#ff2bd6", "#00e5ff", "#a6ff00"],
           "frequency": 1.5
         }
       },
@@ -1254,11 +1242,7 @@
         "effectType": "nukeTrail",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#d9f99d",
-            "#84cc16",
-            "#365314"
-          ],
+          "colors": ["#d9f99d", "#84cc16", "#365314"],
           "colorSize": 4,
           "movementSpeed": 12
         }
@@ -1271,10 +1255,7 @@
         "effectType": "nukeTrail",
         "attributes": {
           "type": "transition",
-          "colors": [
-            "#ef4444",
-            "#facc15"
-          ],
+          "colors": ["#ef4444", "#facc15"],
           "frequency": 3
         }
       },
@@ -1286,10 +1267,7 @@
         "effectType": "nukeTrail",
         "attributes": {
           "type": "spiral",
-          "colors": [
-            "#38bdf8",
-            "#f472b6"
-          ],
+          "colors": ["#38bdf8", "#f472b6"],
           "radius": 6,
           "strands": 2,
           "rotationSpeed": 5
@@ -1303,11 +1281,7 @@
         "effectType": "nukeTrail",
         "attributes": {
           "type": "spiral",
-          "colors": [
-            "#a855f7",
-            "#22d3ee",
-            "#ffffff"
-          ],
+          "colors": ["#a855f7", "#22d3ee", "#ffffff"],
           "radius": 8,
           "strands": 4,
           "rotationSpeed": 7
@@ -1324,12 +1298,7 @@
         "attributes": {
           "type": "shockwave",
           "nukeType": "atom",
-          "colors": [
-            "#fff7d6",
-            "#fbbf24",
-            "#f97316",
-            "#b91c1c"
-          ],
+          "colors": ["#fff7d6", "#fbbf24", "#f97316", "#b91c1c"],
           "size": 200,
           "speed": 140,
           "thickness": 5,
@@ -1345,11 +1314,7 @@
         "attributes": {
           "type": "sparkles",
           "nukeType": "atom",
-          "colors": [
-            "#ffffff",
-            "#fde68a",
-            "#93c5fd"
-          ],
+          "colors": ["#ffffff", "#fde68a", "#93c5fd"],
           "size": 190,
           "speed": 120,
           "thickness": 3,
@@ -1366,12 +1331,7 @@
         "attributes": {
           "type": "embers",
           "nukeType": "atom",
-          "colors": [
-            "#fef3c7",
-            "#fb923c",
-            "#dc2626",
-            "#451a03"
-          ],
+          "colors": ["#fef3c7", "#fb923c", "#dc2626", "#451a03"],
           "size": 180,
           "speed": 110,
           "thickness": 3,
@@ -1388,12 +1348,7 @@
         "attributes": {
           "type": "shockwave",
           "nukeType": "hydro",
-          "colors": [
-            "#ecfeff",
-            "#67e8f9",
-            "#0891b2",
-            "#1e3a8a"
-          ],
+          "colors": ["#ecfeff", "#67e8f9", "#0891b2", "#1e3a8a"],
           "size": 420,
           "speed": 220,
           "thickness": 8,
@@ -1409,12 +1364,7 @@
         "attributes": {
           "type": "sparkles",
           "nukeType": "hydro",
-          "colors": [
-            "#f0abfc",
-            "#a78bfa",
-            "#67e8f9",
-            "#ffffff"
-          ],
+          "colors": ["#f0abfc", "#a78bfa", "#67e8f9", "#ffffff"],
           "size": 400,
           "speed": 200,
           "thickness": 4,
@@ -1431,12 +1381,7 @@
         "attributes": {
           "type": "embers",
           "nukeType": "hydro",
-          "colors": [
-            "#fde047",
-            "#f97316",
-            "#b91c1c",
-            "#292524"
-          ],
+          "colors": ["#fde047", "#f97316", "#b91c1c", "#292524"],
           "size": 380,
           "speed": 180,
           "thickness": 4,
@@ -1453,11 +1398,7 @@
         "attributes": {
           "type": "shockwave",
           "nukeType": "mirvWarhead",
-          "colors": [
-            "#ffffff",
-            "#a5b4fc",
-            "#6366f1"
-          ],
+          "colors": ["#ffffff", "#a5b4fc", "#6366f1"],
           "size": 70,
           "speed": 90,
           "thickness": 3,
@@ -1473,12 +1414,7 @@
         "attributes": {
           "type": "sparkles",
           "nukeType": "mirvWarhead",
-          "colors": [
-            "#f43f5e",
-            "#facc15",
-            "#22c55e",
-            "#3b82f6"
-          ],
+          "colors": ["#f43f5e", "#facc15", "#22c55e", "#3b82f6"],
           "size": 70,
           "speed": 80,
           "thickness": 2.5,
@@ -1495,11 +1431,7 @@
         "attributes": {
           "type": "embers",
           "nukeType": "mirvWarhead",
-          "colors": [
-            "#fff7ed",
-            "#fdba74",
-            "#ea580c"
-          ],
+          "colors": ["#fff7ed", "#fdba74", "#ea580c"],
           "size": 60,
           "speed": 70,
           "thickness": 2,
@@ -1517,11 +1449,7 @@
         "effectType": "structures",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#fff1a8",
-            "#f5b700",
-            "#a86b00"
-          ],
+          "colors": ["#fff1a8", "#f5b700", "#a86b00"],
           "colorSize": 4,
           "movementSpeed": 6
         }
@@ -1534,12 +1462,7 @@
         "effectType": "structures",
         "attributes": {
           "type": "transition",
-          "colors": [
-            "#22c55e",
-            "#06b6d4",
-            "#a855f7",
-            "#f43f5e"
-          ],
+          "colors": ["#22c55e", "#06b6d4", "#a855f7", "#f43f5e"],
           "frequency": 0.8
         }
       },
@@ -1551,11 +1474,7 @@
         "effectType": "structures",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#f0f9ff",
-            "#7dd3fc",
-            "#0284c7"
-          ],
+          "colors": ["#f0f9ff", "#7dd3fc", "#0284c7"],
           "colorSize": 3,
           "movementSpeed": 4
         }
@@ -1570,11 +1489,7 @@
         "effectType": "warship",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#e2e8f0",
-            "#64748b",
-            "#1e293b"
-          ],
+          "colors": ["#e2e8f0", "#64748b", "#1e293b"],
           "colorSize": 4,
           "movementSpeed": 8
         }
@@ -1587,10 +1502,7 @@
         "effectType": "warship",
         "attributes": {
           "type": "transition",
-          "colors": [
-            "#a78bfa",
-            "#1e1b4b"
-          ],
+          "colors": ["#a78bfa", "#1e1b4b"],
           "frequency": 1
         }
       },
@@ -1602,11 +1514,7 @@
         "effectType": "warship",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#fecaca",
-            "#dc2626",
-            "#450a0a"
-          ],
+          "colors": ["#fecaca", "#dc2626", "#450a0a"],
           "colorSize": 3,
           "movementSpeed": 10
         }
@@ -1621,11 +1529,7 @@
         "effectType": "train",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#fde68a",
-            "#d97706",
-            "#78350f"
-          ],
+          "colors": ["#fde68a", "#d97706", "#78350f"],
           "colorSize": 4,
           "movementSpeed": 10
         }
@@ -1638,11 +1542,7 @@
         "effectType": "train",
         "attributes": {
           "type": "transition",
-          "colors": [
-            "#f0abfc",
-            "#22d3ee",
-            "#a3e635"
-          ],
+          "colors": ["#f0abfc", "#22d3ee", "#a3e635"],
           "frequency": 2
         }
       },
@@ -1654,11 +1554,7 @@
         "effectType": "train",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#312e81",
-            "#6366f1",
-            "#c7d2fe"
-          ],
+          "colors": ["#312e81", "#6366f1", "#c7d2fe"],
           "colorSize": 5,
           "movementSpeed": 8
         }
@@ -1673,11 +1569,7 @@
         "effectType": "railroad",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#fdba74",
-            "#c2410c",
-            "#7c2d12"
-          ],
+          "colors": ["#fdba74", "#c2410c", "#7c2d12"],
           "colorSize": 6,
           "movementSpeed": 0
         }
@@ -1690,11 +1582,7 @@
         "effectType": "railroad",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#34d399",
-            "#22d3ee",
-            "#818cf8"
-          ],
+          "colors": ["#34d399", "#22d3ee", "#818cf8"],
           "colorSize": 5,
           "movementSpeed": 6
         }
@@ -1707,10 +1595,7 @@
         "effectType": "railroad",
         "attributes": {
           "type": "gradient",
-          "colors": [
-            "#ffffff",
-            "#ef4444"
-          ],
+          "colors": ["#ffffff", "#ef4444"],
           "colorSize": 2,
           "movementSpeed": 3
         }

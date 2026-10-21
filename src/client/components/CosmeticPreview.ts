@@ -98,13 +98,15 @@ export class CosmeticPreview extends LitElement {
       if (cosmetic === null) {
         return this.renderDefaultPreview();
       }
-      return html`<img
-        src=${cosmetic.url}
-        alt=${cosmeticDisplayName(this.resolved)}
-        class="w-full h-full object-contain pointer-events-none"
-        draggable="false"
-        loading="lazy"
-      />`;
+      // Skins are seamless tiles drawn at one image pixel per map tile, so
+      // show them at native size (like a territory) rather than shrinking
+      // the whole 1024px image into the card.
+      return html`<div
+        role="img"
+        aria-label=${cosmeticDisplayName(this.resolved)}
+        class="w-full h-full pointer-events-none"
+        style="background-image:url('${cosmetic.url}');background-size:1024px;background-position:center;background-repeat:repeat"
+      ></div>`;
     }
 
     if (this.resolved.type === "effect") {
@@ -135,13 +137,15 @@ export class CosmeticPreview extends LitElement {
       if (cosmetic === null) {
         return this.renderDefaultPreview();
       }
-      return html`<img
-        src=${cosmetic.url}
-        alt=${cosmeticDisplayName(this.resolved)}
-        class="w-full h-full object-contain pointer-events-none"
-        draggable="false"
-        loading="lazy"
-      />`;
+      // Skins are seamless tiles drawn at one image pixel per map tile, so
+      // show them at native size (like a territory) rather than shrinking
+      // the whole 1024px image into the card.
+      return html`<div
+        role="img"
+        aria-label=${cosmeticDisplayName(this.resolved)}
+        class="w-full h-full pointer-events-none"
+        style="background-image:url('${cosmetic.url}');background-size:1024px;background-position:center;background-repeat:repeat"
+      ></div>`;
     }
 
     const flag = this.resolved.cosmetic as Flag;

@@ -54,26 +54,6 @@ function prng(seed) {
 /** Round for compact, stable SVG output. */
 const r1 = (v) => Math.round(v * 10) / 10;
 
-function hexToRgb(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-function rgbToHex([r, g, b]) {
-  const c = (v) =>
-    Math.max(0, Math.min(255, Math.round(v)))
-      .toString(16)
-      .padStart(2, "0");
-  return `#${c(r)}${c(g)}${c(b)}`;
-}
-function mixHex(a, b, t) {
-  const A = hexToRgb(a);
-  const B = hexToRgb(b);
-  return rgbToHex(A.map((v, i) => v + (B[i] - v) * t));
-}
-function shadeHex(hex, f) {
-  return rgbToHex(hexToRgb(hex).map((v) => (f >= 0 ? v + (255 - v) * f : v * (1 + f))));
-}
-
 // ---------------------------------------------------------------------------
 // Pattern encoding (inverse of decodePatternData in PatternDecoder.ts)
 //
@@ -161,14 +141,7 @@ const PATTERN_DEFS = [
       return wrapDist(y + 0.5, c, 12) < 1.6;
     },
   ],
-  [
-    "chevrons",
-    "uncommon",
-    16,
-    16,
-    0,
-    (x, y) => (y + Math.abs(x - 8)) % 16 < 5,
-  ],
+  ["chevrons", "uncommon", 16, 16, 0, (x, y) => (y + Math.abs(x - 8)) % 16 < 5],
   [
     "bricks",
     "common",
@@ -384,346 +357,533 @@ PATTERN_DEFS.forEach(([name, rarity, w, h, scale, fn], i) => {
 // ---------------------------------------------------------------------------
 // Skins
 //
-// A skin is one image stamped over the owner's territory, centred on their
-// spawn tile, at one image pixel per map tile (see SkinAtlasArray: every
-// image is drawn into a 1024x1024 atlas layer, centred, downscaled if larger
-// and never upscaled; territory.frag.glsl). It does not tile: tiles outside
-// the image -- or where it is transparent -- show the plain player colour. In
-// FFA the skin's own colours show; team games multiply them by the team
-// colour. So every skin is a full 1024x1024 SVG whose edge fades out (a
-// radial mask) into the player colour instead of ending on a hard square.
+// A skin is a 1024x1024 image tiled over the owner's whole territory at one
+// image pixel per map tile, with the image centre on the owner's spawn tile
+// (SkinAtlasArray uploads it into a REPEAT-wrapped atlas layer;
+// territory.frag.glsl samples each tile's texel centre). In FFA the skin's own
+// colours show; team games multiply them by the team colour.
+//
+// So every skin here is pixel art on the tile grid: a small seamless tile
+// (its size divides 1024, so the 1024 image tiles seamlessly too) drawn as
+// crisp axis-aligned runs, repeated with an SVG <pattern>. Each tile pixel is
+// one map tile, which keeps the skins sharp at every zoom: no anti-aliased
+// half-tones, blur or noise, just a few flat colours per skin. Territory is
+// drawn at mapOverlay.territoryAlpha over the terrain, so palettes keep
+// strong contrast. Names differ from the patterns' (both share one list).
 
 const SKIN_SIZE = 1024;
-const C = SKIN_SIZE / 2;
 
-function skinSvg(defs, body) {
+/** Positive modulo. */
+const mod = (a, n) => ((a % n) + n) % n;
+
+/**
+ * Pixel tile helper. `paint(set)` fills a w x h grid of palette indices
+ * (index 0 is the background); `set(x, y, i)` wraps around the tile edges,
+ * so shapes that cross an edge continue on the opposite side.
+ */
+function pixelTile(w, h, palette, paint) {
+  if (SKIN_SIZE % w !== 0 || SKIN_SIZE % h !== 0) {
+    throw new Error(`skin tile ${w}x${h} does not divide ${SKIN_SIZE}`);
+  }
+  const grid = new Uint8Array(w * h);
+  const set = (x, y, i) => {
+    grid[mod(Math.round(y), h) * w + mod(Math.round(x), w)] = i;
+  };
+  const get = (x, y) => grid[mod(y, h) * w + mod(x, w)];
+  paint(set, get);
+  return { w, h, palette, grid };
+}
+
+/** Tile whose every pixel is `f(x, y)`, sampled at the pixel centre. */
+function fieldTile(w, h, palette, f) {
+  return pixelTile(w, h, palette, (set) => {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) set(x, y, f(x + 0.5, y + 0.5));
+    }
+  });
+}
+
+function tileToSvg({ w, h, palette, grid }) {
+  const runs = palette.map(() => "");
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      const i = grid[y * w + x];
+      let end = x + 1;
+      while (end < w && grid[y * w + end] === i) end++;
+      if (i !== 0) runs[i] += `M${x} ${y}h${end - x}v1h${x - end}z`;
+      x = end;
+    }
+  }
+  const paths = runs
+    .map((d, i) => (d ? `<path fill="${palette[i]}" d="${d}"/>` : ""))
+    .join("");
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${SKIN_SIZE}" height="${SKIN_SIZE}" viewBox="0 0 ${SKIN_SIZE} ${SKIN_SIZE}">` +
-    `<defs>` +
-    `<radialGradient id="fade" cx="0.5" cy="0.5" r="0.5"><stop offset="0.78" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient>` +
-    `<mask id="edge"><rect width="${SKIN_SIZE}" height="${SKIN_SIZE}" fill="url(#fade)"/></mask>` +
-    defs +
-    `</defs>` +
-    `<g mask="url(#edge)">${body}</g>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${SKIN_SIZE}" height="${SKIN_SIZE}" viewBox="0 0 ${SKIN_SIZE} ${SKIN_SIZE}" shape-rendering="crispEdges">` +
+    `<defs><pattern id="t" width="${w}" height="${h}" patternUnits="userSpaceOnUse">` +
+    `<rect width="${w}" height="${h}" fill="${palette[0]}"/>${paths}` +
+    `</pattern></defs>` +
+    `<rect width="${SKIN_SIZE}" height="${SKIN_SIZE}" fill="url(#t)"/>` +
     `</svg>\n`
   );
 }
 
-/** A closed loop around the centre with a smoothly wobbling radius. */
-function wobblyRing(rand, radius, wobble, points = 96) {
-  const harmonics = [2, 3, 5, 7].map((k) => ({
-    k,
-    phase: rand() * Math.PI * 2,
-    amp: (rand() * 0.6 + 0.4) / k,
-  }));
-  let d = "";
-  for (let i = 0; i < points; i++) {
-    const a = (i / points) * Math.PI * 2;
-    let rr = radius;
-    for (const h of harmonics) rr += wobble * h.amp * Math.sin(h.k * a + h.phase);
-    const x = C + rr * Math.cos(a);
-    const y = C + rr * Math.sin(a);
-    d += `${i === 0 ? "M" : "L"}${r1(x)} ${r1(y)}`;
+/**
+ * Nearest lattice centre to (x, y) on a w x h torus, and the distance to the
+ * edge of its Voronoi cell. `ys` scales the y axis of the metric (a centred
+ * rectangular lattice becomes a regular hexagonal one when ys = w*sqrt(3)/h).
+ */
+function voronoi(x, y, centres, w, h, ys = 1) {
+  const pts = [];
+  for (const [cx, cy, id] of centres) {
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        pts.push([cx + ox * w, (cy + oy * h) * ys, id]);
+      }
+    }
   }
-  return d + "Z";
+  const py = y * ys;
+  let best = null;
+  let bestD = Infinity;
+  for (const p of pts) {
+    const d = (p[0] - x) ** 2 + (p[1] - py) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  let edge = Infinity;
+  for (const p of pts) {
+    if (p === best) continue;
+    const sep = Math.hypot(p[0] - best[0], p[1] - best[1]);
+    const d = (p[0] - x) ** 2 + (p[1] - py) ** 2;
+    edge = Math.min(edge, (d - bestD) / (2 * sep));
+  }
+  return {
+    id: best[2],
+    dist: Math.sqrt(bestD),
+    edge,
+    dx: x - best[0],
+    dy: py - best[1],
+  };
 }
 
-function stars(rand, count, colors, maxR) {
-  let out = "";
-  for (let i = 0; i < count; i++) {
-    const x = rand() * SKIN_SIZE;
-    const y = rand() * SKIN_SIZE;
-    const rr = 0.8 + rand() * rand() * maxR;
-    const col = colors[Math.floor(rand() * colors.length)];
-    out += `<circle cx="${r1(x)}" cy="${r1(y)}" r="${r1(rr)}" fill="${col}"/>`;
+/**
+ * Smooth periodic field on a w x h torus in about [-1, 1]: a sum of waves
+ * whose frequencies are whole numbers of cycles per tile, so it wraps.
+ */
+function periodicField(rand, w, h, waves) {
+  const terms = [];
+  for (const [maxF, amp] of waves) {
+    let fx = 0;
+    let fy = 0;
+    while (fx === 0 && fy === 0) {
+      fx = Math.floor(rand() * (2 * maxF + 1)) - maxF;
+      fy = Math.floor(rand() * (maxF + 1));
+    }
+    terms.push({ fx, fy, amp, phase: rand() * Math.PI * 2 });
   }
-  return out;
+  const total = terms.reduce((s, t) => s + t.amp, 0);
+  return (x, y) => {
+    let v = 0;
+    for (const t of terms) {
+      v +=
+        t.amp *
+        Math.sin(2 * Math.PI * ((t.fx * x) / w + (t.fy * y) / h) + t.phase);
+    }
+    return v / total;
+  };
 }
+
+/** Majority filter (3x3, wrapping): removes single-pixel specks and jags. */
+function smoothTile(tile, passes = 1) {
+  const { w, h, grid } = tile;
+  for (let p = 0; p < passes; p++) {
+    const next = new Uint8Array(grid);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const counts = new Map();
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const v = grid[mod(y + dy, h) * w + mod(x + dx, w)];
+            counts.set(v, (counts.get(v) ?? 0) + 1);
+          }
+        }
+        let bestV = grid[y * w + x];
+        let bestN = counts.get(bestV);
+        for (const [v, n] of counts) {
+          if (n > bestN) {
+            bestN = n;
+            bestV = v;
+          }
+        }
+        next[y * w + x] = bestN >= 5 ? bestV : grid[y * w + x];
+      }
+    }
+    grid.set(next);
+  }
+  return tile;
+}
+
+const SQRT3 = Math.sqrt(3);
 
 const SKIN_DEFS = [
   {
-    name: "aurora",
-    rarity: "epic",
-    svg() {
-      const rand = prng(101);
-      let body =
-        `<rect width="1024" height="1024" fill="url(#sky)"/>` +
-        stars(rand, 260, ["#ffffff", "#cfe8ff"], 1.6);
-      const bands = ["#3dffb0", "#22d3a6", "#7c5cff", "#38bdf8", "#a3ff7a"];
-      let paths = "";
-      for (let b = 0; b < 9; b++) {
-        const base = 180 + b * 80 + rand() * 30;
-        const amp = 40 + rand() * 60;
-        const freq = 1 + Math.floor(rand() * 3);
-        const phase = rand() * Math.PI * 2;
-        let d = "";
-        for (let x = -20; x <= 1044; x += 16) {
-          const y =
-            base +
-            amp * Math.sin((x / 1024) * Math.PI * 2 * freq + phase) +
-            0.35 * amp * Math.sin((x / 1024) * Math.PI * 7 + phase * 2);
-          d += `${x === -20 ? "M" : "L"}${x} ${r1(y)}`;
-        }
-        const col = bands[b % bands.length];
-        const width = 18 + rand() * 40;
-        paths += `<path d="${d}" fill="none" stroke="${col}" stroke-width="${r1(width)}" stroke-opacity="${r1(0.35 + rand() * 0.4)}" stroke-linecap="round"/>`;
-      }
-      body += `<g filter="url(#glow)">${paths}</g>`;
-      return skinSvg(
-        `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050b24"/><stop offset="0.55" stop-color="#0b2a4a"/><stop offset="1" stop-color="#06372f"/></linearGradient>` +
-          `<filter id="glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="10"/></filter>`,
-        body,
-      );
-    },
-  },
-  {
-    name: "sunburst",
-    rarity: "uncommon",
-    svg() {
-      const rays = 28;
-      let body = `<rect width="1024" height="1024" fill="#f59e0b"/>`;
-      for (let i = 0; i < rays; i += 2) {
-        const a0 = (i / rays) * Math.PI * 2;
-        const a1 = ((i + 1) / rays) * Math.PI * 2;
-        const R = 800;
-        body += `<path d="M${C} ${C}L${r1(C + R * Math.cos(a0))} ${r1(C + R * Math.sin(a0))}L${r1(C + R * Math.cos(a1))} ${r1(C + R * Math.sin(a1))}Z" fill="#fcd34d"/>`;
-      }
-      body += `<rect width="1024" height="1024" fill="url(#heat)"/>`;
-      body += `<circle cx="${C}" cy="${C}" r="70" fill="#fff7d6"/><circle cx="${C}" cy="${C}" r="70" fill="none" stroke="#fbbf24" stroke-width="10"/>`;
-      return skinSvg(
-        `<radialGradient id="heat" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff3c4" stop-opacity="0.7"/><stop offset="0.35" stop-color="#fff3c4" stop-opacity="0"/><stop offset="1" stop-color="#b45309" stop-opacity="0.55"/></radialGradient>`,
-        body,
-      );
-    },
-  },
-  {
-    name: "crystal_facets",
+    // Amber hexagon cells with a dark wax outline and a light inner bevel.
+    name: "beehive",
     rarity: "rare",
-    svg() {
-      const rand = prng(202);
-      const N = 16;
-      const cell = SKIN_SIZE / N;
-      const pts = [];
-      for (let j = 0; j <= N; j++) {
-        const row = [];
-        for (let i = 0; i <= N; i++) {
-          const edge = i === 0 || j === 0 || i === N || j === N;
-          row.push([
-            i * cell + (edge ? 0 : (rand() - 0.5) * cell * 0.8),
-            j * cell + (edge ? 0 : (rand() - 0.5) * cell * 0.8),
-          ]);
-        }
-        pts.push(row);
-      }
-      const from = "#1e3a8a";
-      const to = "#06b6d4";
-      let body = "";
-      const tri = (a, b, c) => {
-        const cx = (a[0] + b[0] + c[0]) / 3;
-        const cy = (a[1] + b[1] + c[1]) / 3;
-        const t = Math.min(1, Math.max(0, (cx + cy) / (2 * SKIN_SIZE)));
-        const col = shadeHex(mixHex(from, to, t), (rand() - 0.5) * 0.35);
-        body += `<path d="M${r1(a[0])} ${r1(a[1])}L${r1(b[0])} ${r1(b[1])}L${r1(c[0])} ${r1(c[1])}Z" fill="${col}" stroke="${col}" stroke-width="1"/>`;
-      };
-      for (let j = 0; j < N; j++) {
-        for (let i = 0; i < N; i++) {
-          const p00 = pts[j][i];
-          const p10 = pts[j][i + 1];
-          const p01 = pts[j + 1][i];
-          const p11 = pts[j + 1][i + 1];
-          if ((i + j) % 2 === 0) {
-            tri(p00, p10, p11);
-            tri(p00, p11, p01);
-          } else {
-            tri(p00, p10, p01);
-            tri(p10, p11, p01);
+    tile() {
+      const W = 32;
+      const H = 64;
+      const ys = (W * SQRT3) / H;
+      const centres = [
+        [0, 0, 0],
+        [W / 2, H / 2, 1],
+      ];
+      const pal = ["#e9a426", "#7a4a0c", "#f6c85a", "#c98512"];
+      return fieldTile(W, H, pal, (x, y) => {
+        const v = voronoi(x, y, centres, W, H, ys);
+        if (v.edge < 1.1) return 1;
+        if (v.edge < 3.2) return v.dy * 0.6 - v.dx < 0 ? 2 : 3;
+        return 0;
+      });
+    },
+  },
+  {
+    // Overlapping scales, each with a dark rim and a light inner crescent.
+    name: "dragon_scales",
+    rarity: "epic",
+    tile() {
+      const W = 16;
+      const H = 16;
+      const R = 8.6;
+      const pal = ["#1f7a5c", "#0c3b2e", "#4fbf8f", "#16634a"];
+      return fieldTile(W, H, pal, (x, y) => {
+        // Rows 8px apart, every other row shifted half a scale; upper rows
+        // overlap lower ones, so each scale shows its bottom arc.
+        for (let row = -2; row <= 3; row++) {
+          const cy = row * 8;
+          const cx = mod(row, 2) * 8;
+          for (const ox of [-W, 0, W]) {
+            const d = Math.hypot(x - (cx + ox), y - cy);
+            if (d < R) {
+              if (d > R - 1.3) return 1;
+              if (d > R - 3 && y > cy + 1) return 2;
+              return y < cy - 2 ? 3 : 0;
+            }
           }
         }
-      }
-      return skinSvg("", body);
+        return 0;
+      });
     },
   },
   {
-    name: "topography",
-    rarity: "rare",
-    svg() {
-      const rand = prng(303);
-      const ramp = [
-        "#2f5d50",
-        "#3f7a57",
-        "#5f9a5a",
-        "#8fb465",
-        "#c3c97a",
-        "#dcc68c",
-        "#c9a271",
-        "#a87d5a",
-        "#8c6650",
-        "#efe9dc",
-      ];
-      let body = `<rect width="1024" height="1024" fill="${ramp[0]}"/>`;
-      const levels = 18;
-      for (let l = 0; l < levels; l++) {
-        const radius = 740 - l * 40;
-        const col = ramp[Math.min(ramp.length - 1, Math.floor((l / levels) * ramp.length) + 1)];
-        body += `<path d="${wobblyRing(rand, radius, 90)}" fill="${col}" stroke="#2b2118" stroke-opacity="0.45" stroke-width="2.5"/>`;
-      }
-      return skinSvg("", body);
-    },
-  },
-  {
-    name: "nebula",
+    // Gold-on-ink nested diamonds with a stepped centre: 1920s geometry.
+    name: "art_deco",
     rarity: "legendary",
-    svg() {
-      const rand = prng(404);
-      const body =
-        `<rect width="1024" height="1024" fill="#070617"/>` +
-        `<rect width="1024" height="1024" filter="url(#clouds)"/>` +
-        stars(rand, 420, ["#ffffff", "#ffe4f7", "#d6e6ff"], 2.2);
-      return skinSvg(
-        `<filter id="clouds" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">` +
-          `<feTurbulence type="fractalNoise" baseFrequency="0.0035" numOctaves="5" seed="7"/>` +
-          `<feColorMatrix type="matrix" values="1.6 0 0.4 0 -0.35  0.2 0.3 0.6 0 -0.2  0.6 0.4 1.6 0 -0.3  1.4 0 0.6 0 -0.45"/>` +
-          `</filter>`,
-        body,
-      );
+    tile() {
+      const S = 32;
+      const pal = ["#10192e", "#d4af37", "#1d2c4d", "#f1d77a"];
+      return fieldTile(S, S, pal, (x, y) => {
+        // Diamond lattice: centres at (0,0) and (16,16) on the torus.
+        const dx1 = Math.abs(mod(x, S) - S / 2);
+        const dy1 = Math.abs(mod(y, S) - S / 2);
+        const dA = dx1 + dy1; // L1 distance to (16,16)
+        const dB = S / 2 - dx1 + (S / 2 - dy1); // to the (0,0) corners
+        const d = Math.min(dA, dB);
+        const ring = Math.floor(d);
+        if (ring === 15 || ring === 16) return 1; // outline between diamonds
+        if (ring === 11) return 1;
+        if (ring >= 12 && ring <= 14) return 2;
+        if (ring === 7) return 1;
+        if (ring <= 3) return 3;
+        return 0;
+      });
     },
   },
   {
-    name: "marble",
-    rarity: "epic",
-    svg() {
-      return skinSvg(
-        `<filter id="veins" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">` +
-          `<feTurbulence type="turbulence" baseFrequency="0.0028 0.0065" numOctaves="5" seed="12"/>` +
-          `<feColorMatrix type="matrix" values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 1"/>` +
-          `<feComponentTransfer>` +
-          `<feFuncR type="table" tableValues="0.42 0.78 0.9 0.94 0.96 0.97"/>` +
-          `<feFuncG type="table" tableValues="0.40 0.76 0.88 0.92 0.94 0.95"/>` +
-          `<feFuncB type="table" tableValues="0.38 0.72 0.84 0.88 0.9 0.91"/>` +
-          `</feComponentTransfer>` +
-          `</filter>`,
-        `<rect width="1024" height="1024" filter="url(#veins)"/>`,
-      );
-    },
-  },
-  {
-    name: "magma",
-    rarity: "legendary",
-    svg() {
-      return skinSvg(
-        `<filter id="lava" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">` +
-          `<feTurbulence type="fractalNoise" baseFrequency="0.006" numOctaves="4" seed="21"/>` +
-          `<feColorMatrix type="matrix" values="1 0 0 0 0  1 0 0 0 0  1 0 0 0 0  0 0 0 0 1"/>` +
-          `<feComponentTransfer>` +
-          `<feFuncR type="table" tableValues="0.08 0.12 0.2 0.75 1 1"/>` +
-          `<feFuncG type="table" tableValues="0.04 0.05 0.06 0.2 0.6 0.95"/>` +
-          `<feFuncB type="table" tableValues="0.05 0.05 0.05 0.04 0.1 0.5"/>` +
-          `</feComponentTransfer>` +
-          `</filter>`,
-        `<rect width="1024" height="1024" filter="url(#lava)"/>`,
-      );
-    },
-  },
-  {
+    // Rolling waves in three blues with a crisp foam line on each crest.
     name: "tidal_waves",
     rarity: "uncommon",
-    svg() {
-      const rand = prng(505);
-      let body = `<rect width="1024" height="1024" fill="#0c4a6e"/>`;
-      const rows = 26;
-      for (let rI = 0; rI < rows; rI++) {
-        const base = rI * 42 - 20;
-        const amp = 10 + rand() * 8;
-        const phase = rand() * Math.PI * 2;
-        const freq = 5 + Math.floor(rand() * 3);
-        let d = `M-10 1044`;
-        for (let x = -10; x <= 1034; x += 8) {
-          const y = base + amp * Math.sin((x / 1024) * Math.PI * 2 * freq + phase);
-          d += `L${x} ${r1(y)}`;
+    tile() {
+      const W = 64;
+      const H = 32;
+      const bands = ["#0b4a74", "#1272a6", "#0e5e8d", "#1b88c0"];
+      const pal = [...bands, "#d6f1ff"];
+      const wave = (x) =>
+        Math.round(3 * Math.sin((2 * Math.PI * (mod(x, W) + 0.5)) / W));
+      return pixelTile(W, H, pal, (set) => {
+        for (let x = 0; x < W; x++) {
+          for (let y = 0; y < H; y++) {
+            set(x, y, Math.floor(mod(y + wave(x), H) / 8));
+          }
+          // Foam on each crest, joined vertically where the crest steps.
+          const a = wave(x);
+          const b = wave(x + 1);
+          for (let band = 0; band < H; band += 8) {
+            set(x, band - a, 4);
+            set(x, band - b, 4);
+          }
         }
-        d += "L1034 1044Z";
-        const t = rI / (rows - 1);
-        const col = rI % 2 === 0 ? mixHex("#38bdf8", "#0e7490", t) : mixHex("#0ea5e9", "#155e75", t);
-        body += `<path d="${d}" fill="${col}" stroke="#e0f7ff" stroke-opacity="0.55" stroke-width="3"/>`;
-      }
-      return skinSvg("", body);
+      });
     },
   },
   {
+    // 2x2 twill weave: tows alternate direction along diagonals.
+    name: "carbon_fiber",
+    rarity: "epic",
+    tile() {
+      const B = 4;
+      const S = 16;
+      const pal = ["#24262b", "#121316", "#3a3d44", "#4f535c"];
+      return fieldTile(S, S, pal, (x, y) => {
+        const bx = Math.floor(x / B);
+        const by = Math.floor(y / B);
+        const horizontal = mod(bx - by, 4) < 2;
+        const t = horizontal ? Math.floor(y) % B : Math.floor(x) % B;
+        return [1, 0, 3, 2][t];
+      });
+    },
+  },
+  {
+    // Oak parquet: 16x4 planks in herringbone, three wood tones, 1px joints.
+    name: "herringbone",
+    rarity: "uncommon",
+    tile() {
+      const L = 16;
+      const PW = 4;
+      const S = 32;
+      const pal = ["#a8692f", "#45260f", "#c98a4b", "#8a5424"];
+      // Plank pairs sit on the lattice (PW,PW)*m + (L,-L)*n, which contains
+      // the tile's own translations (32,0) = 4a+b and (0,32) = 4a-b.
+      const tones = [0, 2, 3, 0, 3, 2, 0, 2];
+      return pixelTile(S, S, pal, (set) => {
+        const plank = (x0, y0, w, h, tone) => {
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              set(x0 + x, y0 + y, x === w - 1 || y === h - 1 ? 1 : tone);
+            }
+          }
+        };
+        // The 32x32 tile holds exactly the 8 plank pairs m = 0..7.
+        for (let m = 0; m < 8; m++) {
+          const o = m * PW;
+          plank(o, o, L, PW, tones[m]);
+          plank(o + L, o + PW - L, PW, L, tones[mod(m + 3, 8)]);
+        }
+      });
+    },
+  },
+  {
+    // Gold traces at 0/45/90 degrees ending in pads, on a dark green board.
     name: "circuit_board",
     rarity: "epic",
-    svg() {
-      const rand = prng(606);
-      const step = 32;
-      const n = SKIN_SIZE / step;
-      let body = `<rect width="1024" height="1024" fill="#0b2e22"/>`;
-      body += `<path d="${Array.from({ length: n + 1 }, (_, i) => `M${i * step} 0V1024M0 ${i * step}H1024`).join("")}" stroke="#134e3a" stroke-width="1"/>`;
-      let traces = "";
-      let pads = "";
-      const dirs = [
-        [1, 0],
-        [0, 1],
-        [-1, 0],
-        [0, -1],
-      ];
-      for (let t = 0; t < 70; t++) {
-        let x = Math.floor(rand() * n);
-        let y = Math.floor(rand() * n);
-        let d = `M${x * step} ${y * step}`;
-        let dir = Math.floor(rand() * 4);
-        pads += `<circle cx="${x * step}" cy="${y * step}" r="6" fill="#0b2e22" stroke="#facc15" stroke-width="3"/>`;
-        const len = 4 + Math.floor(rand() * 10);
-        for (let s = 0; s < len; s++) {
-          if (rand() < 0.3) dir = (dir + (rand() < 0.5 ? 1 : 3)) % 4;
-          x = Math.max(0, Math.min(n, x + dirs[dir][0]));
-          y = Math.max(0, Math.min(n, y + dirs[dir][1]));
-          d += `L${x * step} ${y * step}`;
+    tile() {
+      const S = 64;
+      const pal = ["#0f3d2e", "#d9a73e", "#145440", "#0a2a20"];
+      const rand = prng(0xc1c0);
+      return pixelTile(S, S, pal, (set, get) => {
+        // Faint board grid every 8px.
+        for (let i = 0; i < S; i++) {
+          for (let k = 0; k < S; k += 8) {
+            set(i, k, 2);
+            set(k, i, 2);
+          }
         }
-        traces += `<path d="${d}"/>`;
-        pads += `<circle cx="${x * step}" cy="${y * step}" r="5" fill="#facc15"/>`;
-      }
-      body += `<g fill="none" stroke="#34d399" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">${traces}</g>${pads}`;
-      for (let c = 0; c < 10; c++) {
-        const x = Math.floor(rand() * (n - 3)) * step + 8;
-        const y = Math.floor(rand() * (n - 3)) * step + 8;
-        body += `<rect x="${x}" y="${y}" width="${step * 2 - 16}" height="${step * 1.5}" rx="4" fill="#111827" stroke="#9ca3af" stroke-width="2"/>`;
-      }
-      return skinSvg("", body);
+        const used = new Set();
+        const key = (x, y) => `${mod(x, S)},${mod(y, S)}`;
+        const free = (x, y) => {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (used.has(key(x + dx, y + dy))) return false;
+            }
+          }
+          return true;
+        };
+        const pad = (x, y) => {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              set(x + dx, y + dy, dx === 0 && dy === 0 ? 3 : 1);
+              used.add(key(x + dx, y + dy));
+            }
+          }
+        };
+        const dirs = [
+          [1, 0],
+          [0, 1],
+          [-1, 0],
+          [0, -1],
+        ];
+        let placed = 0;
+        for (let attempt = 0; attempt < 400 && placed < 14; attempt++) {
+          let x = 4 + 8 * Math.floor(rand() * 8);
+          let y = 4 + 8 * Math.floor(rand() * 8);
+          if (!free(x, y) || !free(x + 1, y + 1)) continue;
+          // Path: straight run, a 45-degree jog, another straight run.
+          const [dx, dy] = dirs[Math.floor(rand() * 4)];
+          const turn = rand() < 0.5 ? 1 : -1;
+          const jx = dx === 0 ? turn : dx;
+          const jy = dy === 0 ? turn : dy;
+          const legs = [
+            [dx, dy, 4 + Math.floor(rand() * 8)],
+            [jx, jy, 2 + Math.floor(rand() * 5)],
+            [dx, dy, 3 + Math.floor(rand() * 8)],
+          ];
+          const cells = [];
+          let ok = true;
+          let cx = x;
+          let cy = y;
+          for (const [sx, sy, n] of legs) {
+            for (let i = 0; i < n; i++) {
+              cx += sx;
+              cy += sy;
+              cells.push([cx, cy]);
+            }
+          }
+          // Keep clear of other traces (but not of our own previous cell).
+          for (let i = 2; i < cells.length; i++) {
+            if (!free(cells[i][0], cells[i][1])) ok = false;
+          }
+          const [ex, ey] = cells[cells.length - 1];
+          if (!ok || !free(ex + 1, ey) || !free(ex, ey + 1)) continue;
+          pad(x, y);
+          for (const [px, py] of cells) set(px, py, 1);
+          for (const [px, py] of cells) used.add(key(px, py));
+          pad(ex, ey);
+          placed++;
+        }
+        // Lone vias in the gaps.
+        for (let i = 0; i < 10; i++) {
+          const x = 4 + 8 * Math.floor(rand() * 8);
+          const y = 4 + 8 * Math.floor(rand() * 8);
+          if (free(x, y) && get(x, y) === 0) pad(x, y);
+        }
+      });
     },
   },
   {
-    name: "mosaic",
+    // Contour map: flat teal-to-cream hypsometric bands with crisp 1px contour lines.
+    name: "topography",
     rarity: "rare",
-    svg() {
-      const rand = prng(707);
-      const jewels = ["#b91c1c", "#1d4ed8", "#047857", "#a16207", "#7e22ce", "#0e7490", "#c2410c"];
-      const R = 34;
-      const w = Math.sqrt(3) * R;
-      const h = 1.5 * R;
-      let body = `<rect width="1024" height="1024" fill="#1c1917"/>`;
-      for (let row = -1; row * h < SKIN_SIZE + R; row++) {
-        for (let col = -1; col * w < SKIN_SIZE + w; col++) {
-          const cx = col * w + (row % 2 === 0 ? 0 : w / 2);
-          const cy = row * h;
-          const dist = Math.hypot(cx - C, cy - C);
-          const base = jewels[Math.floor((dist / 90 + rand() * 1.2) % jewels.length)];
-          const col2 = shadeHex(base, (rand() - 0.4) * 0.45);
-          let d = "";
-          for (let k = 0; k < 6; k++) {
-            const a = Math.PI / 6 + (k * Math.PI) / 3;
-            d += `${k === 0 ? "M" : "L"}${r1(cx + (R - 3) * Math.cos(a))} ${r1(cy + (R - 3) * Math.sin(a))}`;
-          }
-          body += `<path d="${d}Z" fill="${col2}"/>`;
+    tile() {
+      const S = 128;
+      const pal = [
+        "#1b4b5a",
+        "#2b6a74",
+        "#44898a",
+        "#6fa99c",
+        "#a3c8ac",
+        "#dbe7c3",
+        "#0c2a33",
+      ];
+      const h = periodicField(prng(0x70f0), S, S, [
+        [2, 1],
+        [2, 0.8],
+        [3, 0.55],
+        [3, 0.45],
+        [4, 0.25],
+      ]);
+      // Ten levels spread over the field's actual range; the six fills go
+      // up then back down the ramp so neighbouring bands always differ.
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let y = 0; y < S; y++) {
+        for (let x = 0; x < S; x++) {
+          const v = h(x + 0.5, y + 0.5);
+          lo = Math.min(lo, v);
+          hi = Math.max(hi, v);
         }
       }
-      body += `<rect width="1024" height="1024" fill="url(#shine)"/>`;
-      return skinSvg(
-        `<radialGradient id="shine" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff" stop-opacity="0.25"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`,
-        body,
+      const BANDS = 10;
+      const fill = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1];
+      const levels = pixelTile(S, S, [], (set) => {
+        for (let y = 0; y < S; y++) {
+          for (let x = 0; x < S; x++) {
+            const t = (h(x + 0.5, y + 0.5) - lo) / (hi - lo);
+            set(x, y, Math.min(BANDS - 1, Math.floor(t * BANDS)));
+          }
+        }
+      });
+      smoothTile(levels, 2);
+      const lv = (x, y) => levels.grid[mod(y, S) * S + mod(x, S)];
+      // A 1px contour on the low side of every band edge.
+      const tile = fieldTile(S, S, pal, (fx, fy) => {
+        const x = Math.floor(fx);
+        const y = Math.floor(fy);
+        const l = lv(x, y);
+        const higher =
+          l < lv(x + 1, y) ||
+          l < lv(x - 1, y) ||
+          l < lv(x, y + 1) ||
+          l < lv(x, y - 1);
+        return higher ? 6 : fill[l];
+      });
+      return tile;
+    },
+  },
+  {
+    // Flat four-colour woodland camouflage with smooth-edged blobs.
+    name: "woodland_camo",
+    rarity: "rare",
+    tile() {
+      const S = 128;
+      const pal = ["#556b2f", "#a0a862", "#6b4728", "#17180f"];
+      const rand = prng(0xca30);
+      const waves = [
+        [3, 1],
+        [4, 0.8],
+        [5, 0.6],
+        [6, 0.35],
+      ];
+      const a = periodicField(rand, S, S, waves);
+      const b = periodicField(rand, S, S, waves);
+      const c = periodicField(rand, S, S, waves);
+      return smoothTile(
+        fieldTile(S, S, pal, (x, y) => {
+          if (c(x, y) > 0.42) return 3;
+          if (b(x, y) > 0.25) return 2;
+          return a(x, y) > 0.05 ? 1 : 0;
+        }),
+        3,
       );
+    },
+  },
+  {
+    // Red tartan: a mirrored sett woven as a 2/2 twill.
+    name: "royal_tartan",
+    rarity: "rare",
+    tile() {
+      const pal = ["#a3202e", "#1c2a4a", "#1e5b3a", "#e8c547", "#f2efe6"];
+      // [palette index, threads]; mirrored about its ends -> 64 threads.
+      const half = [
+        [0, 12],
+        [1, 6],
+        [0, 2],
+        [4, 1],
+        [0, 2],
+        [2, 6],
+        [3, 1],
+        [2, 2],
+      ];
+      const sett = [];
+      for (const [c, n] of half) for (let i = 0; i < n; i++) sett.push(c);
+      const threads = [...sett, ...sett.slice().reverse()];
+      const S = threads.length;
+      return fieldTile(S, S, pal, (x, y) => {
+        const warp = threads[Math.floor(x)];
+        const weft = threads[Math.floor(y)];
+        if (warp === weft) return warp;
+        // Different threads cross: the 2/2 twill shows each in turn.
+        return mod(Math.floor(x) + Math.floor(y), 4) < 2 ? warp : weft;
+      });
     },
   },
 ];
+
+for (const d of SKIN_DEFS) {
+  const tile = d.tile();
+  d.svg = () => tileToSvg(tile);
+}
 
 // ---------------------------------------------------------------------------
 // Crowns
@@ -770,7 +930,8 @@ const CROWN_DEFS = [
         for (const side of [-1, 1]) {
           const cx = 64 + side * 44 * Math.cos(a);
           const cy = 70 + 40 * Math.sin(a) - 10;
-          const rot = side * ((a * 180) / Math.PI) + (side < 0 ? 180 : 0) + 90 * side;
+          const rot =
+            side * ((a * 180) / Math.PI) + (side < 0 ? 180 : 0) + 90 * side;
           leaves += `<ellipse cx="${r1(cx)}" cy="${r1(cy)}" rx="13" ry="6" transform="rotate(${r1(rot)} ${r1(cx)} ${r1(cy)})" fill="url(#s)" stroke="#475569" stroke-width="2"/>`;
         }
       }
@@ -847,51 +1008,337 @@ const CROWN_DEFS = [
 // ---------------------------------------------------------------------------
 // Effects: a few variants per effect type, attributes per CosmeticSchemas.ts.
 
-const RAINBOW = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#00c7be", "#007aff", "#af52de"];
+const RAINBOW = [
+  "#ff3b30",
+  "#ff9500",
+  "#ffcc00",
+  "#34c759",
+  "#00c7be",
+  "#007aff",
+  "#af52de",
+];
 
 const EFFECT_DEFS = {
   transportShipTrail: [
-    ["sea_foam", "common", { type: "gradient", colors: ["#e0f7ff", "#7fd6ff", "#2a8cff"], colorSize: 4, movementSpeed: 8 }],
-    ["sunset_wake", "uncommon", { type: "gradient", colors: ["#ff5e62", "#ff9966", "#ffd86f"], colorSize: 5, movementSpeed: 10 }],
-    ["neon_pulse", "rare", { type: "transition", colors: ["#ff2bd6", "#00e5ff", "#a6ff00"], frequency: 1.5 }],
-    ["prism_wake", "epic", { type: "gradient", colors: RAINBOW, colorSize: 3, movementSpeed: 14 }],
+    [
+      "sea_foam",
+      "common",
+      {
+        type: "gradient",
+        colors: ["#e0f7ff", "#7fd6ff", "#2a8cff"],
+        colorSize: 4,
+        movementSpeed: 8,
+      },
+    ],
+    [
+      "sunset_wake",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#ff5e62", "#ff9966", "#ffd86f"],
+        colorSize: 5,
+        movementSpeed: 10,
+      },
+    ],
+    [
+      "neon_pulse",
+      "rare",
+      {
+        type: "transition",
+        colors: ["#ff2bd6", "#00e5ff", "#a6ff00"],
+        frequency: 1.5,
+      },
+    ],
+    [
+      "prism_wake",
+      "epic",
+      { type: "gradient", colors: RAINBOW, colorSize: 3, movementSpeed: 14 },
+    ],
   ],
   nukeTrail: [
-    ["toxic_glow", "uncommon", { type: "gradient", colors: ["#d9f99d", "#84cc16", "#365314"], colorSize: 4, movementSpeed: 12 }],
-    ["warning_lights", "rare", { type: "transition", colors: ["#ef4444", "#facc15"], frequency: 3 }],
-    ["double_helix", "epic", { type: "spiral", colors: ["#38bdf8", "#f472b6"], radius: 6, strands: 2, rotationSpeed: 5 }],
-    ["vortex", "legendary", { type: "spiral", colors: ["#a855f7", "#22d3ee", "#ffffff"], radius: 8, strands: 4, rotationSpeed: 7 }],
+    [
+      "toxic_glow",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#d9f99d", "#84cc16", "#365314"],
+        colorSize: 4,
+        movementSpeed: 12,
+      },
+    ],
+    [
+      "warning_lights",
+      "rare",
+      { type: "transition", colors: ["#ef4444", "#facc15"], frequency: 3 },
+    ],
+    [
+      "double_helix",
+      "epic",
+      {
+        type: "spiral",
+        colors: ["#38bdf8", "#f472b6"],
+        radius: 6,
+        strands: 2,
+        rotationSpeed: 5,
+      },
+    ],
+    [
+      "vortex",
+      "legendary",
+      {
+        type: "spiral",
+        colors: ["#a855f7", "#22d3ee", "#ffffff"],
+        radius: 8,
+        strands: 4,
+        rotationSpeed: 7,
+      },
+    ],
   ],
   nukeExplosion: [
-    ["solar_flare", "rare", { type: "shockwave", nukeType: "atom", colors: ["#fff7d6", "#fbbf24", "#f97316", "#b91c1c"], size: 200, speed: 140, thickness: 5, transitionSpeed: 2 }],
-    ["starburst", "epic", { type: "sparkles", nukeType: "atom", colors: ["#ffffff", "#fde68a", "#93c5fd"], size: 190, speed: 120, thickness: 3, transitionSpeed: 3, density: 300 }],
-    ["cinder_bloom", "uncommon", { type: "embers", nukeType: "atom", colors: ["#fef3c7", "#fb923c", "#dc2626", "#451a03"], size: 180, speed: 110, thickness: 3, transitionSpeed: 1.5, density: 260 }],
-    ["tidal_ring", "rare", { type: "shockwave", nukeType: "hydro", colors: ["#ecfeff", "#67e8f9", "#0891b2", "#1e3a8a"], size: 420, speed: 220, thickness: 8, transitionSpeed: 1.5 }],
-    ["glitter_storm", "legendary", { type: "sparkles", nukeType: "hydro", colors: ["#f0abfc", "#a78bfa", "#67e8f9", "#ffffff"], size: 400, speed: 200, thickness: 4, transitionSpeed: 4, density: 450 }],
-    ["magma_rain", "epic", { type: "embers", nukeType: "hydro", colors: ["#fde047", "#f97316", "#b91c1c", "#292524"], size: 380, speed: 180, thickness: 4, transitionSpeed: 2, density: 400 }],
-    ["split_halo", "uncommon", { type: "shockwave", nukeType: "mirvWarhead", colors: ["#ffffff", "#a5b4fc", "#6366f1"], size: 70, speed: 90, thickness: 3, transitionSpeed: 3 }],
-    ["confetti_pop", "rare", { type: "sparkles", nukeType: "mirvWarhead", colors: ["#f43f5e", "#facc15", "#22c55e", "#3b82f6"], size: 70, speed: 80, thickness: 2.5, transitionSpeed: 5, density: 120 }],
-    ["spark_shower", "common", { type: "embers", nukeType: "mirvWarhead", colors: ["#fff7ed", "#fdba74", "#ea580c"], size: 60, speed: 70, thickness: 2, transitionSpeed: 2, density: 110 }],
+    [
+      "solar_flare",
+      "rare",
+      {
+        type: "shockwave",
+        nukeType: "atom",
+        colors: ["#fff7d6", "#fbbf24", "#f97316", "#b91c1c"],
+        size: 200,
+        speed: 140,
+        thickness: 5,
+        transitionSpeed: 2,
+      },
+    ],
+    [
+      "starburst",
+      "epic",
+      {
+        type: "sparkles",
+        nukeType: "atom",
+        colors: ["#ffffff", "#fde68a", "#93c5fd"],
+        size: 190,
+        speed: 120,
+        thickness: 3,
+        transitionSpeed: 3,
+        density: 300,
+      },
+    ],
+    [
+      "cinder_bloom",
+      "uncommon",
+      {
+        type: "embers",
+        nukeType: "atom",
+        colors: ["#fef3c7", "#fb923c", "#dc2626", "#451a03"],
+        size: 180,
+        speed: 110,
+        thickness: 3,
+        transitionSpeed: 1.5,
+        density: 260,
+      },
+    ],
+    [
+      "tidal_ring",
+      "rare",
+      {
+        type: "shockwave",
+        nukeType: "hydro",
+        colors: ["#ecfeff", "#67e8f9", "#0891b2", "#1e3a8a"],
+        size: 420,
+        speed: 220,
+        thickness: 8,
+        transitionSpeed: 1.5,
+      },
+    ],
+    [
+      "glitter_storm",
+      "legendary",
+      {
+        type: "sparkles",
+        nukeType: "hydro",
+        colors: ["#f0abfc", "#a78bfa", "#67e8f9", "#ffffff"],
+        size: 400,
+        speed: 200,
+        thickness: 4,
+        transitionSpeed: 4,
+        density: 450,
+      },
+    ],
+    [
+      "magma_rain",
+      "epic",
+      {
+        type: "embers",
+        nukeType: "hydro",
+        colors: ["#fde047", "#f97316", "#b91c1c", "#292524"],
+        size: 380,
+        speed: 180,
+        thickness: 4,
+        transitionSpeed: 2,
+        density: 400,
+      },
+    ],
+    [
+      "split_halo",
+      "uncommon",
+      {
+        type: "shockwave",
+        nukeType: "mirvWarhead",
+        colors: ["#ffffff", "#a5b4fc", "#6366f1"],
+        size: 70,
+        speed: 90,
+        thickness: 3,
+        transitionSpeed: 3,
+      },
+    ],
+    [
+      "confetti_pop",
+      "rare",
+      {
+        type: "sparkles",
+        nukeType: "mirvWarhead",
+        colors: ["#f43f5e", "#facc15", "#22c55e", "#3b82f6"],
+        size: 70,
+        speed: 80,
+        thickness: 2.5,
+        transitionSpeed: 5,
+        density: 120,
+      },
+    ],
+    [
+      "spark_shower",
+      "common",
+      {
+        type: "embers",
+        nukeType: "mirvWarhead",
+        colors: ["#fff7ed", "#fdba74", "#ea580c"],
+        size: 60,
+        speed: 70,
+        thickness: 2,
+        transitionSpeed: 2,
+        density: 110,
+      },
+    ],
   ],
   structures: [
-    ["gilded", "rare", { type: "gradient", colors: ["#fff1a8", "#f5b700", "#a86b00"], colorSize: 4, movementSpeed: 6 }],
-    ["chameleon", "epic", { type: "transition", colors: ["#22c55e", "#06b6d4", "#a855f7", "#f43f5e"], frequency: 0.8 }],
-    ["frostbite", "uncommon", { type: "gradient", colors: ["#f0f9ff", "#7dd3fc", "#0284c7"], colorSize: 3, movementSpeed: 4 }],
+    [
+      "gilded",
+      "rare",
+      {
+        type: "gradient",
+        colors: ["#fff1a8", "#f5b700", "#a86b00"],
+        colorSize: 4,
+        movementSpeed: 6,
+      },
+    ],
+    [
+      "chameleon",
+      "epic",
+      {
+        type: "transition",
+        colors: ["#22c55e", "#06b6d4", "#a855f7", "#f43f5e"],
+        frequency: 0.8,
+      },
+    ],
+    [
+      "frostbite",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#f0f9ff", "#7dd3fc", "#0284c7"],
+        colorSize: 3,
+        movementSpeed: 4,
+      },
+    ],
   ],
   warship: [
-    ["steel_tide", "uncommon", { type: "gradient", colors: ["#e2e8f0", "#64748b", "#1e293b"], colorSize: 4, movementSpeed: 8 }],
-    ["phantom", "epic", { type: "transition", colors: ["#a78bfa", "#1e1b4b"], frequency: 1 }],
-    ["crimson_fleet", "rare", { type: "gradient", colors: ["#fecaca", "#dc2626", "#450a0a"], colorSize: 3, movementSpeed: 10 }],
+    [
+      "steel_tide",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#e2e8f0", "#64748b", "#1e293b"],
+        colorSize: 4,
+        movementSpeed: 8,
+      },
+    ],
+    [
+      "phantom",
+      "epic",
+      { type: "transition", colors: ["#a78bfa", "#1e1b4b"], frequency: 1 },
+    ],
+    [
+      "crimson_fleet",
+      "rare",
+      {
+        type: "gradient",
+        colors: ["#fecaca", "#dc2626", "#450a0a"],
+        colorSize: 3,
+        movementSpeed: 10,
+      },
+    ],
   ],
   train: [
-    ["golden_express", "rare", { type: "gradient", colors: ["#fde68a", "#d97706", "#78350f"], colorSize: 4, movementSpeed: 10 }],
-    ["neon_line", "epic", { type: "transition", colors: ["#f0abfc", "#22d3ee", "#a3e635"], frequency: 2 }],
-    ["midnight_run", "uncommon", { type: "gradient", colors: ["#312e81", "#6366f1", "#c7d2fe"], colorSize: 5, movementSpeed: 8 }],
+    [
+      "golden_express",
+      "rare",
+      {
+        type: "gradient",
+        colors: ["#fde68a", "#d97706", "#78350f"],
+        colorSize: 4,
+        movementSpeed: 10,
+      },
+    ],
+    [
+      "neon_line",
+      "epic",
+      {
+        type: "transition",
+        colors: ["#f0abfc", "#22d3ee", "#a3e635"],
+        frequency: 2,
+      },
+    ],
+    [
+      "midnight_run",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#312e81", "#6366f1", "#c7d2fe"],
+        colorSize: 5,
+        movementSpeed: 8,
+      },
+    ],
   ],
   railroad: [
-    ["copper_rails", "uncommon", { type: "gradient", colors: ["#fdba74", "#c2410c", "#7c2d12"], colorSize: 6, movementSpeed: 0 }],
-    ["glow_track", "rare", { type: "gradient", colors: ["#34d399", "#22d3ee", "#818cf8"], colorSize: 5, movementSpeed: 6 }],
-    ["candy_stripe", "epic", { type: "gradient", colors: ["#ffffff", "#ef4444"], colorSize: 2, movementSpeed: 3 }],
+    [
+      "copper_rails",
+      "uncommon",
+      {
+        type: "gradient",
+        colors: ["#fdba74", "#c2410c", "#7c2d12"],
+        colorSize: 6,
+        movementSpeed: 0,
+      },
+    ],
+    [
+      "glow_track",
+      "rare",
+      {
+        type: "gradient",
+        colors: ["#34d399", "#22d3ee", "#818cf8"],
+        colorSize: 5,
+        movementSpeed: 6,
+      },
+    ],
+    [
+      "candy_stripe",
+      "epic",
+      {
+        type: "gradient",
+        colors: ["#ffffff", "#ef4444"],
+        colorSize: 2,
+        movementSpeed: 3,
+      },
+    ],
   ],
 };
 
@@ -949,7 +1396,8 @@ function writeArtDir(dir, defs) {
   for (const f of fs.readdirSync(dir)) {
     if (f.endsWith(".svg") && !wanted.has(f)) fs.rmSync(path.join(dir, f));
   }
-  for (const d of defs) fs.writeFileSync(path.join(dir, `${d.name}.svg`), d.svg());
+  for (const d of defs)
+    fs.writeFileSync(path.join(dir, `${d.name}.svg`), d.svg());
 }
 
 writeArtDir(skinsDir, SKIN_DEFS);

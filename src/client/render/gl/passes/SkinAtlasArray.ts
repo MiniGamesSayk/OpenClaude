@@ -11,8 +11,10 @@
  * `uSkinAtlas` sampler still has something to read from (the shader's
  * skinLayer table will be all zeros, so it never actually samples).
  *
- * Sampler wrap is CLAMP_TO_EDGE — the shader treats UVs outside [0,1] as
- * transparent so the image appears as a single stamp centered at the anchor.
+ * Sampler wrap is REPEAT — the shader tiles each image across the whole
+ * territory at one image pixel per map tile, with the image centre on the
+ * owner's spawn tile. A skin should therefore be a seamless SKIN_DIM×SKIN_DIM
+ * tile (opposite edges match).
  */
 
 /** Per-side dimension for every atlas layer. Larger images are downscaled. */
@@ -130,8 +132,8 @@ export class SkinAtlasArray {
       gl.LINEAR_MIPMAP_LINEAR,
     );
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
     return tex;
   }
 

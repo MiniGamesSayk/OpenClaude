@@ -51,7 +51,7 @@ export class CosmeticBackground extends LitElement {
       return html`<div
         class="w-full h-full pointer-events-none"
         style="background-image:url('${this.skin
-          .url}');background-size:cover;background-position:center"
+          .url}');background-size:1024px;background-position:center;background-repeat:repeat"
       ></div>`;
     }
     if (this.pattern) {

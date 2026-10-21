@@ -7,7 +7,7 @@ uniform usampler2D uTileTex;      // R16UI — tile state per cell
 uniform sampler2D  uPalette;      // RGBA32F — player colors
 uniform sampler2D  uPatternMeta;  // RGBA32F — 1D buffer, 1 px per owner. R=hasPattern, G=width, B=height, A=scale
 uniform usampler2D uPatternData;  // R8UI    — 2D buffer, row per owner, bytes for bitmask
-uniform sampler2DArray uSkinAtlas; // RGBA8 — per-skin PNG layer, tiled via REPEAT wrap
+uniform sampler2DArray uSkinAtlas; // RGBA8 — per-skin image layer, tiled via REPEAT wrap
 uniform usampler2D uSkinLayer;    // R8UI — 1D buffer, 1 px per owner. 0=no skin, otherwise layer+1
 uniform usampler2D uSkinAnchor;   // RG16UI — 1D buffer, anchor tile (cx, cy) per owner. (0,0) = world origin
 uniform int uShowPatterns;
@@ -73,21 +73,20 @@ void main() {
       ? texelFetch(uSkinLayer, ivec2(int(owner), 0), 0).r
       : 0u;
   if (skinLayerPlus1 > 0u) {
-    // Skin overrides pattern entirely (mutually exclusive). The image is a
-    // single stamp centered at the player's spawn tile — UVs outside [0,1]
-    // are treated as transparent so tiles beyond the image bounds fall back
-    // to the regular palette color. (0,0) anchor sentinel = world origin.
+    // Skin overrides pattern entirely (mutually exclusive). The image tiles
+    // across the whole territory (REPEAT wrap, one image pixel per tile),
+    // aligned so the image centre sits on the player's spawn tile. Each tile
+    // samples its own texel centre, so a skin reads as crisp per-tile pixels.
+    // (0,0) anchor sentinel = world origin.
     uvec2 anchor = texelFetch(uSkinAnchor, ivec2(int(owner), 0), 0).rg;
     vec2 anchorOffset = (anchor == uvec2(0u)) ? vec2(0.0) : vec2(anchor);
 
-    vec2 skinUV = (vec2(tc) - anchorOffset) / vec2(SKIN_DIM) + vec2(0.5);
+    vec2 skinUV =
+      (vec2(tc) + vec2(0.5) - anchorOffset) / vec2(SKIN_DIM) + vec2(0.5);
     vec4 skin = texture(uSkinAtlas, vec3(skinUV, float(skinLayerPlus1) - 1.0));
-    bool inBounds =
-      skinUV.x >= 0.0 && skinUV.x <= 1.0 &&
-      skinUV.y >= 0.0 && skinUV.y <= 1.0;
-    float skinAlpha = inBounds ? skin.a : 0.0;
-    // Transparent (or out-of-bounds) pixels fall through to the player color;
-    // opaque pixels show the skin (tinted by team color in team games).
+    float skinAlpha = skin.a;
+    // Transparent pixels fall through to the player color; opaque pixels
+    // show the skin (tinted by team color in team games).
     vec3 skinColor = (uIsTeamMode == 1) ? color.rgb * skin.rgb : skin.rgb;
     color.rgb = mix(color.rgb, skinColor, skinAlpha);
   } else if (uShowPatterns == 1) {
