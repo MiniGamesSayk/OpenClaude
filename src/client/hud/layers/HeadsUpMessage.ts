@@ -32,11 +32,16 @@ export class HeadsUpMessage extends LitElement implements Controller {
   @state()
   private isCatchingUp = false;
   private catchingUpTicks = 0;
+  @state()
+  private secondsBehind = 0;
 
   @state()
   private isOvertimeNotice = false;
 
   private static readonly CATCHING_UP_SHOW_THRESHOLD = 10;
+  // A long catch-up presents only a few ticks a second (CatchUpPacer), so
+  // also show the banner right away once this far behind.
+  private static readonly CATCHING_UP_SHOW_TURNS_BEHIND = 30;
   // How long the overtime announcement banner stays up after the start minute.
   private static readonly OVERTIME_NOTICE_SECONDS = 5;
 
@@ -172,8 +177,12 @@ export class HeadsUpMessage extends LitElement implements Controller {
       this.catchingUpTicks = 0;
     }
 
+    const turnsBehind = currentlyCatchingUp ? this.game.turnsBehind() : 0;
     this.isCatchingUp =
-      this.catchingUpTicks >= HeadsUpMessage.CATCHING_UP_SHOW_THRESHOLD;
+      this.catchingUpTicks >= HeadsUpMessage.CATCHING_UP_SHOW_THRESHOLD ||
+      turnsBehind >= HeadsUpMessage.CATCHING_UP_SHOW_TURNS_BEHIND;
+    // Turns are 100 ms of game time each.
+    this.secondsBehind = Math.ceil(turnsBehind / 10);
 
     // Announce overtime in this banner (not the toast, which is a brief
     // notification slot). Window-based rather than a fired-once flag, so a
@@ -199,7 +208,11 @@ export class HeadsUpMessage extends LitElement implements Controller {
 
   private getMessage(): string {
     if (this.isCatchingUp) {
-      return translateText("heads_up_message.catching_up");
+      return this.secondsBehind >= 2
+        ? translateText("heads_up_message.catching_up_behind", {
+            seconds: this.secondsBehind,
+          })
+        : translateText("heads_up_message.catching_up");
     }
     if (this.isPaused) {
       if (this.game.config().gameConfig().gameType === GameType.Singleplayer) {

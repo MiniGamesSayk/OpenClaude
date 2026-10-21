@@ -164,6 +164,11 @@ export class GameMapImpl implements GameMap {
     }
   }
 
+  /** Every tile whose terrain differs from the map file (in edit order). */
+  editedTerrainTiles(): TileRef[] {
+    return [...(this.pristineTerrain?.keys() ?? [])];
+  }
+
   setWater(ref: TileRef): void {
     if (!this.isLand(ref) || this.isImpassable(ref)) return;
     this.noteTerrainEdit(ref);

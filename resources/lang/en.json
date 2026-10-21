@@ -1189,6 +1189,7 @@
   },
   "heads_up_message": {
     "catching_up": "Catching up...",
+    "catching_up_behind": "Catching up... ({seconds}s behind)",
     "choose_spawn": "Choose a starting location",
     "choose_spawn_spectator": "Players are choosing starting locations",
     "dont_show_again": "Don't show again",

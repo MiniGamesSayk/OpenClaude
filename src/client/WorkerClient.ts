@@ -41,8 +41,10 @@ export class WorkerClient {
   private worker: Worker | null = null;
   private isInitialized = false;
   private messageHandlers: Map<string, (message: WorkerMessage) => void>;
+  /** `lastOfBatch`: no more updates are queued behind this one yet. */
   private gameUpdateCallback?: (
     update: GameUpdateViewData | ErrorUpdate,
+    lastOfBatch: boolean,
   ) => void;
 
   constructor(
@@ -50,6 +52,11 @@ export class WorkerClient {
     private clientID: ClientID | undefined,
     /** Resume from this game snapshot instead of starting a new game. */
     private snapshotToRestore?: Uint8Array,
+    /**
+     * The first turn the game needs: the snapshot's tick when restoring
+     * one (see snapshot()), else 0.
+     */
+    readonly startTurn = 0,
   ) {
     this.messageHandlers = new Map();
   }
@@ -60,19 +67,20 @@ export class WorkerClient {
     switch (message.type) {
       case "game_update":
         if (this.gameUpdateCallback && message.gameUpdate) {
-          this.gameUpdateCallback(message.gameUpdate);
+          this.gameUpdateCallback(message.gameUpdate, true);
         }
         break;
       case "game_update_batch":
         if (this.gameUpdateCallback && message.gameUpdates) {
-          for (const gu of message.gameUpdates) {
-            this.gameUpdateCallback(gu);
-          }
+          const last = message.gameUpdates.length - 1;
+          message.gameUpdates.forEach((gu, i) => {
+            this.gameUpdateCallback?.(gu, i === last);
+          });
         }
         break;
       case "game_error":
         if (this.gameUpdateCallback && message.error) {
-          this.gameUpdateCallback(message.error);
+          this.gameUpdateCallback(message.error, true);
         }
         break;
 
@@ -139,7 +147,12 @@ export class WorkerClient {
     });
   }
 
-  start(gameUpdate: (gu: GameUpdateViewData | ErrorUpdate) => void) {
+  start(
+    gameUpdate: (
+      gu: GameUpdateViewData | ErrorUpdate,
+      lastOfBatch: boolean,
+    ) => void,
+  ) {
     if (!this.isInitialized) {
       throw new Error("Failed to initialize pathfinder");
     }
@@ -157,8 +170,14 @@ export class WorkerClient {
     });
   }
 
-  /** Serializes the worker's game at its current tick (uncompressed). */
-  snapshot(gitCommit?: string): Promise<Uint8Array> {
+  /**
+   * Serializes the worker's game at its current tick (uncompressed). `tick`
+   * is the number of turns it holds: a game restored from it resumes at
+   * turn `tick`.
+   */
+  snapshot(
+    gitCommit?: string,
+  ): Promise<{ snapshot: Uint8Array; tick: number }> {
     return new Promise((resolve, reject) => {
       if (!this.isInitialized) {
         reject(new Error("Worker not initialized"));
@@ -169,10 +188,10 @@ export class WorkerClient {
 
       this.messageHandlers.set(messageId, (message) => {
         if (message.type === "snapshot_result") {
-          if (message.snapshot === null) {
+          if (message.snapshot === null || message.tick === undefined) {
             reject(new Error("Snapshot failed"));
           } else {
-            resolve(message.snapshot);
+            resolve({ snapshot: message.snapshot, tick: message.tick });
           }
         }
       });

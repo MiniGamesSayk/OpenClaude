@@ -128,11 +128,17 @@ function makeLobbyConfig(withStartInfo: boolean): LobbyConfig {
 // the callbacks start() handed to the transport and the worker.
 function makeStartedRunner(
   withStartInfo: boolean,
-  opts: { isLocal?: boolean; metrics?: object } = {},
+  opts: { isLocal?: boolean; metrics?: object; startTurn?: number } = {},
 ) {
   const eventBus = new EventBus();
   const emitSpy = vi.spyOn(eventBus, "emit");
-  const worker = { start: vi.fn(), sendTurn: vi.fn(), cleanup: vi.fn() };
+  const worker = {
+    start: vi.fn(),
+    sendTurn: vi.fn(),
+    cleanup: vi.fn(),
+    snapshot: vi.fn(),
+    startTurn: opts.startTurn ?? 0,
+  };
   const transport = {
     updateCallback: vi.fn(),
     rejoinGame: vi.fn(),
@@ -151,6 +157,8 @@ function makeStartedRunner(
     inSpawnPhase: () => false,
     myPlayer: () => null,
     update: vi.fn(),
+    gameOver: () => false,
+    ticks: () => 0,
   };
   const soundManager = { playBackgroundMusic: vi.fn(), dispose: vi.fn() };
   const userSettings = { goToPlayer: () => false };
@@ -173,7 +181,12 @@ function makeStartedRunner(
   );
   runner.start();
 
-  const workerCallback = worker.start.mock.calls[0][0] as (gu: unknown) => void;
+  const startCallback = worker.start.mock.calls[0][0] as (
+    gu: unknown,
+    lastOfBatch: boolean,
+  ) => void;
+  // As WorkerClient calls it for an update that came alone.
+  const workerCallback = (gu: unknown) => startCallback(gu, true);
   const onmessage = transport.updateCallback.mock.calls[0][1] as (
     msg: unknown,
   ) => void;
@@ -181,6 +194,7 @@ function makeStartedRunner(
     runner,
     worker,
     transport,
+    renderer,
     gameView,
     emitSpy,
     workerCallback,
@@ -239,6 +253,20 @@ describe("joinLobby lobby-phase messages", () => {
 });
 
 describe("ClientGameRunner in-game messages", () => {
+  it("resumes from the worker's start turn after a restore", () => {
+    const { worker, transport, onmessage } = makeStartedRunner(true, {
+      startTurn: 300,
+    });
+    // Asks the server only for the turns the restored worker lacks...
+    expect(transport.rejoinGame).toHaveBeenCalledWith(300);
+    const turn = (turnNumber: number) => ({ turnNumber, intents: [] });
+    // ...and passes on only those, even if the server sends more.
+    onmessage({ type: "start", turns: [turn(299), turn(300), turn(301)] });
+    expect(worker.sendTurn.mock.calls).toEqual([[turn(300)], [turn(301)]]);
+    onmessage({ type: "turn", turn: turn(302) });
+    expect(worker.sendTurn).toHaveBeenLastCalledWith(turn(302));
+  });
+
   it("forwards buffered turns to the worker on a start message", () => {
     const { worker, onmessage } = makeStartedRunner(true);
     const turns = [
@@ -314,18 +342,53 @@ describe("ClientGameRunner in-game messages", () => {
   });
 
   it("processes a worker game update: turnComplete, hash events, render tick", () => {
-    const { worker, transport, gameView, emitSpy, workerCallback } =
+    const { worker, transport, renderer, gameView, emitSpy, workerCallback } =
       makeStartedRunner(true);
     void worker;
 
     workerCallback({
       updates: { [GameUpdateType.Hash]: [{ tick: 3, hash: 42 }] },
       tickExecutionDuration: 1,
+      pendingTurns: 1,
     });
 
     expect(transport.turnComplete).toHaveBeenCalled();
     expect(emitSpy).toHaveBeenCalledWith(new SendHashEvent(3, 42));
-    expect(gameView.update).toHaveBeenCalled();
+    expect(gameView.update).toHaveBeenCalledWith(expect.anything(), true);
+    expect(renderer.tick).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies but doesn't draw the ticks of a catch-up between frames", () => {
+    const { renderer, gameView, emitSpy, worker } = makeStartedRunner(true);
+    const callback = worker.start.mock.calls[0][0] as (
+      gu: unknown,
+      lastOfBatch: boolean,
+    ) => void;
+    const gu = (tick: number, pendingTurns: number) => ({
+      tick,
+      pendingTurns,
+      updates: { [GameUpdateType.Hash]: [{ tick, hash: tick }] },
+    });
+    // One batch of three, far behind: only its last is drawn.
+    callback(gu(10, 300), false);
+    callback(gu(11, 299), false);
+    callback(gu(12, 298), true);
+    // Right after, still behind: not drawn again so soon.
+    callback(gu(13, 297), true);
+    expect(gameView.update.mock.calls.map((c) => c[1])).toEqual([
+      false,
+      false,
+      true,
+      false,
+    ]);
+    expect(renderer.tick).toHaveBeenCalledTimes(1);
+    // Every tick's hash still goes to the server.
+    for (const tick of [10, 11, 12, 13]) {
+      expect(emitSpy).toHaveBeenCalledWith(new SendHashEvent(tick, tick));
+    }
+    // Caught up: every batch is drawn.
+    callback(gu(14, 1), true);
+    expect(renderer.tick).toHaveBeenCalledTimes(2);
   });
 
   it("feeds tick execution and wire tick interval to the game metrics", () => {

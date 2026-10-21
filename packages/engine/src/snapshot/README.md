@@ -167,4 +167,12 @@ and that the original and restored games stay byte-identical tick by tick.
   route inside that window can take a different one. The same applies to a
   ship still counting down its rebuild stagger (`WaterPathFinder.fromState`).
 - Client-side state (GameView, renderer) is not stored. The client rebuilds
-  from the restored game's first full update.
+  from the restored game's first update, which `GameRunner.resyncView()`
+  (the worker calls it for every restored game) fills with the whole
+  current state: tiles, units, railroads, full player updates and the spawn
+  phase's end. Motion plans aren't kept, so units already on a path when the
+  snapshot was taken report each move until their next plan, and where
+  railroads cross a restored view may draw the other one's glyph. History
+  that only events carried (chat, the event log, pending alliance requests)
+  starts empty. The client uses this to resume a game after a page reload
+  (`src/client/ResumeGame.ts`).

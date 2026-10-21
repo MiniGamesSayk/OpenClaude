@@ -23,16 +23,13 @@ import {
   createGameRunnerFromSnapshot,
   GameRunner,
 } from "../GameRunner";
+import { runTicksWithinBudget } from "./DrainBudget";
 
 const ctx: Worker = self as any;
 // Where answers go: the page that started this worker, or the port it
 // handed over (connect).
 let out: Pick<MessagePort, "postMessage"> = ctx;
 let gameRunner: Promise<GameRunner> | null = null;
-// Yield threshold; not a backlog cap. Used to avoid monopolizing the worker task
-// and flooding the main thread with messages during catch-up.
-const MAX_TICKS_BEFORE_YIELD = 4;
-
 let drainScheduled = false;
 let draining = false;
 let drainRequested = false;
@@ -82,14 +79,7 @@ async function drain(): Promise<void> {
     // Temporarily route tick callbacks into this drain's batch.
     tickUpdateSink = onTickUpdate;
 
-    let ticksRun = 0;
-    while (ticksRun < MAX_TICKS_BEFORE_YIELD && gr.pendingTurns() > 0) {
-      const ok = gr.executeNextTick(gr.pendingTurns());
-      if (!ok) {
-        break;
-      }
-      ticksRun++;
-    }
+    runTicksWithinBudget(gr, () => performance.now());
 
     tickUpdateSink = null;
 
@@ -179,6 +169,8 @@ async function onMessage(e: MessageEvent<MainThreadMessage>) {
               )
         ).then(
           (gr) => {
+            // A restored game's view starts empty: send it everything.
+            if (message.snapshot !== undefined) gr.resyncView();
             sendMessage({
               type: "initialized",
               id: message.id,
@@ -403,10 +395,13 @@ async function onMessage(e: MessageEvent<MainThreadMessage>) {
         throw new Error("Game runner not initialized");
       }
       let snapshot: Uint8Array | null = null;
+      let tick: number | undefined;
       try {
         // Messages are handled between drain batches, so this is always a
         // tick boundary.
-        snapshot = (await gameRunner).snapshot(message.gitCommit);
+        const gr = await gameRunner;
+        snapshot = gr.snapshot(message.gitCommit);
+        tick = gr.game.ticks();
       } catch (error) {
         console.error("Failed to snapshot game:", error);
       }
@@ -415,6 +410,7 @@ async function onMessage(e: MessageEvent<MainThreadMessage>) {
           type: "snapshot_result",
           id: message.id,
           snapshot,
+          tick,
         } as SnapshotResultMessage,
         snapshot ? [snapshot.buffer] : [],
       );

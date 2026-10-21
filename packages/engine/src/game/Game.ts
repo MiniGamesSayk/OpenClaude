@@ -32,6 +32,7 @@ import {
   GameUpdate,
   PlayerUpdate,
   UnitUpdate,
+  ViewResync,
 } from "@openfront/engine-api/game/GameUpdates";
 import {
   GameLike,
@@ -610,6 +611,12 @@ export interface Game extends GameLike {
   inSpawnPhase(): boolean;
   endSpawnPhase(): void;
   executeNextTick(): GameUpdates;
+  /**
+   * Adds, to the tick that just ran, everything a view that saw none of the
+   * earlier ticks needs to show the game as it is now (see
+   * GameRunner.resyncView). Changes no simulation state.
+   */
+  addViewResyncUpdates(): ViewResync;
   drainPackedTileUpdates(): Uint32Array;
   recordMotionPlan(record: MotionPlanRecord): void;
   drainPackedMotionPlans(): Uint32Array | null;

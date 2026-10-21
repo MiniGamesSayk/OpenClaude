@@ -77,6 +77,12 @@ import {
 } from "./UserSettings";
 import { createCanvas } from "./Utils";
 import { WebGLFrameBuilder } from "./WebGLFrameBuilder";
+import { CatchUpPacer } from "./CatchUpPacer";
+import {
+  resumeSnapshotStore,
+  ResumeSnapshotSaver,
+  startGameWorker,
+} from "./ResumeGame";
 import { WorkerClient } from "./WorkerClient";
 import { MapLayerController } from "./controllers/MapLayerController";
 import { createRenderer, GameRenderer } from "./hud/GameRenderer";
@@ -717,8 +723,12 @@ async function createClientGame(
   // Kick off the font-atlas fetch so it overlaps with worker init; the
   // render passes need it parsed before createWebGLView runs.
   const atlasDataLoad = preloadAtlasData();
-  const worker = new WorkerClient(lobbyConfig.gameStartInfo, clientID);
-  await worker.initialize();
+  // A reload into a running multiplayer game resumes from its snapshot.
+  const worker = await startGameWorker(
+    lobbyConfig.gameStartInfo,
+    clientID,
+    !transport.isLocal && lobbyConfig.gameRecord === undefined,
+  );
   await atlasDataLoad;
   const gameView = new GameView(
     worker,
@@ -951,6 +961,10 @@ export class ClientGameRunner {
   private lastTickReceiveTime: number = 0;
   private currentTickDelay: number | undefined = undefined;
 
+  private readonly catchUpPacer = new CatchUpPacer();
+  private resumeSaver: ResumeSnapshotSaver | null = null;
+  private readonly pageLifecycleAbort = new AbortController();
+
   constructor(
     private lobby: LobbyConfig,
     private clientID: ClientID | undefined,
@@ -1029,7 +1043,10 @@ export class ClientGameRunner {
 
     this.renderer.initialize();
     this.input.initialize();
-    this.worker.start((gu: GameUpdateViewData | ErrorUpdate) => {
+    // A resumed game already holds the turns before startTurn.
+    this.turnsSeen = this.worker.startTurn;
+    this.startResumeSnapshots();
+    this.worker.start((gu: GameUpdateViewData | ErrorUpdate, lastOfBatch) => {
       if (this.lobby.gameStartInfo === undefined) {
         throw new Error("missing gameStartInfo");
       }
@@ -1041,6 +1058,8 @@ export class ClientGameRunner {
           this.clientID,
         );
         console.error(gu.stack);
+        // Don't resume into the same failure on the next reload.
+        this.resumeSaver?.stop(true);
         this.stop();
         return;
       }
@@ -1048,9 +1067,25 @@ export class ClientGameRunner {
       gu.updates[GameUpdateType.Hash].forEach((hu: HashUpdate) => {
         this.eventBus.emit(new SendHashEvent(hu.tick, hu.hash));
       });
-      this.gameView.update(gu);
-      this.webglBuilder?.update(this.gameView);
-      this.renderer.tick();
+      const pendingTurns = gu.pendingTurns ?? 0;
+      // While catching up, only some ticks get drawn (see CatchUpPacer).
+      const present = this.catchUpPacer.shouldPresent(
+        pendingTurns,
+        lastOfBatch,
+        performance.now(),
+      );
+      this.gameView.update(gu, present);
+      if (present) {
+        this.webglBuilder?.update(this.gameView);
+        this.renderer.tick();
+      }
+      if (this.gameView.gameOver()) {
+        // Nothing left to resume.
+        this.resumeSaver?.stop(true);
+        this.resumeSaver = null;
+      } else {
+        this.resumeSaver?.onTick(gu.tick, pendingTurns > 1);
+      }
       if (gu.tickExecutionDuration !== undefined) {
         this.metrics?.recordTickExecution(gu.tickExecutionDuration);
       }
@@ -1125,6 +1160,9 @@ export class ClientGameRunner {
         }
       }
       if (message.type === "desync") {
+        // Whatever state this is, don't resume into it again.
+        this.resumeSaver?.stop(true);
+        this.resumeSaver = null;
         if (this.lobby.gameStartInfo === undefined) {
           throw new Error("missing gameStartInfo");
         }
@@ -1207,11 +1245,51 @@ export class ClientGameRunner {
     };
     this.transport.updateCallback(onconnect, onmessage);
     console.log("sending join game");
-    // Rejoin game from the start so we don't miss any turns.
-    this.transport.rejoinGame(0);
+    // Ask for every turn the worker doesn't hold yet: all of them, unless
+    // it was resumed from a snapshot.
+    this.transport.rejoinGame(this.turnsSeen);
+  }
+
+  /** Multiplayer games keep a snapshot to resume from after a reload. */
+  private startResumeSnapshots(): void {
+    if (
+      this.transport.isLocal ||
+      this.lobby.gameRecord !== undefined ||
+      this.clientID === undefined ||
+      this.lobby.gameStartInfo === undefined
+    ) {
+      return;
+    }
+    const saver = new ResumeSnapshotSaver(
+      () => this.worker.snapshot(ClientEnv.gitCommit()),
+      resumeSnapshotStore,
+      this.lobby.gameStartInfo.gameID,
+      this.clientID,
+      this.worker.startTurn,
+    );
+    this.resumeSaver = saver;
+    // A tab sent to the background (and maybe discarded later) saves what's
+    // new. A reload can't: Main's beforeunload stops the game, and with it
+    // the worker, before the page is hidden; it resumes from the last
+    // periodic save.
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.visibilityState === "hidden") {
+          saver.onHidden(this.gameView.ticks());
+        }
+      },
+      { signal: this.pageLifecycleAbort.signal },
+    );
   }
 
   public stop() {
+    // Also runs on a page reload (Main's beforeunload), so the snapshot
+    // stays: it is what the reload resumes from. A stale one goes when
+    // another game's snapshot replaces it or another game is joined.
+    this.resumeSaver?.stop(false);
+    this.resumeSaver = null;
+    this.pageLifecycleAbort.abort();
     this.soundManager.dispose();
     this.graphicsListenerAbort?.abort();
     // Detach the input handler's window/canvas listeners and its EventBus

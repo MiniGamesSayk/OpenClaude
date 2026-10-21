@@ -73,6 +73,20 @@ export interface GameUpdateViewData {
    * Absent when no nukes detonated.
    */
   packedNukeImpacts?: Uint32Array;
+  /**
+   * Present on the first tick of a runner restored from a snapshot (see
+   * GameRunner.resyncView). That update also carries the whole current
+   * state the earlier ticks' deltas would have built up: every non-default
+   * tile, every unit, every railroad and full player updates. A view that
+   * starts from it gets the game state that only events carry from here.
+   */
+  viewResync?: ViewResync;
+}
+
+/** Game state a view otherwise only learns from one-off events. */
+export interface ViewResync {
+  /** The tick the spawn phase ended on, null while it lasts. */
+  startTick: number | null;
 }
 
 /**

@@ -18,6 +18,7 @@ import {
 import {
   ErrorUpdate,
   GameUpdateViewData,
+  ViewResync,
 } from "@openfront/engine-api/game/GameUpdates";
 import { MapFiles } from "@openfront/engine-api/game/MapFiles";
 import { ClientID, GameStartInfo, Turn } from "@openfront/engine-api/Schemas";
@@ -155,6 +156,7 @@ export class GameRunner {
   // Name placements are recomputed periodically; a runner that starts
   // mid-game (restored from a snapshot) computes them on its first tick.
   private viewDataStale = true;
+  private resyncPending = false;
 
   constructor(
     public game: Game,
@@ -174,6 +176,16 @@ export class GameRunner {
       gameID: this.execManager.gameID(),
       gitCommit,
     });
+  }
+
+  /**
+   * Makes the next tick's update carry the whole current state (see
+   * GameUpdateViewData.viewResync), for a view that starts on a runner
+   * restored from a snapshot and so never saw the earlier ticks. Doesn't
+   * change the simulation: the hashes stay those of the original game.
+   */
+  resyncView(): void {
+    this.resyncPending = true;
   }
 
   init() {
@@ -235,10 +247,15 @@ export class GameRunner {
     const wasInSpawnPhase = this.game.inSpawnPhase();
     let updates: GameUpdates;
     let tickExecutionDuration: number;
+    let viewResync: ViewResync | undefined;
 
     try {
       const startTime = performance.now();
       updates = this.game.executeNextTick();
+      if (this.resyncPending) {
+        this.resyncPending = false;
+        viewResync = this.game.addViewResyncUpdates();
+      }
       const endTime = performance.now();
       tickExecutionDuration = endTime - startTime;
     } catch (error: unknown) {
@@ -308,6 +325,7 @@ export class GameRunner {
         : {}),
       tickExecutionDuration: tickExecutionDuration,
       pendingTurns: pendingTurns ?? 0,
+      ...(viewResync ? { viewResync } : {}),
     });
     this.isExecuting = false;
     return true;
