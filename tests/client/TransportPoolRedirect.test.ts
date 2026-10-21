@@ -70,9 +70,7 @@ function lobbyConfig(gameID: string): LobbyConfig {
     cosmetics: {},
     playerName: "tester",
     playerClanTag: null,
-    playerRole: null,
     gameID,
-    turnstileToken: null,
   };
 }
 

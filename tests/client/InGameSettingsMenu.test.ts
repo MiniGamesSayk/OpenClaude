@@ -10,7 +10,6 @@ import {
 import { GameConfig } from "@openfront/engine-api/Schemas";
 import { EventBus } from "@openfront/shared/EventBus";
 import en from "../../resources/lang/en.json";
-import { gamePortal } from "../../src/client/GamePortal";
 import {
   SettingsModal,
   ShowSettingsModalEvent,
@@ -32,8 +31,6 @@ describe("in-game menu opens the shared settings modal", () => {
   let menu: TestMenu;
   let settings: TestSettings;
   let pauses: boolean[];
-  let gameplayStop: ReturnType<typeof vi.spyOn>;
-  let gameplayStart: ReturnType<typeof vi.spyOn>;
 
   async function settle() {
     await menu.updateComplete;
@@ -43,12 +40,6 @@ describe("in-game menu opens the shared settings modal", () => {
   beforeEach(async () => {
     document.body.innerHTML = "";
     localStorage.clear();
-    gameplayStop = vi
-      .spyOn(gamePortal, "gameplayStop")
-      .mockImplementation(async () => {});
-    gameplayStart = vi
-      .spyOn(gamePortal, "gameplayStart")
-      .mockImplementation(async () => {});
 
     menu = document.createElement("settings-modal") as TestMenu;
     document.body.appendChild(menu);
@@ -144,8 +135,6 @@ describe("in-game menu opens the shared settings modal", () => {
     await settle();
 
     expect(pauses).toEqual([true, false]);
-    expect(gameplayStop).toHaveBeenCalledTimes(1);
-    expect(gameplayStart).toHaveBeenCalledTimes(1);
   });
 
   it("returns to the menu when the settings modal is dismissed with Escape", async () => {

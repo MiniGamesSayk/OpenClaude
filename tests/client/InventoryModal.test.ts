@@ -1,4 +1,3 @@
-import type { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import {
   EFFECT_TYPES,
   NUKE_EXPLOSION_TYPES,
@@ -8,8 +7,6 @@ import {
 } from "@openfront/shared/CosmeticSchemas";
 import type { LitElement } from "lit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getUserMe } from "../../src/client/Api";
-import { userAuth } from "../../src/client/Auth";
 import { fetchCosmetics } from "../../src/client/Cosmetics";
 import "../../src/client/InventoryModal";
 import type { InventoryModal } from "../../src/client/InventoryModal";
@@ -25,16 +22,6 @@ import {
 import type { CosmeticCard } from "../../src/client/components/CosmeticCard";
 import type { EffectsGrid } from "../../src/client/components/EffectsGrid";
 import type { InventoryLoadoutBar } from "../../src/client/components/InventoryLoadoutBar";
-
-vi.mock("../../src/client/Api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/client/Api")>()),
-  getUserMe: vi.fn(),
-}));
-
-vi.mock("../../src/client/Auth", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/client/Auth")>()),
-  userAuth: vi.fn(),
-}));
 
 vi.mock("../../src/client/Cosmetics", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/client/Cosmetics")>()),
@@ -146,36 +133,6 @@ const catalog = {
     },
   },
 } as unknown as Cosmetics;
-
-const ownedUser = {
-  user: {},
-  player: {
-    publicId: "inventory-test-player",
-    adfree: false,
-    unlimitedRanked: false,
-    canCreatePublicLobbies: false,
-    achievements: { singleplayerMap: [] },
-    friends: [],
-    subscription: null,
-    currency: { soft: 0, hard: 0 },
-    flares: [
-      "pattern:stripes",
-      "pattern:stripes:red",
-      "pattern:stripes:blue",
-      "skin:owned_skin",
-      "flag:owned_flag",
-      "crown:owned_crown",
-      "effect:owned_wake",
-      "effect:owned_wake_alt",
-      "effect:owned_nuke_trail",
-      "effect:owned_atom",
-      "effect:owned_hydro",
-      "effect:owned_mirv",
-      "effect:owned_structures",
-      "effect:owned_warship",
-    ],
-  },
-} as unknown as UserMeResponse;
 
 const emptyCatalog = {
   ...catalog,
@@ -343,17 +300,11 @@ describe("InventoryModal", () => {
     });
     document.body.appendChild(languageFixture);
     vi.mocked(fetchCosmetics).mockReset();
-    vi.mocked(getUserMe).mockReset();
-    vi.mocked(userAuth).mockReset();
-    vi.mocked(getUserMe).mockResolvedValue(ownedUser);
-    vi.mocked(userAuth).mockResolvedValue({ jwt: "test-token" } as never);
     modal = document.createElement("inventory-modal") as InventoryModal;
     modal.setAttribute("inline", "");
     document.body.appendChild(modal);
     Object.assign(modal as unknown as Record<string, unknown>, {
       cosmetics: catalog as Cosmetics,
-      userMeResponse: ownedUser as UserMeResponse,
-      ownershipState: "loaded",
       isLoading: false,
       loadFailed: false,
       isModalOpen: true,
@@ -413,84 +364,6 @@ describe("InventoryModal", () => {
     expect(modal.querySelector("cosmetic-preview-modal")).toBeNull();
   });
 
-  it("keeps the auth-aware action in the modal header", async () => {
-    let action = modal.querySelector<HTMLElement>(
-      "[data-inventory-header-action]",
-    )!;
-    await (action as LitElement).updateComplete;
-    expect(action.closest('[slot="header"]')).toBeTruthy();
-    expect(action.textContent?.trim()).toBe("Store");
-
-    Object.assign(modal as unknown as Record<string, unknown>, {
-      userMeResponse: false,
-      ownershipState: "guest",
-    });
-    modal.requestUpdate();
-    await modal.updateComplete;
-
-    action = modal.querySelector<HTMLElement>(
-      "[data-inventory-header-action]",
-    )!;
-    await (action as LitElement).updateComplete;
-    expect(action.closest('[slot="header"]')).toBeTruthy();
-    expect(action.textContent?.trim()).toBe("Not logged in");
-  });
-
-  it("explains guest access across inventory categories and opens sign-in", async () => {
-    const showPage = vi.fn();
-    const previousShowPage = window.showPage;
-    window.showPage = showPage;
-    try {
-      Object.assign(modal as unknown as Record<string, unknown>, {
-        userMeResponse: false,
-        ownershipState: "guest",
-      });
-      modal.requestUpdate();
-
-      for (const tab of ["skins", "crowns", "effects", "flags"] as const) {
-        await showTab(modal, tab);
-        const notice = modal.querySelector<HTMLElement>(
-          "[data-inventory-sign-in]",
-        );
-        expect(notice?.textContent).toContain(
-          "Sign in or create an account to access your skins, crowns, and effects.",
-        );
-        const button = notice?.querySelector<HTMLElement>("o-button");
-        await (button as LitElement).updateComplete;
-        expect(button?.textContent?.trim()).toBe("Sign in");
-      }
-
-      modal
-        .querySelector<HTMLElement>("[data-inventory-sign-in] o-button")!
-        .click();
-      expect(showPage).toHaveBeenCalledWith("page-account");
-
-      Object.assign(modal as unknown as Record<string, unknown>, {
-        userMeResponse: ownedUser,
-        ownershipState: "loaded",
-      });
-      modal.requestUpdate();
-      await modal.updateComplete;
-      expect(modal.querySelector("[data-inventory-sign-in]")).toBeNull();
-    } finally {
-      window.showPage = previousShowPage;
-    }
-  });
-
-  it("deep-links to the store cosmetics tab from the header action", async () => {
-    const originalHash = window.location.hash;
-    try {
-      const action = modal.querySelector<HTMLElement>(
-        "[data-inventory-header-action]",
-      )!;
-      await (action as LitElement).updateComplete;
-      action.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      expect(window.location.hash).toBe("#modal=store&tab=cosmetics");
-    } finally {
-      window.location.hash = originalHash;
-    }
-  });
-
   it("keeps loadout, card, and swatch synchronized", async () => {
     new UserSettings().setSelectedPatternName("pattern:stripes:red");
     await showTab(modal, "skins");
@@ -548,7 +421,7 @@ describe("InventoryModal", () => {
     await showTab(modal, "skins");
     expect(card(modal, "pattern:default")).toBeUndefined();
     expect(card(modal, "skin:owned_skin")).toBeDefined();
-    expect(card(modal, "skin:locked_skin")).toBeUndefined();
+    expect(card(modal, "skin:locked_skin")).toBeDefined();
     await activateCard(modal, "skin:owned_skin");
     expect(new UserSettings().getSelectedSkinName()).toBe("owned_skin");
     modal.querySelector<HTMLButtonElement>("[data-inventory-unequip]")!.click();
@@ -557,7 +430,7 @@ describe("InventoryModal", () => {
 
     await showTab(modal, "flags");
     expect(card(modal, "flag:owned_flag")).toBeDefined();
-    expect(card(modal, "flag:locked_flag")).toBeUndefined();
+    expect(card(modal, "flag:locked_flag")).toBeDefined();
     expect(card(modal, "country:xx")).toBeUndefined();
     expect(card(modal, "country:us")).toBeDefined();
     expect(card(modal, "country:German Empire")).toBeUndefined();
@@ -718,7 +591,6 @@ describe("InventoryModal", () => {
 
   it("renders stable loading skeletons and responsive locker markers", async () => {
     Object.assign(modal as unknown as Record<string, unknown>, {
-      ownershipState: "loading",
       isLoading: true,
     });
     modal.requestUpdate();
@@ -731,7 +603,6 @@ describe("InventoryModal", () => {
     }
 
     Object.assign(modal as unknown as Record<string, unknown>, {
-      ownershipState: "loaded",
       isLoading: false,
     });
     modal.requestUpdate();
@@ -756,7 +627,6 @@ describe("InventoryModal", () => {
     };
     Object.assign(modal as unknown as Record<string, unknown>, {
       cosmetics: null,
-      ownershipState: "error",
       isLoading: false,
       loadFailed: true,
     });
@@ -776,9 +646,6 @@ describe("InventoryModal", () => {
       expect(modal.querySelector("inventory-loadout-bar")).toBeTruthy(),
     );
     expect(modal.querySelector("[data-inventory-state]")).toBeNull();
-    expect(
-      (modal as unknown as { ownershipState: string }).ownershipState,
-    ).toBe("loaded");
     expect((modal as unknown as { isLoading: boolean }).isLoading).toBe(false);
     expect(fetchCosmetics).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(PATTERN_KEY)).toBe(saved.pattern);
@@ -790,7 +657,6 @@ describe("InventoryModal", () => {
   it("restores an enabled Retry button after a failed retry", async () => {
     Object.assign(modal as unknown as Record<string, unknown>, {
       cosmetics: null,
-      ownershipState: "error",
       isLoading: false,
       loadFailed: true,
     });
@@ -826,133 +692,9 @@ describe("InventoryModal", () => {
     expect(settings.getSelectedCrownName()).toBe("owned_crown");
   });
 
-  it("updates owned cosmetics from the signed-in document event", async () => {
-    Object.assign(modal as unknown as Record<string, unknown>, {
-      cosmetics: catalog as Cosmetics,
-      userMeResponse: false,
-      ownershipState: "guest",
-      isLoading: false,
-      loadFailed: false,
-    });
-    vi.mocked(fetchCosmetics).mockResolvedValue(catalog);
-    modal.requestUpdate();
-    await modal.updateComplete;
-
-    document.dispatchEvent(
-      new CustomEvent("userMeResponse", { detail: ownedUser }),
-    );
-
-    await vi.waitFor(() => {
-      expect(card(modal, "skin:owned_skin")).toBeDefined();
-      expect(card(modal, "skin:locked_skin")).toBeUndefined();
-    });
-  });
-
-  it("keeps newer signed-in ownership while the initial load is in flight", async () => {
-    const catalogRequest = deferred<Cosmetics | null>();
-    const authRequest = deferred<false>();
-    Object.assign(modal as unknown as Record<string, unknown>, {
-      cosmetics: null,
-      userMeResponse: false,
-      ownershipState: "loading",
-      isLoading: false,
-      loadFailed: false,
-    });
-    vi.mocked(fetchCosmetics).mockReturnValue(catalogRequest.promise);
-    vi.mocked(userAuth).mockReturnValue(authRequest.promise);
-
-    modal.open();
-    await vi.waitFor(() => expect(userAuth).toHaveBeenCalledTimes(1));
-    const signedInLoad = modal.onUserMe(ownedUser);
-    catalogRequest.resolve(catalog);
-    await signedInLoad;
-    await modal.updateComplete;
-
-    const stateBeforeStaleAuthSettles = {
-      isLoading: (modal as unknown as { isLoading: boolean }).isLoading,
-      hasOwnedSkin: card(modal, "skin:owned_skin") !== undefined,
-    };
-    authRequest.resolve(false);
-    await Promise.resolve();
-    await modal.updateComplete;
-
-    expect(fetchCosmetics).toHaveBeenCalledTimes(1);
-    expect(stateBeforeStaleAuthSettles).toEqual({
-      isLoading: false,
-      hasOwnedSkin: true,
-    });
-    expect(
-      (modal as unknown as { userMeResponse: UserMeResponse | false })
-        .userMeResponse,
-    ).toBe(ownedUser);
-    expect(
-      (modal as unknown as { ownershipState: string }).ownershipState,
-    ).toBe("loaded");
-    expect(card(modal, "skin:owned_skin")).toBeDefined();
-  });
-
-  it("preserves the complete saved loadout when authenticated ownership refresh fails", async () => {
-    const settings = new UserSettings();
-    settings.setSelectedPatternName("skin:owned_skin");
-    settings.setFlag("flag:owned_flag");
-    settings.setSelectedCrownName("owned_crown");
-    settings.setSelectedEffectName("transportShipTrail", "owned_wake");
-    const saved = {
-      pattern: localStorage.getItem(PATTERN_KEY),
-      flag: localStorage.getItem(FLAG_KEY),
-      crown: localStorage.getItem(CROWN_KEY),
-      effects: localStorage.getItem(EFFECTS_KEY),
-    };
-    vi.mocked(fetchCosmetics).mockResolvedValue(catalog);
-    vi.mocked(getUserMe).mockResolvedValue(false);
-
-    document.dispatchEvent(
-      new CustomEvent("userMeResponse", { detail: false }),
-    );
-
-    await vi.waitFor(() => {
-      expect(
-        modal.querySelector('[data-inventory-state="error"]'),
-      ).toBeTruthy();
-    });
-    expect(localStorage.getItem(PATTERN_KEY)).toBe(saved.pattern);
-    expect(localStorage.getItem(FLAG_KEY)).toBe(saved.flag);
-    expect(localStorage.getItem(CROWN_KEY)).toBe(saved.crown);
-    expect(localStorage.getItem(EFFECTS_KEY)).toBe(saved.effects);
-  });
-
-  it("shows guest country flags without inferring catalog ownership", async () => {
-    Object.assign(modal as unknown as Record<string, unknown>, {
-      cosmetics: null,
-      userMeResponse: false,
-      ownershipState: "loading",
-      isLoading: true,
-      loadFailed: false,
-    });
-    vi.mocked(fetchCosmetics).mockResolvedValue(catalog);
-    vi.mocked(userAuth).mockResolvedValue(false);
-
-    modal.open();
-
-    await vi.waitFor(() => {
-      expect(
-        (modal as unknown as { ownershipState: string }).ownershipState,
-      ).toBe("guest");
-    });
-    expect(card(modal, "pattern:default")).toBeUndefined();
-    expect(card(modal, "skin:owned_skin")).toBeUndefined();
-    await showTab(modal, "flags");
-    expect(card(modal, "country:xx")).toBeUndefined();
-    expect(card(modal, "country:us")).toBeDefined();
-    expect(card(modal, "flag:owned_flag")).toBeUndefined();
-    expect(vi.mocked(getUserMe)).not.toHaveBeenCalled();
-  }, 30_000);
-
   it("shows localized empty states with disabled Unequip actions", async () => {
     Object.assign(modal as unknown as Record<string, unknown>, {
       cosmetics: emptyCatalog,
-      userMeResponse: false,
-      ownershipState: "guest",
       isLoading: false,
       loadFailed: false,
     });
@@ -982,9 +724,7 @@ describe("InventoryModal", () => {
       '[data-effects-empty="transportShipTrail"]',
     )!;
     expect(empty).toBeTruthy();
-    expect(empty.textContent?.trim()).toBe(
-      "inventory.no_owned_effects_of_type",
-    );
+    expect(empty.textContent?.trim()).toBe("inventory.no_effects_of_type");
     expect(
       unequip.compareDocumentPosition(empty) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

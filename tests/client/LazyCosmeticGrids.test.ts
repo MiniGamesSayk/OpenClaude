@@ -46,7 +46,6 @@ const checker: ResolvedCosmetic = {
     primaryColor: "#ff0000",
     secondaryColor: "#0000ff",
   },
-  relationship: "owned",
   key: "pattern:checker:red",
 } as unknown as ResolvedCosmetic;
 
@@ -60,7 +59,6 @@ const subscription: ResolvedCosmetic = {
     canCreatePublicLobbies: false,
   },
   colorPalette: null,
-  relationship: "purchasable",
   key: "subscription:gold",
 } as unknown as ResolvedCosmetic;
 

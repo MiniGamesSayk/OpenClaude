@@ -115,11 +115,9 @@ describe("ServerEnv.turnstileSiteKey", () => {
     expect(ServerEnv.turnstileSiteKey()).toBe("site-key");
   });
 
-  test("throws when unset", () => {
+  test("is empty when unset", () => {
     vi.stubEnv("TURNSTILE_SITE_KEY", "");
-    expect(() => ServerEnv.turnstileSiteKey()).toThrow(
-      /TURNSTILE_SITE_KEY not set/,
-    );
+    expect(ServerEnv.turnstileSiteKey()).toBe("");
   });
 });
 

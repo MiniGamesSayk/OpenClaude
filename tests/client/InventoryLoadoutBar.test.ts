@@ -12,7 +12,6 @@ const cosmetic = (type: ResolvedCosmetic["type"], key: string) =>
     cosmetic:
       type === "flag" ? { name: key, url: "/flags/openfront.svg" } : null,
     colorPalette: null,
-    relationship: "owned",
     key,
   }) as ResolvedCosmetic;
 

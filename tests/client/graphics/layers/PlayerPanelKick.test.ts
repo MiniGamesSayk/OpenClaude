@@ -345,12 +345,6 @@ describe("PlayerModerationModal - kick confirmation", () => {
   });
 
   describe("canKick", () => {
-    function makeModal(isAdmin: boolean) {
-      const modal = new PlayerModerationModal();
-      modal.isAdmin = isAdmin;
-      return modal;
-    }
-
     const nonCreator = { isLobbyCreator: () => false } as unknown as PlayerView;
     const creator = { isLobbyCreator: () => true } as unknown as PlayerView;
     const humanOther = {
@@ -358,24 +352,18 @@ describe("PlayerModerationModal - kick confirmation", () => {
       clientID: () => "client-other",
     } as unknown as PlayerView;
 
-    test("admin non-creator can kick a valid other player", () => {
-      const modal = makeModal(true);
-      expect((modal as any).canKick(nonCreator, humanOther)).toBe(true);
-    });
-
-    test("non-admin non-creator cannot kick", () => {
-      const modal = makeModal(false);
+    test("non-creator cannot kick", () => {
+      const modal = new PlayerModerationModal();
       expect((modal as any).canKick(nonCreator, humanOther)).toBe(false);
     });
 
-    test("admin cannot kick themselves", () => {
-      const modal = makeModal(true);
-      // same object reference → other === my
-      expect((modal as any).canKick(nonCreator, nonCreator)).toBe(false);
+    test("lobby creator cannot kick themselves", () => {
+      const modal = new PlayerModerationModal();
+      expect((modal as any).canKick(creator, creator)).toBe(false);
     });
 
     test("lobby creator can kick a valid other player", () => {
-      const modal = makeModal(false);
+      const modal = new PlayerModerationModal();
       expect((modal as any).canKick(creator, humanOther)).toBe(true);
     });
   });

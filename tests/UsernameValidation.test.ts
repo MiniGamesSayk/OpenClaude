@@ -5,18 +5,12 @@ import {
 import { readFileSync } from "fs";
 import { describe, expect, it } from "vitest";
 import {
-  AccountUsernameSchema,
-  MAX_ACCOUNT_USERNAME_LENGTH,
   MAX_USERNAME_LENGTH,
   MIN_USERNAME_LENGTH,
   validateUsername,
 } from "../src/client/validations/username";
 
 describe("free-form username length", () => {
-  it("matches the account-username cap", () => {
-    expect(MAX_USERNAME_LENGTH).toBe(MAX_ACCOUNT_USERNAME_LENGTH);
-  });
-
   it("accepts a name of exactly the maximum length", () => {
     expect(validateUsername("a".repeat(MAX_USERNAME_LENGTH)).isValid).toBe(
       true,
@@ -176,27 +170,5 @@ describe("free-form username charset", () => {
       expect(validateUsername(name).isValid, name).toBe(true);
       expect(UsernameSchema.safeParse(name).success, name).toBe(true);
     }
-  });
-});
-
-describe("account names on the wire", () => {
-  // Verified play submits the account name and skips free-form validation, so
-  // anything AccountUsernameSchema accepts has to survive UsernameSchema or
-  // the join is closed with 1002 after the UI has enabled Play.
-  const names = [
-    "cool-guy",
-    "cool_guy",
-    "Cool Guy",
-    "cool-guy-2",
-    "a-b_c d",
-    "abc",
-    "a".repeat(MAX_ACCOUNT_USERNAME_LENGTH),
-  ];
-
-  it.each(names)("accepts the account name %s", (name) => {
-    expect(AccountUsernameSchema.safeParse(name).success).toBe(true);
-    expect(UsernameSchema.safeParse(name).success).toBe(true);
-    // The server-rendered display name carries a .dddd discriminator.
-    expect(UsernameSchema.safeParse(`${name}.1234`).success).toBe(true);
   });
 });

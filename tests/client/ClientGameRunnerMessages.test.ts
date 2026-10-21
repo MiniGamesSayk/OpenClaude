@@ -114,7 +114,6 @@ function makeLobbyConfig(withStartInfo: boolean): LobbyConfig {
     gameID: "game1234",
     playerName: "tester",
     playerClanTag: null,
-    playerRole: null,
     turnstileToken: null,
     cosmetics: {},
     ...(withStartInfo

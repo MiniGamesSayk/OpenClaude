@@ -18,7 +18,6 @@ const rarePattern: ResolvedCosmetic = {
     rarity: "rare",
   } as never,
   colorPalette: null,
-  relationship: "owned",
   key: "pattern:stripes",
 };
 
@@ -26,7 +25,6 @@ const noCrown: ResolvedCosmetic = {
   type: "crown",
   cosmetic: null,
   colorPalette: null,
-  relationship: "owned",
   key: "crown:none",
 };
 
@@ -39,7 +37,6 @@ const noFlag: ResolvedCosmetic = {
     rarity: "common",
   } as never,
   colorPalette: null,
-  relationship: "owned",
   key: "country:xx",
 };
 
@@ -47,7 +44,6 @@ const defaultEffect: ResolvedCosmetic = {
   type: "effect",
   cosmetic: null,
   colorPalette: null,
-  relationship: "owned",
   key: "effect:none:transportShipTrail",
   effectType: "transportShipTrail",
 };

@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ResolvedCosmetic } from "../../src/client/Cosmetics";
 
-const { getUserMe, fetchCosmetics, resolveCosmetics } = vi.hoisted(() => ({
-  getUserMe: vi.fn(async () => false),
+const { fetchCosmetics, resolveCosmetics } = vi.hoisted(() => ({
   fetchCosmetics: vi.fn(async () => null),
   resolveCosmetics: vi.fn((): ResolvedCosmetic[] => []),
 }));
 
-vi.mock("../../src/client/Api", () => ({ getUserMe }));
 vi.mock("../../src/client/Cosmetics", () => ({
   fetchCosmetics,
   resolveCosmetics,
@@ -19,14 +17,11 @@ vi.mock("../../src/client/Utils", () => ({
 
 import { EquippedCosmeticsRow } from "../../src/client/components/EquippedCosmeticsRow";
 
-function crownEntry(
-  relationship: ResolvedCosmetic["relationship"],
-): ResolvedCosmetic {
+function crownEntry(): ResolvedCosmetic {
   return {
     type: "crown",
     cosmetic: { name: "gold", rarity: "legendary" } as never,
     colorPalette: null,
-    relationship,
     key: "crown:gold",
   };
 }
@@ -58,44 +53,25 @@ describe("equipped-cosmetics-row", () => {
     el.cosmetics = {};
     await el.updateComplete;
 
-    expect(el.querySelector("button")).toBeNull();
+    expect(el.querySelector("[title]")).toBeNull();
     // The host must not keep taking up a flex gap once it has no tiles.
     expect(el.hasAttribute("hidden")).toBe(true);
   });
 
   it("unhides the host once the player has cosmetics", async () => {
-    resolveCosmetics.mockReturnValue([crownEntry("owned")]);
+    resolveCosmetics.mockReturnValue([crownEntry()]);
     const el = await renderRow();
 
     expect(el.hasAttribute("hidden")).toBe(false);
   });
 
-  it("opens the store in a new tab for an item the viewer can buy", async () => {
-    resolveCosmetics.mockReturnValue([crownEntry("purchasable")]);
+  it("shows a plain tile per equipped item, with no store link", async () => {
+    resolveCosmetics.mockReturnValue([crownEntry()]);
     const open = vi.spyOn(window, "open").mockReturnValue(null);
 
     const el = await renderRow();
-    const tile = el.querySelector("button")!;
-    expect(tile.hasAttribute("disabled")).toBe(false);
-    tile.click();
-
-    expect(open).toHaveBeenCalledWith(
-      expect.stringContaining("#modal=store&tab=cosmetics&item=crown%3Agold"),
-      "_blank",
-      "noopener",
-    );
-    open.mockRestore();
-  });
-
-  it("shows an owned item without a store link", async () => {
-    resolveCosmetics.mockReturnValue([crownEntry("owned")]);
-    const open = vi.spyOn(window, "open").mockReturnValue(null);
-
-    const el = await renderRow();
-    const tile = el.querySelector("button")!;
-    tile.click();
-
-    expect(tile.hasAttribute("disabled")).toBe(true);
+    expect(el.querySelector("button")).toBeNull();
+    expect(el.querySelectorAll("[title]").length).toBeGreaterThan(0);
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
   });

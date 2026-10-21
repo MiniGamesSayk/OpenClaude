@@ -1,7 +1,6 @@
 import { GameUpdateType } from "@openfront/engine-api/game/GameUpdates";
 import { EventBus } from "@openfront/shared/EventBus";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCosmetics } from "../../../../src/client/Cosmetics";
 import "../../../../src/client/hud/layers/WinModal";
 import type { WinModal } from "../../../../src/client/hud/layers/WinModal";
 import { SendWinnerEvent } from "../../../../src/client/Transport";
@@ -30,16 +29,6 @@ vi.mock("../../../../src/client/Cosmetics", async (importOriginal) => ({
   resolveCosmetics: vi.fn(() => []),
 }));
 
-vi.mock("../../../../src/client/GamePortal", () => ({
-  gamePortal: {
-    happytime: vi.fn(),
-    gameplayStop: vi.fn(),
-    // Read by the win modal's <steam-wishlist> and <profile-share>.
-    name: () => null,
-  },
-}));
-
-import { gamePortal } from "../../../../src/client/GamePortal";
 import {
   getTranslatedPlayerTeamLabel,
   translateText,
@@ -92,7 +81,7 @@ describe("WinModal tick win handling", () => {
     vi.unstubAllGlobals();
   });
 
-  it("emits the winner and celebrates when my team wins", async () => {
+  it("emits the winner when my team wins", async () => {
     const events = setup(
       makeGame({ winner: ["team", "Blue"], myTeam: "Blue" }),
     );
@@ -100,17 +89,15 @@ describe("WinModal tick win handling", () => {
 
     expect(events).toHaveLength(1);
     expect(events[0].winner).toEqual(["team", "Blue"]);
-    expect(gamePortal.happytime).toHaveBeenCalled();
     await vi.waitFor(() => expect(modal!.isVisible).toBe(true));
   });
 
-  it("emits the (translated) winner without celebrating when another team wins", async () => {
+  it("emits the (translated) winner when another team wins", async () => {
     const events = setup(makeGame({ winner: ["team", "Red"], myTeam: "Blue" }));
     modal!.tick();
 
     expect(events).toHaveLength(1);
     expect(events[0].winner).toEqual(["team", "Red"]);
-    expect(gamePortal.happytime).not.toHaveBeenCalled();
     expect(getTranslatedPlayerTeamLabel).toHaveBeenCalledWith("Red");
     expect(translateText).toHaveBeenCalledWith("win_modal.other_team", {
       team: "Rood",
@@ -134,11 +121,10 @@ describe("WinModal tick win handling", () => {
 
     expect(events).toHaveLength(1);
     expect(events[0].winner).toEqual(["player", "winner-client"]);
-    expect(gamePortal.happytime).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(modal!.isVisible).toBe(true));
   });
 
-  it("celebrates when the winning client is me", async () => {
+  it("shows the modal when the winning client is me", async () => {
     setup(
       makeGame({
         winner: ["player", "my-client"],
@@ -152,7 +138,6 @@ describe("WinModal tick win handling", () => {
     );
     modal!.tick();
 
-    expect(gamePortal.happytime).toHaveBeenCalled();
     await vi.waitFor(() => expect(modal!.isVisible).toBe(true));
   });
 
@@ -165,30 +150,6 @@ describe("WinModal tick win handling", () => {
     await vi.waitFor(() => expect(modal!.isVisible).toBe(true));
   });
 
-  it("shows the buttons as soon as show() runs, before the cosmetics fetch settles", async () => {
-    // A visible modal activates steam-wishlist, which observes its own size;
-    // jsdom has no ResizeObserver.
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
-    vi.mocked(fetchCosmetics).mockReturnValueOnce(new Promise(() => {}));
-    setup(makeGame({ winner: ["team", "Blue"], myTeam: "Blue" }));
-    document.body.appendChild(modal!);
-
-    void modal!.show();
-    await modal!.updateComplete;
-
-    expect(modal!.isVisible).toBe(true);
-    const exit = modal!.querySelector("[data-win-action='exit']");
-    expect(exit).not.toBeNull();
-    expect(exit!.parentElement!.classList.contains("hidden")).toBe(false);
-  });
-
   it("puts leaving on the left and staying on the right, and staying closes the modal", async () => {
     vi.stubGlobal(
       "ResizeObserver",
@@ -198,7 +159,6 @@ describe("WinModal tick win handling", () => {
         disconnect() {}
       },
     );
-    vi.mocked(fetchCosmetics).mockReturnValueOnce(new Promise(() => {}));
     setup(makeGame({ winner: ["team", "Blue"], myTeam: "Blue" }));
     document.body.appendChild(modal!);
     void modal!.show();

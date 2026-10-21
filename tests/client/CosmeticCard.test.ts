@@ -28,7 +28,6 @@ const red: ResolvedCosmetic = {
     primaryColor: "#ef4444",
     secondaryColor: "#7f1d1d",
   },
-  relationship: "owned",
   key: "pattern:stripes:red",
 };
 
@@ -285,7 +284,6 @@ describe("CosmeticCard", () => {
     await createCard();
     card!.resolved = {
       ...red,
-      relationship: "purchasable",
       cosmetic: {
         ...red.cosmetic!,
         product: { productId: "pattern", priceId: "pattern", price: "$5" },
@@ -305,7 +303,6 @@ describe("CosmeticCard", () => {
       await createCard();
       card!.resolved = {
         ...red,
-        relationship: "purchasable",
         cosmetic: {
           ...red.cosmetic!,
           product: { productId: "pattern", priceId: "pattern", price: "$5" },
@@ -490,53 +487,6 @@ describe("CosmeticCard", () => {
     // ...but stay under the legendary sparkles, which sit at the card corners
     // where the badge is and are meant to read as the topmost layer.
     expect(badgeZ).toBeLessThan(ruleZ("data-cosmetic-sparkle"));
-  });
-
-  describe("subscription perks tooltip", () => {
-    const tier = (requiresSteamLicence: boolean): ResolvedCosmetic => ({
-      type: "subscription",
-      cosmetic: {
-        name: requiresSteamLicence ? "steam_plus" : "gold",
-        description: "",
-        priceMonthly: 499,
-        dailySoftCurrency: 0,
-        dailyHardCurrency: 10,
-        hardCurrencySignupBonus: 250,
-        canCreatePublicLobbies: true,
-        requiresSteamLicence,
-        product: null,
-        rarity: "epic",
-      } as never,
-      colorPalette: null,
-      relationship: "purchasable",
-      key: requiresSteamLicence
-        ? "subscription:steam_plus"
-        : "subscription:gold",
-    });
-
-    async function perksOf(resolved: ResolvedCosmetic) {
-      card = document.createElement("cosmetic-card") as CosmeticCard;
-      card.resolved = resolved;
-      document.body.appendChild(card);
-      await card.updateComplete;
-      const info = card.querySelector("cosmetic-info") as HTMLElement & {
-        perks: { label: string }[];
-      };
-      return info.perks.map((perk) => perk.label);
-    }
-
-    it("lists the verified name and public lobbies for a web tier", async () => {
-      installTranslations();
-      expect(await perksOf(tier(false))).toEqual([
-        "Verified username",
-        "cosmetics.public_lobbies",
-      ]);
-    });
-
-    it("lists neither for a tier the Steam licence already covers", async () => {
-      installTranslations();
-      expect(await perksOf(tier(true))).toEqual([]);
-    });
   });
 
   it("hands its preview the size it is given", async () => {

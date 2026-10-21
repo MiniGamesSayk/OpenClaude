@@ -63,12 +63,10 @@ export class ServerEnv {
     }
     return n;
   }
+  // No bot challenge is run any more (the client never loads Turnstile), so
+  // the key is optional and only kept for the BOOTSTRAP_CONFIG shape.
   static turnstileSiteKey(): string {
-    const v = process.env.TURNSTILE_SITE_KEY;
-    if (!v) {
-      throw new Error("TURNSTILE_SITE_KEY not set");
-    }
-    return v;
+    return process.env.TURNSTILE_SITE_KEY ?? "";
   }
   // Optional, unlike turnstileSiteKey: a deployment without a key just keeps
   // the inline Stripe flow off (the store falls back to redirect checkout).
