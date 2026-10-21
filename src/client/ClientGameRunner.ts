@@ -83,12 +83,17 @@ import { createRenderer, GameRenderer } from "./hud/GameRenderer";
 import { goldRateTracker } from "./hud/layers/lib/GoldRateTracker";
 import {
   applyGraphicsOverrides,
+  applyLowSpecSettings,
   createRenderSettings,
   deepAssign,
+  detectWeakDevice,
   GLUnavailableError,
+  LOW_SPEC_MAX_FPS,
+  lowSpecMode,
   MapRenderer,
   preloadAtlasData,
   renderDpr,
+  setLowSpecMode,
   type RenderSettings,
   showGLGate,
   trackGLInit,
@@ -623,10 +628,16 @@ function mountWebGLFrameLoop(
   // renderer's captured frame callback (which draws). One RAF = one
   // synchronized camera-update + WebGL render.
   let rafId: number | null = null;
+  // Low-spec mode draws at most LOW_SPEC_MAX_FPS: the simulation runs at
+  // 10 ticks/s anyway, and the spare frames are what a weak PC can't afford.
+  const minFrameMs = 1000 / LOW_SPEC_MAX_FPS - 1;
+  let lastFrameMs = -Infinity;
   const driveFrame = (nowMs: number): void => {
+    rafId = requestAnimationFrame(driveFrame);
+    if (lowSpecMode() && nowMs - lastFrameMs < minFrameMs) return;
+    lastFrameMs = nowMs;
     onFrame(nowMs);
     syncCamera();
-    rafId = requestAnimationFrame(driveFrame);
   };
   rafId = requestAnimationFrame(driveFrame);
 
@@ -744,9 +755,13 @@ async function createClientGame(
     // renderer is built with the final values — no construct-with-defaults,
     // re-apply-overrides dance, and texture-baking passes (terrain) get the
     // right colors on the first build.
+    // Decided before the renderer exists: it sizes the canvas from renderDpr.
+    // initGL can still switch it on if it only gets a software context.
+    setLowSpecMode(userSettings.lowSpecMode() || detectWeakDevice());
     const resolveRenderSettings = (): RenderSettings => {
       const settings = createRenderSettings();
       applyGraphicsOverrides(settings, userSettings.graphicsOverrides());
+      if (lowSpecMode()) applyLowSpecSettings(settings);
       return settings;
     };
 
@@ -755,6 +770,8 @@ async function createClientGame(
       config,
       resolveRenderSettings(),
     );
+    // initGL turns low-spec mode on when it only got a software context.
+    if (lowSpecMode()) applyLowSpecSettings(view.getSettings());
 
     const graphicsListenerAbort = new AbortController();
 

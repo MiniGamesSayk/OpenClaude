@@ -16,6 +16,13 @@ export {
   buildTerrainRGBA,
   getPaletteSize,
 } from "./utils/ColorUtils";
+export {
+  applyLowSpecSettings,
+  detectWeakDevice,
+  LOW_SPEC_MAX_FPS,
+  lowSpecMode,
+  setLowSpecMode,
+} from "./LowSpec";
 export { renderDpr } from "./utils/Dpr";
 export { buildNukeTrajectory, samRange } from "./utils/NukeTrajectory";
 export type { SAMInfo } from "./utils/NukeTrajectory";

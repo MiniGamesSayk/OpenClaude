@@ -2715,6 +2715,8 @@
     "lobby_id_visibility_label": "Hidden Lobby IDs",
     "lobby_start_alerts_desc": "Play the start chime for each lobby and ranked match by default and show a desktop notification when permitted. You can override it with the lobby bell.",
     "lobby_start_alerts_label": "Lobby Start Alerts",
+    "low_spec_mode_desc": "For weak PCs: renders at lower resolution, caps the frame rate at 30 FPS and turns off visual effects. Turns on by itself when no graphics acceleration is available. Applies to the next game.",
+    "low_spec_mode_label": "Low-spec mode",
     "menu_shortcuts": "Menu Shortcuts",
     "modifiers": "Modifiers",
     "move_down": "Move Camera Down",

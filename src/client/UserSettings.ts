@@ -498,6 +498,15 @@ export class UserSettings {
     return this.getBool("settings.cursorCostLabel", legacy);
   }
 
+  /** Low-spec mode for weak PCs (also turned on automatically when needed). */
+  lowSpecMode() {
+    return this.getBool("settings.lowSpecMode", false);
+  }
+
+  toggleLowSpecMode() {
+    this.setBool("settings.lowSpecMode", !this.lowSpecMode());
+  }
+
   snapBuildPreview() {
     return this.getBool("settings.snapBuildPreview", false);
   }
