@@ -1997,14 +1997,15 @@ export class PlayerImpl implements Player {
     treatAFKFriendly: boolean = false,
   ): boolean {
     if (this.isFriendly(player, treatAFKFriendly)) return false;
-    // An immune player can't be attacked, by anyone.
-    if (player.isImmune()) return false;
+    if (this.type() !== PlayerType.Human) {
+      // Nations and tribes fight each other freely, but never an immune human.
+      return !(player.type() === PlayerType.Human && player.isImmune());
+    }
     // While a human is still immune it can't start fights either, except
     // against tribes (bots), which are never immune.
-    return !(
-      this.type() === PlayerType.Human &&
-      this.isImmune() &&
-      player.type() !== PlayerType.Bot
+    return (
+      !player.isImmune() &&
+      !(this.isImmune() && player.type() !== PlayerType.Bot)
     );
   }
 

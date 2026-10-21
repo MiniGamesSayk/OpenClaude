@@ -656,8 +656,7 @@ describe("Attack immunity", () => {
     expect(bot.outgoingAttacks()).toHaveLength(0);
   });
 
-  test("Nation can attack nation once nation immunity is over", async () => {
-    (game.config() as TestConfig).setNationSpawnImmunityDuration(0);
+  test("Nation can attack nation during PVP immunity", async () => {
     const nationAInfo = new PlayerInfo(
       "nationA",
       PlayerType.Nation,
