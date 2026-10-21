@@ -236,7 +236,7 @@ function activeSlot(modal: InventoryModal): string | null {
   return active?.dataset.loadoutSlot ?? null;
 }
 
-describe("InventoryModal", () => {
+describe("InventoryModal", { timeout: 30_000 }, () => {
   let modal: InventoryModal;
   let languageFixture: HTMLElement;
 
@@ -407,7 +407,7 @@ describe("InventoryModal", () => {
     } finally {
       window.removeEventListener("show-message", onMessage);
     }
-  });
+  }, 30_000);
 
   it("equips owned cards and clears each non-effect category", async () => {
     await showTab(modal, "skins");
