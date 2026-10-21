@@ -100,6 +100,17 @@ export class GameView implements GameLike {
    */
   private _unitsByOwner = new Map<number, UnitView[]>();
   private _unitsByOwnerStale = true;
+  /**
+   * Units updated, moved or created this tick: the only ones whose
+   * _wasUpdated / lastPos need resetting next tick. Late game most of the
+   * thousands of units (structures, idle ships) are untouched each tick.
+   */
+  private _touchedUnits: UnitView[] = [];
+  /**
+   * Units of a trail-stamping type, in creation order (= _units order), so the
+   * per-tick trail pass doesn't filter every unit on the map.
+   */
+  private readonly _trailUnits = new Set<UnitView>();
 
   // ── FrameData accumulators (renderer-bound state) ─────────────────────
   private trailManager!: TrailManager;
@@ -159,6 +170,7 @@ export class GameView implements GameLike {
     move: (id, tile) => {
       const unit = this._units.get(id)!;
       unit.applyDerivedPosition(tile as TileRef);
+      this._touchedUnits.push(unit);
       this.unitGrid.updateUnitCell(unit);
     },
     rest: (id) => this._units.get(id)!.applyDerivedRest(),
@@ -281,6 +293,8 @@ export class GameView implements GameLike {
     this._unitsByOwnerStale = true;
 
     this.toDelete.forEach((id) => {
+      const unit = this._units.get(id);
+      if (unit !== undefined) this._trailUnits.delete(unit);
       this._units.delete(id);
       this._unitStates.delete(id);
     });
@@ -449,16 +463,20 @@ export class GameView implements GameLike {
       this._myPlayer ??= this.playerByClientID(this._myClientID);
     }
 
-    for (const unit of this._units.values()) {
+    // Only units touched last tick can have _wasUpdated set or a lastPos
+    // grown by a move (structures and idle units never do).
+    const touched = this._touchedUnits;
+    for (let i = 0; i < touched.length; i++) {
+      const unit = touched[i];
       unit._wasUpdated = false;
-      // Only trim when a move appended a position — most units (structures)
-      // never move. Trimmed in place; nothing keeps the array across ticks.
+      // Trimmed in place; nothing keeps the array across ticks.
       const lastPos = unit.lastPos;
       if (lastPos.length > 1) {
         lastPos[0] = lastPos[lastPos.length - 1];
         lastPos.length = 1;
       }
     }
+    touched.length = 0;
     gu.updates[GameUpdateType.Unit].forEach((update) => {
       let unit = this._units.get(update.id);
       const isStructure = STRUCTURE_TYPES.has(update.unitType);
@@ -480,6 +498,7 @@ export class GameView implements GameLike {
         const oldPos = unit.state.pos;
         const oldLastPos = unit.state.lastPos;
         unit.update(update);
+        this._touchedUnits.push(unit);
         if (hasMotionPlan) {
           unit.state.pos = oldPos;
           unit.state.lastPos = oldLastPos;
@@ -487,6 +506,8 @@ export class GameView implements GameLike {
         }
       } else {
         unit = new UnitView(this, update);
+        this._touchedUnits.push(unit);
+        if (TRAIL_TYPES.has(update.unitType)) this._trailUnits.add(unit);
         this._units.set(update.id, unit);
         this._unitStates.set(update.id, unit.state);
         this.unitGrid.addUnit(unit);
@@ -555,10 +576,8 @@ export class GameView implements GameLike {
 
     // Trail update: walk active trail-type units and stamp/decay.
     this._trailIdsScratch.length = 0;
-    for (const u of this._units.values()) {
-      if (u.isActive() && TRAIL_TYPES.has(u.type())) {
-        this._trailIdsScratch.push(u.id());
-      }
+    for (const u of this._trailUnits) {
+      if (u.isActive()) this._trailIdsScratch.push(u.id());
     }
     this.trailManager.update(
       this._unitStates as Map<number, import("../render/types").UnitState>,

@@ -1060,3 +1060,62 @@ describe("GameView.unitsOwnedBy — per-tick owner index", () => {
     expect(alice.units()).toHaveLength(3);
   });
 });
+
+describe("GameView.update — per-tick unit bookkeeping", () => {
+  it("resets moved units' lastTiles/wasUpdated the next tick, leaving idle units alone", () => {
+    const game = makeGameView();
+    const gu1 = makeEmptyGu(1);
+    gu1.updates[GameUpdateType.Unit] = [
+      makeUnitUpdate({ id: 1, pos: 5 }),
+      makeUnitUpdate({ id: 2, unitType: UnitType.City, pos: 9 }),
+    ];
+    game.update(gu1);
+    const gu2 = makeEmptyGu(2);
+    gu2.updates[GameUpdateType.Unit] = [makeUnitUpdate({ id: 1, pos: 6 })];
+    game.update(gu2);
+    const ship = game.unit(1)!;
+    const city = game.unit(2)!;
+    expect(ship.lastTiles()).toEqual([5, 6]);
+    expect(ship.lastTile()).toBe(5);
+    expect(ship.wasUpdated()).toBe(true);
+    expect(city.wasUpdated()).toBe(false);
+
+    game.update(makeEmptyGu(3));
+    expect(ship.lastTiles()).toEqual([6]);
+    expect(ship.lastTile()).toBe(6);
+    expect(ship.wasUpdated()).toBe(false);
+    expect(city.lastTiles()).toEqual([9]);
+  });
+
+  it("stamps trails only for live trail-type units", () => {
+    const game = makeGameView();
+    const gu1 = makeEmptyGu(1);
+    gu1.updates[GameUpdateType.Unit] = [
+      makeUnitUpdate({ id: 1, unitType: UnitType.TransportShip, pos: 3 }),
+      makeUnitUpdate({ id: 2, unitType: UnitType.City, pos: 4 }),
+    ];
+    game.update(gu1);
+    const trail = game.frameData().trailState;
+    expect(trail[3]).not.toBe(0);
+    expect(trail[4]).toBe(0);
+
+    // The transport dies, is swept, and a new one is tracked in its place.
+    const gu2 = makeEmptyGu(2);
+    gu2.updates[GameUpdateType.Unit] = [
+      makeUnitUpdate({
+        id: 1,
+        unitType: UnitType.TransportShip,
+        pos: 3,
+        isActive: false,
+      }),
+    ];
+    game.update(gu2);
+    const gu3 = makeEmptyGu(3);
+    gu3.updates[GameUpdateType.Unit] = [
+      makeUnitUpdate({ id: 3, unitType: UnitType.TransportShip, pos: 7 }),
+    ];
+    game.update(gu3);
+    expect(game.unit(1)).toBeUndefined();
+    expect(trail[7]).not.toBe(0);
+  });
+});
