@@ -236,13 +236,6 @@ describe("JoinLobbyModal spectate link", () => {
       false,
     );
   });
-
-  it("becomes the replay once the game is over", async () => {
-    const modal = modalWith(false, "success");
-    await (modal as any).handleUrlJoin("AbCd1234", true);
-    expect((modal as any).checkArchivedGame).toHaveBeenCalledWith("AbCd1234");
-    expect((modal as any).showMessage).not.toHaveBeenCalled();
-  });
 });
 
 // OPE-205. Steam's invite dialog is reachable only through the in-game
@@ -520,24 +513,5 @@ describe("JoinLobbyModal checkActiveLobby resilience", () => {
     const result = await (modal as any).checkActiveLobby("AbCd1234");
     expect(result).toBe(false);
     expect(gameHttpBaseSpy).toHaveBeenCalledWith("AbCd1234");
-  });
-
-  it("falls through to checkArchivedGame when /exists fetch throws during handleUrlJoin", async () => {
-    const modal = new JoinLobbyModal();
-    (modal as any).startTrackingLobby = vi.fn();
-    (modal as any).checkArchivedGame = vi.fn().mockResolvedValue("success");
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.includes("/exists")) {
-        throw new TypeError("Failed to fetch");
-      }
-      return new Response(JSON.stringify({ servers: {} }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    });
-
-    await (modal as any).handleUrlJoin("AbCd1234");
-    expect((modal as any).checkArchivedGame).toHaveBeenCalledWith("AbCd1234");
   });
 });

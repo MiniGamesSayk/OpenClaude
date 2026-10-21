@@ -143,14 +143,6 @@ const emptyCatalog = {
   effects: {},
 } as unknown as Cosmetics;
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
-}
-
 function card(modal: InventoryModal, key: string): CosmeticCard | undefined {
   return [...modal.querySelectorAll<CosmeticCard>("cosmetic-card")].find(
     (candidate) =>

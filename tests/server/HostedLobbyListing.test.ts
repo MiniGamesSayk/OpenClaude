@@ -234,6 +234,7 @@ describe("GameServer listing", () => {
       });
 
       vi.spyOn(ServerEnv, "env").mockReturnValue(GameEnv.Prod);
+      vi.spyOn(ServerEnv, "anonymousJoins").mockReturnValue(false);
 
       let resolveUserMe!: (val: any) => void;
       const userMePromise = new Promise((resolve) => {

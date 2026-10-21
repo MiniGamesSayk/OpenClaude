@@ -101,14 +101,12 @@ describe("the nav bars that host the cluster", () => {
     window.currentPageId = "page-play";
   });
 
-  it("puts the cogwheel in the desktop bar, immediately left of the avatar", async () => {
+  it("puts the cogwheel in the desktop bar, with no account menu", async () => {
     const bar = await mount("desktop-nav-bar");
     expect(settingsButton(bar)).not.toBeNull();
 
-    const cluster = bar.querySelector("nav-utility-icons")!;
-    expect(cluster.nextElementSibling?.tagName.toLowerCase()).toBe(
-      "nav-account-menu",
-    );
+    expect(bar.querySelector("nav-utility-icons")).not.toBeNull();
+    expect(bar.querySelector("nav-account-menu")).toBeNull();
   });
 
   it("puts the cogwheel in the mobile top bar too", async () => {
@@ -116,8 +114,6 @@ describe("the nav bars that host the cluster", () => {
     const cluster = page.querySelector("nav-utility-icons")!;
     expect(cluster.getAttribute("size")).toBe("mobile");
     expect(settingsButton(cluster)).not.toBeNull();
-    expect(cluster.nextElementSibling?.tagName.toLowerCase()).toBe(
-      "nav-account-menu",
-    );
+    expect(page.querySelector("nav-account-menu")).toBeNull();
   });
 });

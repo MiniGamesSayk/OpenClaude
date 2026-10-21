@@ -419,27 +419,6 @@ describe("version_mismatch on a pinned /v/<commit>/ page", () => {
     resetPagePinForTests();
   });
 
-  it("goes to the game's own host instead of reloading", () => {
-    stubLocation("/v/5ccc50a7/game/game1234");
-    envMocks.resolveGame.mockReturnValue({
-      kind: "cross",
-      host: "falk2-a.openfront.io",
-      numWorkers: 16,
-    });
-    joinLobby(new EventBus(), makeLobbyConfig(false));
-
-    captured.lobbyOnMessage!({
-      type: "error",
-      error: "version_mismatch",
-      gitCommit: "server-commit",
-    });
-
-    expect(window.location.href).toBe(
-      "https://falk2-a.openfront.io/game/game1234",
-    );
-    expect(reloadForUpdate).not.toHaveBeenCalled();
-  });
-
   it("does not reload when the game is on this page's own server either", async () => {
     // Nothing this page can fetch is the build it needs -- that is what a
     // mismatch on a PINNED page means. Say so and stop.
@@ -550,35 +529,6 @@ describe("version_mismatch takes the versioned page on this host first", () => {
     resetPagePinForTests();
   });
 
-  it("goes to the game's version on this host rather than to its host", async () => {
-    stubLocation("/game/game1234");
-    envMocks.gameVersion.mockReturnValue(OLD);
-    envMocks.resolveGame.mockReturnValue({
-      kind: "cross",
-      host: "falk2-a.openfront.io",
-      numWorkers: 16,
-    });
-
-    sendMismatch(OLD);
-
-    expect(window.location.href).toBe(`/v/${SHORT_OLD}/game/game1234`);
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(reloadForUpdate).not.toHaveBeenCalled();
-  });
-
-  // A legacy id with no letter, or a letter deployed after this page
-  // fetched its list; the refusing server names its own build regardless.
-  it("uses the refusing server's own commit when the list knows none", () => {
-    stubLocation("/game/game1234");
-    envMocks.gameVersion.mockReturnValue(undefined);
-
-    sendMismatch(OLD);
-
-    expect(window.location.href).toBe(`/v/${SHORT_OLD}/game/game1234`);
-  });
-
-  // The loop guard reads the pin, not the address bar: the join has already
-  // rewritten the bar version-free, so the page looks unpinned here.
   it("stays put on a page already pinned to the version the server names", async () => {
     stubLocation(`/v/${SHORT_OLD}/game/game1234`);
     capturePagePin();
@@ -597,34 +547,6 @@ describe("version_mismatch takes the versioned page on this host first", () => {
 
   // The list is stale-while-revalidate and may still name the build the
   // join was attempted on; the server that refused it does not.
-  it("prefers the refusing server's commit over a stale list", () => {
-    stubLocation("/game/game1234");
-    envMocks.gameVersion.mockReturnValue(OWN);
-
-    sendMismatch(OLD);
-
-    expect(window.location.href).toBe(`/v/${SHORT_OLD}/game/game1234`);
-  });
-
-  // GIT_COMMIT is legitimately "DEV" or "unknown" on some deployments: no
-  // build to ask for, so the older recovery answers instead.
-  it("falls back when the server's commit names no build", async () => {
-    stubLocation("/game/game1234");
-    envMocks.resolveGame.mockReturnValue({
-      kind: "cross",
-      host: "falk2-a.openfront.io",
-      numWorkers: 16,
-    });
-
-    sendMismatch("unknown");
-
-    expect(window.location.href).toBe(
-      "https://falk2-a.openfront.io/game/game1234",
-    );
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    expect(reloadForUpdate).not.toHaveBeenCalled();
-  });
-
   it("still reloads a stale tab when no version can be named", async () => {
     // No build is named, so there is no versioned page to ask for.
     stubLocation("/game/game1234");

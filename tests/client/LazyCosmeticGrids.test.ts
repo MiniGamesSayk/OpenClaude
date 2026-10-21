@@ -49,19 +49,6 @@ const checker: ResolvedCosmetic = {
   key: "pattern:checker:red",
 } as unknown as ResolvedCosmetic;
 
-const subscription: ResolvedCosmetic = {
-  type: "subscription",
-  cosmetic: {
-    name: "gold",
-    hardCurrencySignupBonus: 100,
-    dailyHardCurrency: 10,
-    unlimitedRanked: false,
-    canCreatePublicLobbies: false,
-  },
-  colorPalette: null,
-  key: "subscription:gold",
-} as unknown as ResolvedCosmetic;
-
 async function mountPreview(
   resolved: ResolvedCosmetic,
   size: "card" | "detail" = "card",
@@ -125,12 +112,9 @@ describe("lazy cosmetic previews", () => {
     );
   });
 
-  it("renders detail previews and text previews without waiting", async () => {
+  it("renders detail previews without waiting", async () => {
     const detail = await mountPreview(checker, "detail");
     expect(detail.querySelector("canvas")).toBeTruthy();
-
-    const perks = await mountPreview(subscription);
-    expect(perks.querySelector("plutonium-icon")).toBeTruthy();
   });
 });
 

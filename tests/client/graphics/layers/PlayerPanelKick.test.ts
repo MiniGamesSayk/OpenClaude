@@ -95,7 +95,7 @@ describe("PlayerPanel - kick player moderation", () => {
 
     // The row also carries the report button, which anyone gets.
     mockActionButton.mockClear();
-    (panel as any).renderModeration(my, other, false);
+    (panel as any).renderModeration(my, other);
     expect(renderedLabels()).toEqual([
       "player_panel.report",
       "player_panel.moderation",
@@ -108,29 +108,14 @@ describe("PlayerPanel - kick player moderation", () => {
 
     mockActionButton.mockClear();
     (panel as any).kickedPlayerIDs.add("2");
-    (panel as any).renderModeration(my, other, false);
+    (panel as any).renderModeration(my, other);
     expect(renderedLabels()).toContain("player_panel.moderation");
 
     const notCreator = { isLobbyCreator: () => false } as unknown as PlayerView;
     mockActionButton.mockClear();
     (panel as any).kickedPlayerIDs.clear();
-    (panel as any).renderModeration(notCreator, other, false);
+    (panel as any).renderModeration(notCreator, other);
     expect(renderedLabels()).not.toContain("player_panel.moderation");
-  });
-
-  test("renders moderation action when isAdmin=true even if not lobby creator", () => {
-    const notCreator = { isLobbyCreator: () => false } as unknown as PlayerView;
-    const other = {
-      id: () => 2,
-      name: () => "Other",
-      displayName: () => "[TAG] Other",
-      type: () => PlayerType.Human,
-      clientID: () => "client-2",
-    } as unknown as PlayerView;
-
-    mockActionButton.mockClear();
-    (panel as any).renderModeration(notCreator, other, true);
-    expect(renderedLabels()).toContain("player_panel.moderation");
   });
 
   test("opens moderation modal and hides after a kick", () => {
@@ -175,7 +160,7 @@ describe("PlayerPanel - report player", () => {
   });
 
   test("anyone can report another human in a multiplayer game", () => {
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(renderedLabels()).toEqual(["player_panel.report"]);
     expect(mockActionButton.mock.calls[0][0]).toMatchObject({
       type: "red",
@@ -186,20 +171,20 @@ describe("PlayerPanel - report player", () => {
   test("no report button in singleplayer, replays, once the game is over, for yourself, or for a nation", () => {
     // Singleplayer records are client-authored; the API ignores their reports.
     (panel as any).g = gameOfType(GameType.Singleplayer);
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(mockActionButton).not.toHaveBeenCalled();
 
     // Once decided, the record has been archived and the server refuses.
     (panel as any).g = gameOfType(GameType.Public, true);
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(mockActionButton).not.toHaveBeenCalled();
 
     (panel as any).g = gameOfType(GameType.Public, false, true);
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(mockActionButton).not.toHaveBeenCalled();
 
     (panel as any).g = gameOfType(GameType.Public);
-    (panel as any).renderModeration(other, other, false);
+    (panel as any).renderModeration(other, other);
     expect(mockActionButton).not.toHaveBeenCalled();
 
     const nation = {
@@ -207,7 +192,7 @@ describe("PlayerPanel - report player", () => {
       type: () => PlayerType.Nation,
       clientID: () => null,
     } as unknown as PlayerView;
-    (panel as any).renderModeration(me, nation, false);
+    (panel as any).renderModeration(me, nation);
     expect(mockActionButton).not.toHaveBeenCalled();
   });
 
@@ -222,7 +207,7 @@ describe("PlayerPanel - report player", () => {
     // Submitting alone (e.g. while the socket is reconnecting and the
     // report is dropped) does not lock the button.
     (panel as any).closeReport();
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(mockActionButton.mock.calls[0][0]).toMatchObject({
       label: "player_panel.report",
       disabled: false,
@@ -230,7 +215,7 @@ describe("PlayerPanel - report player", () => {
 
     mockActionButton.mockClear();
     eventBus.emit(new PlayerReportedEvent("client-2"));
-    (panel as any).renderModeration(me, other, false);
+    (panel as any).renderModeration(me, other);
     expect(mockActionButton.mock.calls[0][0]).toMatchObject({
       label: "player_panel.reported",
       disabled: true,

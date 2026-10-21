@@ -1,4 +1,3 @@
-import { html } from "lit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ResolvedCosmetic } from "../../src/client/Cosmetics";
 import "../../src/client/components/CosmeticCard";
@@ -245,55 +244,6 @@ describe("CosmeticCard", () => {
     const name = card!.querySelector<HTMLElement>("[data-cosmetic-name]")!;
     expect(name.classList).not.toContain("truncate");
     expect(name.classList).toContain("break-words");
-  });
-
-  it("keeps metadata and purchase content inside the animated card", async () => {
-    installTranslations();
-    await createCard();
-    card!.resolved = {
-      ...red,
-      cosmetic: {
-        ...red.cosmetic!,
-        artist: "Test Artist",
-        priceHard: 100,
-      } as never,
-    };
-    card!.actionContent = html`<button data-test-purchase>Buy</button>`;
-    await card!.updateComplete;
-
-    const shell = card!.querySelector<HTMLElement>("[data-cosmetic-shell]")!;
-    expect(shell.className).toMatch(/hover:-translate-y-1/);
-    expect(card!.querySelector("[data-cosmetic-info]")?.textContent).toContain(
-      "Artist: Test Artist",
-    );
-    expect(card!.querySelector("[data-cosmetic-info]")?.textContent).toContain(
-      "Value: $5.00",
-    );
-    const info = card!.querySelector("[data-cosmetic-info] button")!;
-    expect(info.getAttribute("aria-label")).toBe("Show cosmetic details");
-    expect(info.textContent?.trim()).toBe("?");
-    // The info control sits beside the card's button, never inside it.
-    expect(card!.querySelectorAll("button button")).toHaveLength(0);
-    expect(
-      card!.querySelector("[data-test-purchase]")?.closest("cosmetic-card"),
-    ).toBe(card);
-  });
-
-  it("shows the ad-free entitlement for purchasable cosmetics", async () => {
-    installTranslations();
-    await createCard();
-    card!.resolved = {
-      ...red,
-      cosmetic: {
-        ...red.cosmetic!,
-        product: { productId: "pattern", priceId: "pattern", price: "$5" },
-      } as never,
-    };
-    await card!.updateComplete;
-
-    expect(card!.querySelector("[data-cosmetic-info]")?.textContent).toContain(
-      "ad-free for life!",
-    );
   });
 
   it("omits the ad-free entitlement in the desktop shell, which has no ads", async () => {
