@@ -276,10 +276,24 @@ export class WarshipExecution implements Execution {
     const config = mg.config();
     const owner = this.warship.owner();
 
+    // The common exclusions (self, own/friendly, already shelled, docked) run
+    // as the grid predicate: late game a warship has hundreds of ships in
+    // range, mostly ineligible, and rejected ones then allocate nothing.
     const ships = mg.nearbyUnits(
       this.warship.tile(),
       config.warshipTargettingRange(),
       types,
+      ({ unit: candidate }) => {
+        const unit = candidate as Unit;
+        return !(
+          unit === this.warship ||
+          unit.owner() === owner ||
+          !owner.canAttackPlayer(unit.owner(), true) ||
+          this.alreadySentShell.has(unit) ||
+          (unit.type() === UnitType.Warship &&
+            unit.warshipState().state === "docked")
+        );
+      },
     );
 
     // Trade-ship-specific state, lazily computed.
@@ -293,17 +307,6 @@ export class WarshipExecution implements Execution {
     let bestDistSquared = 0;
 
     for (const { unit, distSquared } of ships) {
-      if (
-        unit === this.warship ||
-        unit.owner() === owner ||
-        !owner.canAttackPlayer(unit.owner(), true) ||
-        this.alreadySentShell.has(unit) ||
-        (unit.type() === UnitType.Warship &&
-          unit.warshipState().state === "docked")
-      ) {
-        continue;
-      }
-
       const type = unit.type();
 
       if (includeTradeShips && type === UnitType.TradeShip) {

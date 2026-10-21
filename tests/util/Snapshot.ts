@@ -141,6 +141,11 @@ export const DERIVED_FIELDS = new Set<string>([
   "unitCountMemo",
   "unitsByTypeMemo",
   "borderNbuf",
+  // UnitGrid: per-type index rebuilt from the cells on restore (their
+  // membership is compared through the cells; only the order differs)
+  "unitsOfType",
+  "filedCell",
+  "filingInconsistent",
   // PlayerImpl
   "lastSentUpdate",
   "myUnitsMemo",
