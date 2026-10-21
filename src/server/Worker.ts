@@ -218,6 +218,7 @@ export async function startWorker() {
 
   setTimeout(
     () => {
+      if (ServerEnv.standalone()) return;
       // The ranked loop follows the deployment-active flag the master pushes
       // to this worker (OPE-469): a draining, standby or fenced server keeps
       // the games it has but stops offering new matches.
@@ -242,7 +243,8 @@ export async function startWorker() {
     ServerEnv.jwtIssuer() + "/reserved_clan_tags",
     log,
   );
-  privilegeRefresher.start();
+  // Standalone: no cosmetics API, so the checker stays fail-open (see get()).
+  if (!ServerEnv.standalone()) privilegeRefresher.start();
 
   // Ahead of everything that can reject a request — the worker-prefix check
   // below and the rate limiter further down — so that a 404 or a 429 still

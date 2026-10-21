@@ -16,6 +16,7 @@ describe("WorkerLobbyService lobbies socket errors", () => {
       listedLobbies: vi.fn().mockReturnValue([]),
       game: vi.fn().mockReturnValue(null),
       activeGames: vi.fn().mockReturnValue(0),
+      activeClients: vi.fn().mockReturnValue(0),
     };
     log = mockLogger();
     service = new WorkerLobbyService(

@@ -43,6 +43,13 @@ export class MasterLobbyService {
   private readonly workerLobbies = new Map<number, InternalGameInfo[]>();
   // Worker id => games it last reported running (lobbies included).
   private readonly workerLiveGames = new Map<number, number>();
+  // Worker id => browsers on its lobby socket plus players in its games, as
+  // last reported. Drives the idle pause (ServerEnv.idlePauseMs).
+  private readonly workerAudience = new Map<number, number>();
+  // Worker id => players in its games, as last reported (shown on the hub).
+  private readonly workerPlayers = new Map<number, number>();
+  private lastAudienceAt = Date.now();
+  private idlePaused = false;
   private readonly readyWorkers = new Set<number>();
   // gameID => consecutive broadcast cycles a hosted lobby has lost the
   // per-creator dedup or overflowed the cluster-wide cap. Losing once can be
@@ -110,6 +117,11 @@ export class MasterLobbyService {
         case "lobbyList":
           this.workerLobbies.set(workerId, this.validLobbies(msg.lobbies));
           this.workerLiveGames.set(workerId, msg.liveGames ?? 0);
+          this.workerPlayers.set(workerId, msg.activeClients ?? 0);
+          this.workerAudience.set(
+            workerId,
+            (msg.lobbyViewers ?? 0) + (msg.activeClients ?? 0),
+          );
           // The client coalesces: at most one report a second, plus a
           // heartbeat. Every change is offered so a numClients-only change
           // still reaches the site roster within a second.
@@ -141,6 +153,8 @@ export class MasterLobbyService {
     this.workers.delete(workerId);
     this.workerLobbies.delete(workerId);
     this.workerLiveGames.delete(workerId);
+    this.workerAudience.delete(workerId);
+    this.workerPlayers.delete(workerId);
     this.readyWorkers.delete(workerId);
   }
 
@@ -149,6 +163,14 @@ export class MasterLobbyService {
   liveGames(): number {
     let total = 0;
     for (const n of this.workerLiveGames.values()) total += n;
+    return total;
+  }
+
+  // Players currently in a game on this server, summed over the workers' last
+  // reports. Exposed on /api/health for the sayk.fr hub.
+  players(): number {
+    let total = 0;
+    for (const n of this.workerPlayers.values()) total += n;
     return total;
   }
 
@@ -429,10 +451,35 @@ export class MasterLobbyService {
     }
   }
 
+  // True once nobody (lobby viewer or player) has been around for
+  // IDLE_PAUSE_SEC. The queue already scheduled still plays out, but no new
+  // lobby is created and no countdown started, so an empty server goes quiet;
+  // the first visitor resumes scheduling within a broadcast or two.
+  private isIdle(): boolean {
+    const pauseMs = ServerEnv.idlePauseMs();
+    if (pauseMs === 0) return false;
+    let audience = 0;
+    for (const n of this.workerAudience.values()) audience += n;
+    const now = Date.now();
+    if (audience > 0) this.lastAudienceAt = now;
+    const idle = audience === 0 && now - this.lastAudienceAt >= pauseMs;
+    if (idle !== this.idlePaused) {
+      this.idlePaused = idle;
+      this.log.info(
+        idle
+          ? `no visitors for ${pauseMs / 1000}s, pausing public lobby scheduling`
+          : "visitors are back, resuming public lobby scheduling",
+      );
+    }
+    return idle;
+  }
+
   private async maybeScheduleLobby() {
     // Coordinated: the site's queue depth and countdowns are the
     // coordinator's; adding our own here would double-schedule.
     if (this.isCoordinated()) return;
+
+    if (this.isIdle()) return;
 
     const lobbiesByType = this.getAllLobbies().games;
 

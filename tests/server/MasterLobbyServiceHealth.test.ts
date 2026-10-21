@@ -116,3 +116,28 @@ describe("MasterLobbyService.isHealthy", () => {
     expect(service.isHealthy()).toBe(false);
   });
 });
+
+describe("MasterLobbyService.players", () => {
+  it("sums the players reported by the workers and forgets removed ones", () => {
+    const service = createService(2);
+    const workers = startAllWorkers(service, 2);
+    expect(service.players()).toBe(0);
+
+    workers[0].w.emit("message", {
+      type: "lobbyList",
+      lobbies: [],
+      activeClients: 3,
+      lobbyViewers: 10,
+    });
+    workers[1].w.emit("message", {
+      type: "lobbyList",
+      lobbies: [],
+      activeClients: 4,
+    });
+    // Lobby viewers are browsers on the home page, not players.
+    expect(service.players()).toBe(7);
+
+    service.removeWorker(2);
+    expect(service.players()).toBe(3);
+  });
+});
