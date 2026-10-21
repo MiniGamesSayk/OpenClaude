@@ -25,6 +25,7 @@ import {
 import {
   GameUpdate,
   GameUpdateType,
+  ViewResync,
 } from "@openfront/engine-api/game/GameUpdates";
 import { UnitPredicate } from "@openfront/engine-api/game/ReadViews";
 import {
@@ -43,6 +44,7 @@ import {
   resolveTeamsList,
 } from "@openfront/engine-lib/game/TeamAssignment";
 import { TerraNulliusImpl } from "@openfront/engine-lib/game/TerraNulliusImpl";
+import { GameMapImpl } from "@openfront/engine-lib/game/GameMapImpl";
 import { UnitGrid } from "@openfront/engine-lib/game/UnitGrid";
 import {
   readVersioned,
@@ -596,6 +598,49 @@ export class GameImpl implements Game {
     }
     this._ticks++;
     return this.updates;
+  }
+
+  addViewResyncUpdates(): ViewResync {
+    // Tiles: everything that differs from a freshly loaded map. Appended
+    // after this tick's own deltas, so the current state is what lands last.
+    const state = this._map.tileStateBuffer();
+    for (let tile = 0; tile < state.length; tile++) {
+      if (state[tile] !== 0) this.recordTileUpdate(tile);
+    }
+    for (const tile of (this._map as GameMapImpl).editedTerrainTiles()) {
+      if (state[tile] === 0) this.recordTileUpdate(tile);
+    }
+    // Units: a view only learns of a unit through its updates. Motion plans
+    // were sent once, when each path started, so the view has none: from now
+    // on those units report their moves like any other unit, until their
+    // next plan. Only update emission reads planDrivenUnitIds.
+    for (const unit of this._unitMap.values()) {
+      if (!unit.isActive()) continue;
+      this.planDrivenUnitIds.delete(unit.id());
+      this.addUpdate(unit.toUpdate());
+    }
+    // Railroads: views accumulate them from construction events. In the
+    // order they were built (ids count up), as a view that saw them built.
+    const railroads = new Map<number, TileRef[]>();
+    for (const station of this._railNetwork.stationManager().getAll()) {
+      for (const rail of station.getRailroads()) {
+        railroads.set(rail.id, rail.tiles);
+      }
+    }
+    const byId = [...railroads].sort(([a], [b]) => a - b);
+    for (const [id, tiles] of byId) {
+      this.addUpdate({
+        type: GameUpdateType.RailroadConstructionEvent,
+        id,
+        tiles,
+      });
+    }
+    if (this._isPaused) {
+      this.addUpdate({ type: GameUpdateType.GamePaused, paused: true });
+    }
+    // Players need nothing: lastSentUpdate is not stored, so a restored
+    // player's first update is a full one.
+    return { startTick: this.startTick };
   }
 
   private recordTileUpdate(tile: TileRef): void {

@@ -13,6 +13,7 @@ import {
   UnitType,
 } from "@openfront/engine-api/game/GameTypes";
 import {
+  GameUpdate,
   GameUpdateType,
   GameUpdateViewData,
   KingOfTheHillUpdate,
@@ -54,6 +55,16 @@ import {
 } from "./MotionPlanResolver";
 import { PlayerView } from "./PlayerView";
 import { UnitView } from "./UnitView";
+
+/**
+ * Update types that describe the tick's state rather than something that
+ * happened: a presented tick reports only its own (see updatesSinceLastTick).
+ */
+const PER_TICK_UPDATE_TYPES: ReadonlySet<GameUpdateType> = new Set([
+  GameUpdateType.Unit,
+  GameUpdateType.Player,
+  GameUpdateType.Hash,
+]);
 
 function readCosmeticVisibility(): CosmeticVisibility {
   return new UserSettings().graphicsOverrides().cosmetics ?? {};
@@ -109,6 +120,20 @@ export class GameView implements GameLike {
   private _structuresDirty = false;
   /** True until first populateFrame() — controls full-vs-delta tile upload. */
   private _firstPopulate = true;
+  /**
+   * True after an update() that wasn't presented (see update's `present`):
+   * the renderer missed that tick's deltas, so the next presented frame
+   * re-uploads everything, and the terrain and nuke-impact deltas carry
+   * over until then.
+   */
+  private _framesSkipped = false;
+  /**
+   * The event updates of the ticks applied since the last presented one,
+   * for updatesSinceLastTick() on the next presented tick.
+   */
+  private _skippedEvents: Partial<GameUpdates> | null = null;
+  /** updatesSinceLastTick() when it is more than the last tick's own. */
+  private _presentedUpdates: GameUpdates | null = null;
 
   private _myPlayer: PlayerView | null = null;
 
@@ -217,8 +242,15 @@ export class GameView implements GameLike {
     return this._map.isOnEdgeOfMap(ref);
   }
 
+  /**
+   * The last presented tick's updates. When ticks were applied without being
+   * presented (a catch-up), their events are included too: HUD layers only
+   * tick on presented frames and must not miss an alliance request, a win or
+   * a pause. Unit, player and hash updates are per-tick state, not events;
+   * those are the last tick's only.
+   */
   public updatesSinceLastTick(): GameUpdates | null {
-    return this.lastUpdate?.updates ?? null;
+    return this._presentedUpdates ?? this.lastUpdate?.updates ?? null;
   }
 
   public motionPlans(): ReadonlyMap<number, GridMotionPlan> {
@@ -233,7 +265,18 @@ export class GameView implements GameLike {
     return (this.lastUpdate?.pendingTurns ?? 0) > 1;
   }
 
-  public update(gu: GameUpdateViewData) {
+  /** Turns the worker still had queued after the last applied tick. */
+  public turnsBehind(): number {
+    return Math.max(0, (this.lastUpdate?.pendingTurns ?? 0) - 1);
+  }
+
+  /**
+   * Applies one tick. `present` false means the caller won't upload this
+   * frame or tick the HUD (a catch-up runs many ticks per drawn frame): the
+   * state still advances, and the next presented update makes up for what
+   * the renderer and HUD missed.
+   */
+  public update(gu: GameUpdateViewData, present = true) {
     // Unit set/ownership changes below; rebuild the owner index on demand.
     this._unitsByOwnerStale = true;
 
@@ -246,7 +289,8 @@ export class GameView implements GameLike {
     this.lastUpdate = gu;
 
     this.updatedTiles = [];
-    this.updatedTerrainTiles = [];
+    // A skipped frame's terrain changes haven't reached the renderer yet.
+    if (!this._framesSkipped) this.updatedTerrainTiles = [];
     const packed = this.lastUpdate.packedTileUpdates;
     for (let i = 0; i + 1 < packed.length; i += 2) {
       const tile = packed[i];
@@ -260,7 +304,10 @@ export class GameView implements GameLike {
 
     // Nuke blast-radius tiles (for nukeable layer destruction).
     const packedNukes = gu.packedNukeImpacts;
-    this.nukeImpactTiles = packedNukes ? Array.from(packedNukes) : [];
+    if (!this._framesSkipped) this.nukeImpactTiles = [];
+    if (packedNukes) {
+      for (const tile of packedNukes) this.nukeImpactTiles.push(tile);
+    }
 
     if (gu.packedMotionPlans) {
       this.motion.applyRecords(unpackMotionPlans(gu.packedMotionPlans));
@@ -269,6 +316,11 @@ export class GameView implements GameLike {
     if (gu.updates === null) {
       throw new Error("lastUpdate.updates not initialized");
     }
+
+    if (gu.viewResync !== undefined) {
+      this.startTick = gu.viewResync.startTick;
+    }
+    this.collectEvents(gu.updates, present);
 
     const spawnPhaseEndUpdate = gu.updates[GameUpdateType.SpawnPhaseEnd][0] as
       | SpawnPhaseEndUpdate
@@ -454,7 +506,35 @@ export class GameView implements GameLike {
 
     this.motion.advance(gu.tick, this.plannedUnits);
 
-    this.populateFrame(gu);
+    this.populateFrame(gu, present);
+  }
+
+  /** Keeps the events of unpresented ticks for the next presented one. */
+  private collectEvents(updates: GameUpdates, present: boolean): void {
+    const skipped = this._skippedEvents;
+    if (skipped === null && present) {
+      this._presentedUpdates = null;
+      return;
+    }
+    const acc = skipped ?? {};
+    for (const key of Object.keys(updates)) {
+      const type = Number(key) as GameUpdateType;
+      if (PER_TICK_UPDATE_TYPES.has(type)) continue;
+      const list = updates[type] as GameUpdate[];
+      if (list.length === 0) continue;
+      const into = ((acc as Record<number, GameUpdate[]>)[type] ??= []);
+      for (const u of list) into.push(u);
+    }
+    if (!present) {
+      this._skippedEvents = acc;
+      return;
+    }
+    this._skippedEvents = null;
+    const merged = { ...updates } as Record<number, GameUpdate[]>;
+    for (const key of Object.keys(acc)) {
+      merged[Number(key)] = (acc as Record<number, GameUpdate[]>)[Number(key)];
+    }
+    this._presentedUpdates = merged as GameUpdates;
   }
 
   // ── FrameData population ────────────────────────────────────────────────
@@ -464,7 +544,7 @@ export class GameView implements GameLike {
    * state. Runs at the end of update() once all engine-driven mutations are
    * complete. Mutates _frame fields in place; never reassigns them.
    */
-  private populateFrame(gu: GameUpdateViewData): void {
+  private populateFrame(gu: GameUpdateViewData, present: boolean): void {
     // Reset trail dirty markers for this tick. The trailManager.update() pass
     // below repaints rows and re-sets these as it goes.
     this.trailManager.clearDirtyRows();
@@ -490,6 +570,14 @@ export class GameView implements GameLike {
       this._unitStates as Map<number, import("../render/types").UnitState>,
       this._trailIdsScratch,
     );
+
+    // Everything below only feeds the renderer: skip it for a frame nobody
+    // draws. The dirty flags it would clear (names, relations, clusters,
+    // structures, railroads) stay set until the next presented frame.
+    if (!present) {
+      this._framesSkipped = true;
+      return;
+    }
 
     // Names map — rebuilt only when a placement record arrived or a player
     // was added (nameData values cannot change between those ticks). Entry
@@ -584,10 +672,13 @@ export class GameView implements GameLike {
     // First populate: signal "full upload required" by nulling changedTiles.
     // uploadFrameData() treats null as "no delta info; do a full tile+trail
     // upload" — needed because the renderer's GPU buffers are empty.
-    if (this._firstPopulate) {
+    // Likewise after skipped frames: their tile and trail deltas never
+    // reached the GPU.
+    if (this._firstPopulate || this._framesSkipped) {
       f.changedTiles = null;
       f.structuresDirty = true; // force initial structure upload
       this._firstPopulate = false;
+      this._framesSkipped = false;
     } else {
       // Live reference to this tick's changed refs — consumers copy what
       // they keep (TerritoryPass buckets them synchronously in the upload).

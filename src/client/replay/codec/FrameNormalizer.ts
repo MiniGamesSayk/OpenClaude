@@ -109,6 +109,8 @@ export const VIEW_DATA_ROUTING: Record<
   packedNukeImpacts: "events",
   tickExecutionDuration: "dropped",
   pendingTurns: "dropped",
+  // Only on a runner restored from a snapshot; replays run from tick 0.
+  viewResync: "dropped",
 };
 
 export interface NormalizedFrame {

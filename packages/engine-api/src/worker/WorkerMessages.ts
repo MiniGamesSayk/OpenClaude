@@ -201,6 +201,11 @@ export interface SnapshotResultMessage extends BaseWorkerMessage {
   type: "snapshot_result";
   /** Uncompressed; null if the snapshot failed (see the worker log). */
   snapshot: Uint8Array | null;
+  /**
+   * The snapshot's tick: the turns it already holds, so the number of the
+   * first turn a runner restored from it needs.
+   */
+  tick?: number;
 }
 
 export interface HumanStatsMessage extends BaseWorkerMessage {
