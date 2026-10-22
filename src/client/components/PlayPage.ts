@@ -3,6 +3,7 @@ import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import "./CosmeticBackground";
 import "./NavUtilityIcons";
+import "../SaykAccount";
 import "./NewsBox";
 
 @customElement("play-page")
@@ -97,6 +98,7 @@ export class PlayPage extends LitElement {
                 ></username-input>
               </div>
             </div>
+            <sayk-account></sayk-account>
           </div>
         </div>
 

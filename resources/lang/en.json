@@ -1231,6 +1231,14 @@
     "unverified": "This game's record has no checks, so this replay couldn't be verified against the game that was played.",
     "watch_classic": "Watch the old replay instead"
   },
+  "sayk_account": {
+    "error": "Discord login failed. Try again.",
+    "hint": "Keep your settings, username and stats on every device.",
+    "logged_as": "Logged in: {name}",
+    "login": "Log in with Discord",
+    "logout": "Log out",
+    "stats": "{games} games · {wins} wins"
+  },
   "select_lang": {
     "title": "Select Language"
   },

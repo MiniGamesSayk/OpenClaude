@@ -79,6 +79,7 @@ import { identityFor, MatchTelemetryRecorder } from "./MatchTelemetryRecorder";
 import { friendsLookup, NameVisibility } from "./NameVisibility";
 import { poolTargetFor } from "./PoolRouting";
 import { Roster } from "./Roster";
+import { SaykPlayer, saykAccounts, saykResults } from "./SaykAccount";
 import { ServerEnv } from "./ServerEnv";
 import { SocketIngress } from "./SocketIngress";
 import {
@@ -2091,6 +2092,25 @@ export class GameServer {
       });
   }
 
+  // Bilan de fin de partie des joueurs connectés à un compte sayk.fr.
+  private reportSaykStats(
+    winner: { winner?: Winner; allPlayersStats: AllPlayersStats } | null,
+    statsAgreed: boolean,
+    endTime: number,
+  ) {
+    const accounts = saykAccounts();
+    if (accounts === null) return;
+    const players: SaykPlayer[] = [];
+    for (const player of this.gameStartInfo.players) {
+      const userId = this.clients.get(player.clientID)?.saykUserId;
+      if (userId) players.push({ clientID: player.clientID, userId });
+    }
+    const duration = this._startTime ? endTime - this._startTime : 0;
+    for (const r of saykResults(players, winner, statsAgreed, duration)) {
+      accounts.report(r.userId, r.add, r.max);
+    }
+  }
+
   private archiveGame(
     winner: { winner?: Winner; allPlayersStats: AllPlayersStats } | null,
     // See GameEndInfoSchema.statsAgreed and settleWinner.
@@ -2130,6 +2150,7 @@ export class GameServer {
         } satisfies PlayerRecord;
       },
     );
+    this.reportSaykStats(winner, statsAgreed, endTime);
     this.telemetry.noteArchiveAttempted();
     this.deps.archive(
       createPartialGameRecord(

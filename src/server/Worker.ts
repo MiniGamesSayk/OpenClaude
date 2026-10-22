@@ -52,6 +52,7 @@ import { ServerEnv } from "./ServerEnv";
 import { SingleplayerPresence } from "./SingleplayerPresence";
 import { applyStaticAssetCacheControl } from "./StaticAssetCache";
 import { createMatchTelemetryEmitter } from "./telemetry/BufferedMatchTelemetryEmitter";
+import { saykAccounts } from "./SaykAccount";
 import { MAX_WEBSOCKET_PAYLOAD_BYTES } from "./telemetry/MatchTelemetryConfig";
 import { WorkerLobbyService } from "./WorkerLobbyService";
 import { initWorkerMetrics } from "./WorkerMetrics";
@@ -841,6 +842,10 @@ export async function startWorker() {
           );
         }
 
+        // Compte sayk.fr éventuel (cookie de session partagé), vérifié auprès du
+        // service de comptes ; anonyme si absent, invalide ou injoignable.
+        const saykUserId = await saykAccounts()?.resolve(req.headers.cookie);
+
         // Create client and add to game
         const client = new Client(
           generateID(),
@@ -860,6 +865,8 @@ export async function startWorker() {
           clientMsg.platform,
           levelBadge,
         );
+
+        if (saykUserId) client.saykUserId = saykUserId;
 
         const joinResult = gm.joinClient(client, clientMsg.gameID);
 

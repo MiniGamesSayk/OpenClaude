@@ -71,6 +71,12 @@ export class UsernameInput extends LitElement {
     }
   }
 
+  /** Relit le pseudo et le clan depuis le stockage (après une synchronisation de compte). */
+  public reloadFromStorage(): void {
+    this.loadStoredUsername();
+    this.requestUpdate();
+  }
+
   /** The name this player will play under. */
   public getUsername(): string {
     return this.baseUsername.trim();

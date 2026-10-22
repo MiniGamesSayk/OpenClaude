@@ -11,6 +11,9 @@ import WebSocket from "ws";
 export class Client {
   public lastPing: number = Date.now();
 
+  // Compte sayk.fr vérifié au join (cookie de session), absent si anonyme.
+  public saykUserId: string | undefined;
+
   public hashes: Map<Tick, number> = new Map();
 
   // This client's winner vote, keyed on winner and stats (Consensus.voteKey).

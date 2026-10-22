@@ -1872,6 +1872,14 @@
   "rewards_modal": {
     "title": "Récompenses"
   },
+  "sayk_account": {
+    "error": "Connexion Discord impossible. Réessaie.",
+    "hint": "Retrouve tes réglages, ton pseudo et tes stats partout.",
+    "logged_as": "Connecté : {name}",
+    "login": "Se connecter avec Discord",
+    "logout": "Déconnexion",
+    "stats": "{games} parties · {wins} victoires"
+  },
   "select_lang": {
     "title": "Sélectionner une langue"
   },

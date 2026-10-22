@@ -288,8 +288,52 @@ function parseLoadout(value: unknown): CosmeticLoadout | null {
   };
 }
 
+const DEVICE_KEYS: readonly string[] = [
+  "settings.graphics",
+  "settings.graphicsPresets",
+  "settings.lowSpecMode",
+  "settings.performanceOverlay",
+  "settings.cosmeticLoadouts",
+  "settings.activeLoadout",
+  "settings.tutorialDismissed",
+];
+
+function isSyncedKey(key: string): boolean {
+  return key.startsWith("settings.") && !DEVICE_KEYS.includes(key);
+}
+
 export class UserSettings {
   private static cache = new Map<string, string | null>();
+
+  /**
+   * Réglages qui suivent le compte sayk.fr: toutes les clés `settings.*`, sauf
+   * celles qui dépendent de l'appareil (graphismes, mode économe) ou des
+   * cosmétiques, déjà rangés par joueur.
+   */
+  static syncedSnapshot(): Record<string, string> {
+    const out: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key === null || !isSyncedKey(key)) continue;
+        const value = localStorage.getItem(key);
+        if (value !== null) out[key] = value;
+      }
+    } catch {
+      // Stockage indisponible: rien à synchroniser.
+    }
+    return out;
+  }
+
+  /** Applique des réglages venus du compte, comme si le joueur les avait choisis. */
+  static applySynced(entries: Record<string, unknown>): void {
+    const settings = new UserSettings();
+    for (const [key, value] of Object.entries(entries)) {
+      if (typeof value !== "string" || !isSyncedKey(key)) continue;
+      if (settings.getCached(key) === value) continue;
+      settings.setCached(key, value);
+    }
+  }
   /** publicId of the logged-in player, or null when logged out. */
   private static playerId: string | null = null;
   /** Set while applyLoadout writes, to stop the mirror writing back. */
